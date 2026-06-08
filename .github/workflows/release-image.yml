@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/antoniolg/postflow
+  IMAGE_NAME: ghcr.io/saredigital/sarepost
 
 jobs:
   build-and-push:

@@ -17,7 +17,7 @@ env:
   BIN_NAME: postflow
   FORMULA_NAME: postflow
   HOMEBREW_TAP_REPO: antoniolg/homebrew-tap
-  GH_REPO: antoniolg/postflow
+  GH_REPO: saredigital/sarepost
 
 jobs:
   build-release-cli:
