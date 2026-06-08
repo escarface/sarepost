@@ -41,7 +41,7 @@ func TestMCPStreamableHTTPExposesToolsAndCreatesPost(t *testing.T) {
 		t.Fatalf("expected initialize status 200, got %d: %s", initializeResp.StatusCode, string(initializeRaw))
 	}
 	sessionID := strings.TrimSpace(initializeResp.Header.Get("Mcp-Session-Id"))
-	if !strings.Contains(string(initializeRaw), "postflow-mcp") {
+	if !strings.Contains(string(initializeRaw), "sarepost-mcp") {
 		t.Fatalf("expected initialize response to include postflow server info")
 	}
 
@@ -402,7 +402,7 @@ func TestMCPInitializeAcceptJSONOnly(t *testing.T) {
 	if strings.TrimSpace(initializeResp.Header.Get("Mcp-Session-Id")) == "" {
 		t.Fatalf("expected initialize response to include MCP session id")
 	}
-	if !strings.Contains(string(initializeRaw), "postflow-mcp") {
+	if !strings.Contains(string(initializeRaw), "sarepost-mcp") {
 		t.Fatalf("expected initialize response to include postflow server info")
 	}
 }
@@ -428,7 +428,7 @@ func TestMCPInitializeAcceptJSONWithCharset(t *testing.T) {
 	if strings.TrimSpace(initializeResp.Header.Get("Mcp-Session-Id")) == "" {
 		t.Fatalf("expected initialize response to include MCP session id")
 	}
-	if !strings.Contains(string(initializeRaw), "postflow-mcp") {
+	if !strings.Contains(string(initializeRaw), "sarepost-mcp") {
 		t.Fatalf("expected initialize response to include postflow server info")
 	}
 }
@@ -491,7 +491,7 @@ func TestMCPTrailingSlashEndpointAcceptsInitialize(t *testing.T) {
 	if strings.TrimSpace(initializeResp.Header.Get("Mcp-Session-Id")) == "" {
 		t.Fatalf("expected initialize response to include MCP session id")
 	}
-	if !strings.Contains(string(initializeRaw), "postflow-mcp") {
+	if !strings.Contains(string(initializeRaw), "sarepost-mcp") {
 		t.Fatalf("expected initialize response to include postflow server info")
 	}
 }

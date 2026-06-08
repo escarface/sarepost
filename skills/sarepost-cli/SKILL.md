@@ -1,6 +1,6 @@
 ---
 name: sarepost-cli
-description: Use the postflow CLI to manage scheduled posts, validate/create posts, and operate DLQ entries against the Sarepost HTTP API.
+description: Use the postflow CLI to manage scheduled posts, validate/create posts, and operate DLQ entries against the Sarepost HTTP API. Use when the user asks to inspect schedule, create posts, or requeue failed publications quickly from terminal.
 ---
 
 # Sarepost CLI

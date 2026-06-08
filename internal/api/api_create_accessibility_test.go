@@ -76,7 +76,7 @@ func TestAccessibilityMarkupAddsLabelsAndLandmarks(t *testing.T) {
 	if !strings.Contains(calendarBody, "href=\"/assets/icons/favicon.ico\"") {
 		t.Fatalf("expected favicon link in html head")
 	}
-	if !strings.Contains(calendarBody, "src=\"/assets/icons/postflow-logo-header-transparent-64.png\"") {
+	if !strings.Contains(calendarBody, "src=\"/assets/icons/sarepost-logo-header-transparent-64.png\"") {
 		t.Fatalf("expected sidebar logo image")
 	}
 	if !strings.Contains(calendarBody, "<aside class=\"day-panel\" aria-label=\"Day detail\">") {

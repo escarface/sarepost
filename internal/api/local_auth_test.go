@@ -327,7 +327,7 @@ func TestLocalOAuthAuthorizationCodeFlowUnlocksMCP(t *testing.T) {
 		t.Fatalf("expected mcp initialize over oauth bearer to succeed, got %d body=%s", resp.StatusCode, string(body))
 	}
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "postflow-mcp") {
+	if !strings.Contains(string(body), "sarepost-mcp") {
 		t.Fatalf("expected initialize response to include postflow server info")
 	}
 
