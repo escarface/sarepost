@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PostFlow · {{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{t "header.new_post"}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else}}{{t "header.scheduled"}}{{end}}</title>
+  <title>SareDigital · {{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{t "header.new_post"}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else}}{{t "header.scheduled"}}{{end}}</title>
   <meta name="theme-color" content="#1a1a1a" />
   <link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png" />
@@ -3972,7 +3972,7 @@
     <aside class="sidebar" aria-label="{{t "aria.primary_navigation"}}">
       <div class="logo">
         <img class="logo-mark" src="/assets/icons/postflow-logo-header-transparent-64.png" alt="" aria-hidden="true" />
-        <span>PostFlow</span>
+        <span>SareDigital</span>
       </div>
       <nav class="nav">
         <a class="nav-item {{if eq .ActiveNavView "calendar"}}active{{end}}" href="/?view=calendar&month={{.CurrentMonthParam}}&day={{.SelectedDayKey}}">

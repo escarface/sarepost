@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 const (

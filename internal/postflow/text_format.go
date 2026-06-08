@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/antoniolg/postflow/internal/textfmt"
+	"github.com/saredigital/sarepost/internal/textfmt"
 )
 
 func formatPostTextForPublish(raw string) string {

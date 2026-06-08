@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/db"
+	"github.com/saredigital/sarepost/internal/db"
 )
 
 const (

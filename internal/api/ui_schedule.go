@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	notificationsapp "github.com/antoniolg/postflow/internal/application/notifications"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/textfmt"
+	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/textfmt"
 )
 
 func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {

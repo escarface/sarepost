@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/antoniolg/postflow/internal/db"
+	"github.com/saredigital/sarepost/internal/db"
 )
 
 const (

@@ -3,7 +3,7 @@ package api
 import (
 	"strings"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 type calendarEventGroupState struct {

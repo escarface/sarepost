@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/db"
+	"github.com/saredigital/sarepost/internal/db"
 )
 
 func TestCreatePostValidation(t *testing.T) {

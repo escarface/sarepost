@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 func (s *Store) CreatePost(ctx context.Context, params CreatePostParams) (CreatePostResult, error) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 func (s *Store) ListDeadLetters(ctx context.Context, limit int) ([]domain.DeadLetter, error) {

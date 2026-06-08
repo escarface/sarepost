@@ -51,7 +51,7 @@ func runSettingsSetSMTP(ctx context.Context, client *APIClient, cfg config, args
 	password := fs.String("password", "", "SMTP password")
 	from := fs.String("from", "", "sender email address")
 	to := fs.String("to", "", "recipient email address")
-	subjectPrefix := fs.String("subject-prefix", "PostFlow publish failed", "email subject prefix")
+	subjectPrefix := fs.String("subject-prefix", "SareDigital publish failed", "email subject prefix")
 	useTLS := fs.Bool("tls", false, "use implicit TLS, usually port 465")
 	startTLS := fs.Bool("starttls", true, "use STARTTLS, usually port 587")
 	if err := fs.Parse(args); err != nil {

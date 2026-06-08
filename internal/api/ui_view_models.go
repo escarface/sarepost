@@ -3,8 +3,8 @@ package api
 import (
 	"time"
 
-	notificationsapp "github.com/antoniolg/postflow/internal/application/notifications"
-	"github.com/antoniolg/postflow/internal/domain"
+	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 type settingsAccountItem struct {

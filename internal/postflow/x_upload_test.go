@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 func TestUploadChunkedOAuth2UsesV2Endpoints(t *testing.T) {

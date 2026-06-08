@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	notificationsapp "github.com/antoniolg/postflow/internal/application/notifications"
+	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

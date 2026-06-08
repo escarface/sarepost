@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/db"
+	"github.com/saredigital/sarepost/internal/db"
 )
 
 func TestCalendarShowsVisibleSpilloverDayPublications(t *testing.T) {

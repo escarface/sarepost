@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/antoniolg/postflow/internal/cli"
+	"github.com/saredigital/sarepost/internal/cli"
 )
 
 func main() {

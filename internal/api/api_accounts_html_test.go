@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	notificationsapp "github.com/antoniolg/postflow/internal/application/notifications"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/postflow"
+	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/postflow"
 )
 
 type fakeSMTPSender struct {

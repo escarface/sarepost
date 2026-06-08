@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	postsapp "github.com/antoniolg/postflow/internal/application/posts"
+	postsapp "github.com/saredigital/sarepost/internal/application/posts"
 )
 
 const Version = "dev"
@@ -161,8 +161,8 @@ func parseGlobalArgs(args []string, stdout, stderr io.Writer) (config, []string,
 
 	fs := flag.NewFlagSet("postflow", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.StringVar(&cfg.baseURL, "base-url", cfg.baseURL, "PostFlow API base URL")
-	fs.StringVar(&cfg.token, "api-token", cfg.token, "PostFlow API token (or env POSTFLOW_API_TOKEN)")
+	fs.StringVar(&cfg.baseURL, "base-url", cfg.baseURL, "SareDigital API base URL")
+	fs.StringVar(&cfg.token, "api-token", cfg.token, "SareDigital API token (or env POSTFLOW_API_TOKEN)")
 	fs.DurationVar(&cfg.timeout, "timeout", cfg.timeout, "HTTP timeout (e.g. 10s)")
 	fs.BoolVar(&cfg.asJSON, "json", false, "Print raw JSON output")
 	showVersion := fs.Bool("version", false, "Print version")
@@ -598,13 +598,13 @@ func envOrDefault(key, fallback string) string {
 }
 
 func printHelp(w io.Writer) {
-	fmt.Fprintln(w, `postflow - CLI for PostFlow HTTP API
+	fmt.Fprintln(w, `postflow - CLI for SareDigital HTTP API
 
 Usage:
   postflow [global flags] <command> [subcommand] [flags]
 
 Global flags:
-  --base-url string      PostFlow API base URL (default: $POSTFLOW_BASE_URL or http://localhost:8080)
+  --base-url string      SareDigital API base URL (default: $POSTFLOW_BASE_URL or http://localhost:8080)
   --api-token string     API token (default: $POSTFLOW_API_TOKEN)
   --timeout duration     HTTP timeout (default: 15s)
   --json                 Print raw JSON output

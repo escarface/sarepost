@@ -3,9 +3,9 @@ package parity_test
 import (
 	"testing"
 
-	"github.com/antoniolg/postflow/internal/api"
-	"github.com/antoniolg/postflow/internal/capabilities"
-	"github.com/antoniolg/postflow/internal/cli"
+	"github.com/saredigital/sarepost/internal/api"
+	"github.com/saredigital/sarepost/internal/capabilities"
+	"github.com/saredigital/sarepost/internal/cli"
 )
 
 func TestRequiredCapabilitiesHaveParityAcrossSurfaces(t *testing.T) {

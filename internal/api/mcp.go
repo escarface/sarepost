@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	dlqapp "github.com/antoniolg/postflow/internal/application/dlq"
-	postsapp "github.com/antoniolg/postflow/internal/application/posts"
-	"github.com/antoniolg/postflow/internal/domain"
+	dlqapp "github.com/saredigital/sarepost/internal/application/dlq"
+	postsapp "github.com/saredigital/sarepost/internal/application/posts"
+	"github.com/saredigital/sarepost/internal/domain"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -28,7 +28,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_health",
-		Description: "Health check for the PostFlow service.",
+		Description: "Health check for the SareDigital service.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint:   true,
 			IdempotentHint: true,

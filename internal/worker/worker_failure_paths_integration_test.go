@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/application/ports"
-	publishcycle "github.com/antoniolg/postflow/internal/application/publishcycle"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/postflow"
+	"github.com/saredigital/sarepost/internal/application/ports"
+	publishcycle "github.com/saredigital/sarepost/internal/application/publishcycle"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/postflow"
 )
 
 func TestWorkerFailurePathMissingProviderMovesPostToFailed(t *testing.T) {

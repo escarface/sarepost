@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"time"
 
-	notificationsapp "github.com/antoniolg/postflow/internal/application/notifications"
-	publishcycle "github.com/antoniolg/postflow/internal/application/publishcycle"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/postflow"
-	"github.com/antoniolg/postflow/internal/secure"
+	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
+	publishcycle "github.com/saredigital/sarepost/internal/application/publishcycle"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/postflow"
+	"github.com/saredigital/sarepost/internal/secure"
 )
 
 type Worker struct {

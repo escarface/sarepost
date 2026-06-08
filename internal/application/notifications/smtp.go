@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/application/ports"
-	"github.com/antoniolg/postflow/internal/secure"
+	"github.com/saredigital/sarepost/internal/application/ports"
+	"github.com/saredigital/sarepost/internal/secure"
 )
 
 const SettingSMTPNotifications = "notifications.smtp"

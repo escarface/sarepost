@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	postsapp "github.com/antoniolg/postflow/internal/application/posts"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
+	postsapp "github.com/saredigital/sarepost/internal/application/posts"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 type createPostRequest struct {

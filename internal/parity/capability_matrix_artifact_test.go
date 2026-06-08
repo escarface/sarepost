@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/capabilities"
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/capabilities"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 type matrixSurfaceResult struct {

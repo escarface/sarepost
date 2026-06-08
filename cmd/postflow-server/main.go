@@ -13,14 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/api"
-	"github.com/antoniolg/postflow/internal/config"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/observability"
-	"github.com/antoniolg/postflow/internal/postflow"
-	"github.com/antoniolg/postflow/internal/secure"
-	"github.com/antoniolg/postflow/internal/worker"
+	"github.com/saredigital/sarepost/internal/api"
+	"github.com/saredigital/sarepost/internal/config"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/observability"
+	"github.com/saredigital/sarepost/internal/postflow"
+	"github.com/saredigital/sarepost/internal/secure"
+	"github.com/saredigital/sarepost/internal/worker"
 )
 
 var Version = "dev"

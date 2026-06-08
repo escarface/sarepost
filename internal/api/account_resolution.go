@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 func (s Server) resolveTargetAccount(ctx context.Context, accountIDRaw string) (domain.SocialAccount, error) {

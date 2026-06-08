@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 func TestExtractFirstURL(t *testing.T) {

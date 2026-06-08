@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 type logicalThreadState struct {

@@ -1,4 +1,4 @@
-module github.com/antoniolg/postflow
+module github.com/saredigital/sarepost
 
 go 1.26.3
 

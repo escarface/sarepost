@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/api"
-	"github.com/antoniolg/postflow/internal/cli"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/postflow"
+	"github.com/saredigital/sarepost/internal/api"
+	"github.com/saredigital/sarepost/internal/cli"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/postflow"
 )
 
 type parityEnv struct {

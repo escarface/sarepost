@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	dlqapp "github.com/antoniolg/postflow/internal/application/dlq"
-	notificationsapp "github.com/antoniolg/postflow/internal/application/notifications"
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/postflow"
-	"github.com/antoniolg/postflow/internal/secure"
+	dlqapp "github.com/saredigital/sarepost/internal/application/dlq"
+	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/postflow"
+	"github.com/saredigital/sarepost/internal/secure"
 )
 
 type Server struct {

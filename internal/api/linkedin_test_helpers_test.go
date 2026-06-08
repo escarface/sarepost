@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/antoniolg/postflow/internal/domain"
-	"github.com/antoniolg/postflow/internal/postflow"
+	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/saredigital/sarepost/internal/postflow"
 )
 
 func testRegistryWithRealLinkedIn() *postflow.ProviderRegistry {

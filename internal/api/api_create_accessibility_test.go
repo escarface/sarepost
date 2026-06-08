@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniolg/postflow/internal/db"
-	"github.com/antoniolg/postflow/internal/domain"
+	"github.com/saredigital/sarepost/internal/db"
+	"github.com/saredigital/sarepost/internal/domain"
 )
 
 func TestAccessibilityMarkupAddsLabelsAndLandmarks(t *testing.T) {
