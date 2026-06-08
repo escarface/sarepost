@@ -22,7 +22,7 @@ const (
 
 func (s Server) newMCPHandler() http.Handler {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "postflow-mcp",
+		Name:    "sarepost-mcp",
 		Version: s.appVersion(),
 	}, nil)
 

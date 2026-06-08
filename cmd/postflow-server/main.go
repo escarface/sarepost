@@ -114,7 +114,7 @@ func main() {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}()
 
-	slog.Info("postflow listening", "addr", ":"+cfg.Port, "log_level", cfg.LogLevel)
+	slog.Info("sarepost listening", "addr", ":"+cfg.Port, "log_level", cfg.LogLevel)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("http server failed", "error", err)
 		os.Exit(1)

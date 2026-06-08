@@ -1,13 +1,13 @@
 ---
-name: postflow-cli
-description: Use the postflow CLI to manage scheduled posts, validate/create posts, and operate DLQ entries against the PostFlow HTTP API. Use when the user asks to inspect schedule, create posts, or requeue failed publications quickly from terminal.
+name: sarepost-cli
+description: Use the postflow CLI to manage scheduled posts, validate/create posts, and operate DLQ entries against the Sarepost HTTP API.
 ---
 
-# PostFlow CLI
+# Sarepost CLI
 
-Use this skill to operate PostFlow from terminal via `postflow` (HTTP API, no MCP required).
+Use this skill to operate Sarepost from terminal via `postflow` (HTTP API, no MCP required).
 
-For Antonio's workflows, this is the canonical/default path for social publishing. Prefer the CLI over direct API calls unless you are debugging a CLI failure.
+Prefer the CLI over direct API calls unless you are debugging a CLI failure.
 
 ## Requirements
 
@@ -125,7 +125,7 @@ go run ./cmd/postflow dlq requeue --id dlq_xxx
 - For operational inspection (`drafts list`, `schedule list`, status checks), use `--json` first, even for manual investigations. It avoids ambiguity around state, ids, timestamps, and per-platform entries.
 - `schedule list` returns grouped publications by default. Use `--view posts` when you need raw per-post thread metadata (`thread_group_id`, `thread_position`, `parent_post_id`, `root_post_id`).
 - Prefer `--json` when output is consumed by scripts or further tooling.
-- PostFlow preserves classic Markdown emphasis in post text. When the copy needs emphasis, keep `**bold**` and `*italic*` in the payload instead of stripping them.
+- Sarepost preserves classic Markdown emphasis in post text. When the copy needs emphasis, keep `**bold**` and `*italic*` in the payload instead of stripping them.
 - Use `--idempotency-key` for retries/replays of `posts create`.
 - Keep timestamps in RFC3339 for CLI/API consistency.
 - Use `--segments-json` when the user asks for "first comment", "next comment", "thread", or multiple steps in one publication.

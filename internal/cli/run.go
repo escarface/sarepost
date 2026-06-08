@@ -598,7 +598,7 @@ func envOrDefault(key, fallback string) string {
 }
 
 func printHelp(w io.Writer) {
-	fmt.Fprintln(w, `postflow - CLI for SareDigital HTTP API
+	fmt.Fprintln(w, `postflow - CLI for Sarepost HTTP API
 
 Usage:
   postflow [global flags] <command> [subcommand] [flags]
