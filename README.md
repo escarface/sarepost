@@ -1,22 +1,51 @@
-# postflow
+# Sarepost
 
-> ⚠️ **Disclaimer**: postflow is in active development. It is not tested enough yet to guarantee correct behavior in all scenarios. Use at your own risk.
+A lightweight, self-hosted social publishing service with a Web UI, HTTP API, MCP endpoint, and CLI. Schedule, validate, and publish posts across X (Twitter), LinkedIn, Facebook, and Instagram — from a single place.
 
-postflow is a lightweight social publishing service with:
-- Web UI
-- HTTP API
-- MCP endpoint (Streamable HTTP)
-- CLI (`postflow`)
+Built in Go with SQLite. LLM-first: every capability is consistently exposed through the API, MCP, and CLI surfaces.
 
-This README is a **basic setup guide**.
+---
 
-## 1) Local Setup (5 minutes)
+## Features
 
-### Requirements
-- Go 1.26.1+
-- Optional: Homebrew (for installing CLI binary)
+- **Multi-platform publishing** — X, LinkedIn (profiles + company pages), Facebook, and Instagram
+- **Thread/thread support** — create root posts with follow-up replies or comments
+- **Media management** — upload images and video, attach to posts
+- **Scheduling** — set posts to publish at a future date and time
+- **Draft workflow** — create posts as drafts, validate, then schedule
+- **Dead-letter queue** — inspect and requeue failed publications
+- **OAuth account connection** — connect social accounts via standard OAuth flows
+- **MCP endpoint** — expose publishing tools to LLMs (Claude, Codex, ChatGPT)
+- **CLI** — manage posts, accounts, media, and settings from the terminal
+- **SMTP failure notifications** — get email alerts when a post fails to publish
+- **Encrypted secrets** — passwords and tokens stored with AES-GCM encryption
+- **Single-binary** — one executable with embedded SQLite, zero external dependencies
 
-### Start locally
+---
+
+## Architecture
+
+Sarepost is a **modular monolith** with a clean application layer:
+
+```
+cmd/              → entrypoints (server, CLI)
+internal/api      → HTTP + MCP adapters
+internal/cli      → CLI adapter
+internal/worker   → background publishing runtime
+internal/application → business use cases (posts, media, DLQ, notifications)
+internal/db       → SQLite persistence
+internal/postflow → provider SDK clients (X, LinkedIn, Meta)
+internal/secure   → encryption
+internal/domain   → entities and enums
+```
+
+See [`docs/architecture.md`](docs/architecture.md) for layer rules and design decisions.
+
+---
+
+## Quick Start
+
+**Requirements:** Go 1.26+
 
 ```bash
 git clone https://github.com/escarface/sarepost.git
@@ -24,168 +53,98 @@ cd sarepost
 cp .env.example .env
 ```
 
-Generate required secrets:
+Generate secrets:
 
 ```bash
-# 32-byte base64 key (required)
+# 32-byte base64 master key (required)
 openssl rand -base64 32
 
-# API token (recommended)
+# API token (recommended for CLI/MCP clients)
 openssl rand -hex 32
+
+# Owner password hash for the web UI login
+go run ./scripts/hash-password.go 'your-password-here'
 ```
 
-Put those values in `.env`:
+Edit `.env`:
 
 ```dotenv
+PORT=8080
 POSTFLOW_MASTER_KEY=<base64-from-openssl>
 API_TOKEN=<hex-token>
 PUBLIC_BASE_URL=http://localhost:8080
 OWNER_EMAIL=owner@example.com
-OWNER_PASSWORD_HASH=<bcrypt-hash>
+OWNER_PASSWORD_HASH='$2a$10$...'
 POSTFLOW_DRIVER=mock
 ```
 
-Generate `OWNER_PASSWORD_HASH` with the helper script in this repo:
+> **Note:** `POSTFLOW_DRIVER=mock` simulates publishing without hitting real APIs. Set to `live` when ready to publish.
 
-```bash
-go run ./scripts/hash-password.go 'replace-with-your-password'
-```
-
-If you store it in a local `.env`, quote the value because bcrypt hashes contain `$`:
-
-```dotenv
-OWNER_PASSWORD_HASH='$2a$10$...'
-```
-
-Run:
+Start the server:
 
 ```bash
 go run ./cmd/postflow-server
 ```
 
 Open:
-- UI: `http://localhost:8080`
-- MCP: `http://localhost:8080/mcp`
+- **Web UI:** `http://localhost:8080`
+- **MCP endpoint:** `http://localhost:8080/mcp`
 
 ---
 
-## 2) Environment Variables (and where to get them)
+## Environment Variables
 
-Use `.env.example` as template. These are the key ones:
+### Core
 
-### Core (recommended in all setups)
-
-| Variable | Required | Where it comes from |
-|---|---:|---|
-| `POSTFLOW_MASTER_KEY` | Yes | Generate locally: `openssl rand -base64 32` |
-| `API_TOKEN` | Recommended | Generate locally (random token), kept for API/MCP auth for CLI, Codex, Claude, and other legacy clients |
-| `OWNER_EMAIL` | Recommended for UI/ChatGPT | Owner email for the single-user local login |
-| `OWNER_PASSWORD_HASH` | Recommended for UI/ChatGPT | Bcrypt hash for the owner password |
-| `PUBLIC_BASE_URL` | Yes for OAuth and Instagram media URLs | Your app URL (`http://localhost:8080` locally, your public HTTPS domain in prod) |
-| `UI_BASIC_USER` / `UI_BASIC_PASS` | Temporary compatibility only | Optional legacy Basic Auth fallback for the UI |
-
-### Storage/runtime
-
-| Variable | Default | Notes |
+| Variable | Required | Description |
 |---|---|---|
-| `PORT` | `8080` | HTTP port |
-| `DATABASE_PATH` | `postflow.db` | SQLite DB path |
-| `DATA_DIR` | `data` | Uploaded media path |
+| `POSTFLOW_MASTER_KEY` | Yes | 32-byte base64 key for encrypting secrets |
+| `API_TOKEN` | Recommended | Bearer token for API, CLI, and MCP auth |
+| `OWNER_EMAIL` | For web UI | Email for single-user local login |
+| `OWNER_PASSWORD_HASH` | For web UI | Bcrypt hash of the owner password |
+| `PUBLIC_BASE_URL` | For OAuth + media | Public URL of the deployment |
+| `PORT` | No (default: `8080`) | HTTP port |
+| `DATABASE_PATH` | No (default: `postflow.db`) | SQLite database file path |
+| `DATA_DIR` | No (default: `data`) | Uploaded media storage directory |
 
-### Network credentials (only if you use that network)
+### Social network credentials
 
-| Network | Variables | Where to get them |
+| Network | Variables | Source |
 |---|---|---|
-| X | `X_CLIENT_ID`, `X_CLIENT_SECRET` | X Developer Portal OAuth 2.0 app credentials for account connection |
-| LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | LinkedIn Developer app with member posting enabled. Company page connections additionally require organization posting/admin scopes. |
-| Facebook/Instagram | `META_APP_ID`, `META_APP_SECRET` | Meta Developers app |
+| X (Twitter) | `X_CLIENT_ID`, `X_CLIENT_SECRET` | [X Developer Portal](https://developer.x.com) |
+| LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | [LinkedIn Developer](https://developer.linkedin.com) |
+| Facebook / Instagram | `META_APP_ID`, `META_APP_SECRET` | [Meta for Developers](https://developers.facebook.com) |
 
-Important:
-- If you want real publishing, set `POSTFLOW_DRIVER=live`.
-- For local testing without real publishing, keep `POSTFLOW_DRIVER=mock`.
-- OAuth account connection is available for X, LinkedIn, Facebook, and Instagram.
-- LinkedIn OAuth connects personal profiles by default. Use the LinkedIn organization connection action, or `account_kind=organization` on `/oauth/linkedin/start`, to request company page scopes.
-- LinkedIn root posts with a first `http(s)` link and no attached media are published as article posts at publish time so PostFlow can send explicit unfurl metadata. If media is attached, media wins and link unfurl is skipped.
-- In the web UI, if an OAuth provider returns multiple accounts, PostFlow shows a selection step before saving them.
-- Publish failure emails are configured from Settings, the CLI, or MCP. SMTP passwords are stored encrypted with `POSTFLOW_MASTER_KEY`.
-- In production (Coolify), set secrets in the platform UI, not in committed files.
-- In Coolify, mark `OWNER_PASSWORD_HASH` as a literal/secret value so `$` is not interpolated.
+### Runtime
+
+| Variable | Default | Description |
+|---|---|---|
+| `POSTFLOW_DRIVER` | `mock` | `mock` for local dev, `live` for real publishing |
+| `POSTFLOW_BASE_URL` | `http://localhost:8080` | Server URL (CLI only) |
+| `POSTFLOW_API_TOKEN` | — | Token for CLI auth (CLI only) |
 
 ---
 
-## 3) MCP Setup (for LLMs)
+## MCP Setup (for LLMs)
 
-Endpoint:
+Sarepost exposes publishing tools to AI agents via the Model Context Protocol (MCP).
 
-```text
-http://localhost:8080/mcp
-```
+**Endpoint:** `http://localhost:8080/mcp`
 
-For Codex, Claude, CLI, and other legacy clients, if `API_TOKEN` is set, send:
+Auth header: `Authorization: Bearer <API_TOKEN>`
 
-```text
-Authorization: Bearer <API_TOKEN>
-```
-
-For ChatGPT / remote MCP clients with OAuth:
-
-- Authorization metadata: `http://localhost:8080/.well-known/oauth-authorization-server`
-- Protected resource metadata: `http://localhost:8080/.well-known/oauth-protected-resource`
-- The login page is `http://localhost:8080/login`
-- Dynamic client registration is available at `POST /oauth/register`
-- PostFlow allows MCP discovery requests without auth (`initialize`, `notifications/initialized`, `ping`, and `tools/list`) so ChatGPT can complete the handshake cleanly.
-- Actual MCP tool execution (`tools/call`) remains protected and requires OAuth bearer auth (or the legacy `API_TOKEN` flow for non-OAuth clients).
-
-Main MCP tools available:
-- `postflow_health`
-- `postflow_list_schedule`
-- `postflow_list_drafts`
-- `postflow_list_accounts`
-- `postflow_create_static_account`
-- `postflow_connect_account`
-- `postflow_disconnect_account`
-- `postflow_set_x_premium`
-- `postflow_delete_account`
-- `postflow_list_failed`
-- `postflow_create_post`
-- `postflow_cancel_post`
-- `postflow_schedule_post`
-- `postflow_edit_post`
-- `postflow_delete_post`
-- `postflow_validate_post`
-- `postflow_upload_media`
-- `postflow_list_media`
-- `postflow_delete_media`
-- `postflow_requeue_failed`
-- `postflow_delete_failed`
-- `postflow_set_timezone`
-
-Thread payload support (same shape in API/MCP/CLI):
-- `segments`: `[{ "text": "...", "media_ids": ["med_x"] }]`
-- If `segments` is present, step `1` is the root post and steps `2..N` are follow-ups.
-- Publishing semantics: X follow-ups are chained as replies; other supported thread platforms publish follow-ups as comments on the root post.
-- Backward compatibility is preserved for legacy `text` + `media_ids`.
-- `postflow_edit_post` accepts optional `media_ids` to replace media on editable posts (`[]` clears all media).
-- Editing without `intent` and without `scheduled_at` preserves the current scheduling state.
-
-### Codex CLI
+### Codex
 
 ```bash
 codex mcp add postflow --url http://localhost:8080/mcp
 ```
 
-`~/.codex/config.toml` example:
+`~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.postflow]
 url = "http://localhost:8080/mcp"
 bearer_token_env_var = "POSTFLOW_API_TOKEN"
-```
-
-Then:
-
-```bash
-export POSTFLOW_API_TOKEN="<same-value-as-API_TOKEN>"
 ```
 
 ### Claude Code
@@ -194,99 +153,210 @@ export POSTFLOW_API_TOKEN="<same-value-as-API_TOKEN>"
 claude mcp add -t http postflow http://localhost:8080/mcp --header "Authorization: Bearer <API_TOKEN>"
 ```
 
-Tip: in the app UI (`settings`) you can copy ready-to-use MCP snippets for Claude and Codex.
+### ChatGPT / OAuth clients
+
+- Authorization metadata: `http://localhost:8080/.well-known/oauth-authorization-server`
+- Protected resource metadata: `http://localhost:8080/.well-known/oauth-protected-resource`
+- Login: `http://localhost:8080/login`
+- Dynamic client registration: `POST /oauth/register`
+
+Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls require OAuth bearer auth or `API_TOKEN`.
+
+### Available MCP Tools
+
+| Tool | Description |
+|---|---|
+| `postflow_health` | Server health check |
+| `postflow_list_schedule` | List scheduled posts |
+| `postflow_list_drafts` | List draft posts |
+| `postflow_list_accounts` | List connected accounts |
+| `postflow_create_static_account` | Create account without OAuth |
+| `postflow_connect_account` | Initiate OAuth connection |
+| `postflow_disconnect_account` | Disconnect an account |
+| `postflow_set_x_premium` | Toggle X Premium status |
+| `postflow_delete_account` | Delete an account |
+| `postflow_list_failed` | List failed posts (DLQ) |
+| `postflow_create_post` | Create a new post |
+| `postflow_cancel_post` | Cancel a scheduled post |
+| `postflow_schedule_post` | Schedule a draft post |
+| `postflow_edit_post` | Edit post content or schedule |
+| `postflow_delete_post` | Delete a post |
+| `postflow_validate_post` | Validate post before saving |
+| `postflow_upload_media` | Upload image or video |
+| `postflow_list_media` | List uploaded media |
+| `postflow_delete_media` | Delete media |
+| `postflow_requeue_failed` | Requeue a failed post |
+| `postflow_delete_failed` | Delete from DLQ |
+| `postflow_set_timezone` | Set publishing timezone |
+| `postflow_set_smtp_notifications` | Configure SMTP alerts |
+
+All tools support thread/multi-segment posts via the `segments` field, where segment `1` is the root post and segments `2..N` are follow-ups.
 
 ---
 
-## 4) CLI Setup (`postflow`)
+## CLI (`postflow`)
 
-### Option A: Homebrew (recommended)
+### Install
 
 ```bash
+# Homebrew (recommended)
 brew tap escarface/tap
 brew install escarface/tap/postflow
-postflow --help
-```
 
-### Option B: Run from source
-
-```bash
+# Or run from source
 go run ./cmd/postflow --help
 ```
 
-Configure CLI env:
+### Configure
 
 ```bash
 export POSTFLOW_BASE_URL="http://localhost:8080"
 export POSTFLOW_API_TOKEN="<API_TOKEN>"
 ```
 
-Common commands:
+### Common Commands
 
 ```bash
+# Health check
 postflow health
+
+# Schedule
 postflow schedule list --from 2026-03-01T00:00:00Z --to 2026-03-31T23:59:59Z
 postflow schedule list --view posts --from 2026-03-01T00:00:00Z --to 2026-03-31T23:59:59Z
+
+# Drafts
 postflow drafts list --limit 20
-postflow posts validate --account-id acc_xxx --text "hello"
-postflow posts validate --account-id acc_xxx --segments-json '[{"text":"root"},{"text":"reply 1"}]'
-postflow posts create --account-id acc_xxx --segments-json '[{"text":"root"},{"text":"reply 1","media_ids":["med_x"]}]' --scheduled-at 2026-03-01T10:00:00Z
+
+# Validate without saving
+postflow posts validate --account-id acc_xxx --text "Check this content"
+postflow posts validate --account-id acc_xxx --segments-json '[{"text":"root"},{"text":"reply"}]'
+
+# Create
+postflow posts create --account-id acc_xxx --text "Hello world" --scheduled-at 2026-03-01T10:00:00Z
+postflow posts create --account-id acc_xxx --segments-json '[{"text":"root"},{"text":"reply","media_ids":["med_x"]}]' --scheduled-at 2026-03-01T10:00:00Z
+
+# Schedule a draft
 postflow posts schedule --id pst_xxx --scheduled-at 2026-03-01T10:00:00Z
-postflow posts edit --id pst_xxx --text "copy updated" --intent schedule --scheduled-at 2026-03-01T10:30:00Z
+
+# Edit
+postflow posts edit --id pst_xxx --text "Updated copy" --intent schedule --scheduled-at 2026-03-01T10:30:00Z
 postflow posts edit --id pst_xxx --segments-json '[{"text":"root updated"},{"text":"reply updated"}]'
-postflow posts edit --id pst_xxx --text "copy + media" --replace-media --media-id med_a --media-id med_b
-postflow posts delete --id pst_xxx
+
+# Cancel / delete
 postflow posts cancel --id pst_xxx
+postflow posts delete --id pst_xxx
+
+# Accounts
 postflow accounts list
-postflow settings set-timezone --timezone Europe/Madrid
-postflow settings set-smtp --host smtp.sendgrid.net --port 587 --username apikey --password "$SMTP_PASSWORD" --from postflow@example.com --to owner@example.com
+postflow accounts list --kind x
+postflow accounts list --kind linkedin
+
+# DLQ
+postflow dlq list --limit 50
+postflow dlq requeue --id dlq_xxx
+
+# Media
+postflow media upload --file ./image.jpg --kind image
 postflow media list --limit 20
+
+# Settings
+postflow settings set-timezone --timezone Europe/Madrid
+postflow settings set-smtp --host smtp.sendgrid.net --port 587 --username apikey --password "$SMTP_PASSWORD" --from sarepost@example.com --to owner@example.com
 ```
 
-`--text` and `--segments-json` are mutually exclusive on `posts create`, `posts validate`, and `posts edit`.
-
-`schedule list` returns grouped publications by default. Use `--view posts` to inspect the raw per-post/thread rows.
+> `--text` and `--segments-json` are mutually exclusive. Use `--json` for machine-readable output.
 
 ---
 
-## 5) Deploy (Coolify + GHCR image)
+## Deployment
 
-You can deploy from prebuilt image (no build on server):
+### GHCR Image
 
-```text
-ghcr.io/escarface/sarepost:latest
+Prebuilt Docker images are available:
+
 ```
-
-or pinned:
-
-```text
+ghcr.io/escarface/sarepost:latest
 ghcr.io/escarface/sarepost:vX.Y.Z
 ```
 
-Full production runbook:
-- [docs/coolify-deploy.md](docs/coolify-deploy.md)
+### Docker Compose
+
+```yaml
+services:
+  postflow:
+    image: ghcr.io/escarface/sarepost:latest
+    ports:
+      - "8080:8080"
+    environment:
+      POSTFLOW_MASTER_KEY: <base64-key>
+      API_TOKEN: <hex-token>
+      PUBLIC_BASE_URL: https://your-domain.com
+      OWNER_EMAIL: owner@example.com
+      OWNER_PASSWORD_HASH: '$2a$10$...'
+      POSTFLOW_DRIVER: live
+      DATABASE_PATH: /srv/data/postflow.db
+    volumes:
+      - postflow_data:/srv/data
+
+volumes:
+  postflow_data:
+```
+
+### Coolify
+
+See [`docs/coolify-deploy.md`](docs/coolify-deploy.md) for a full production deployment guide.
 
 ---
 
-## 6) Troubleshooting
+## Development
 
-- `401 unauthorized`:
-  - check `API_TOKEN`
-  - check `Authorization: Bearer ...` in MCP/API clients
-- OAuth callback errors:
-  - verify `PUBLIC_BASE_URL` matches your real public domain
-  - for X, verify `X_CLIENT_ID` is set and the callback URL is registered in the X app settings
-- Instagram media create errors (`code=9004`, `error_subcode=2207052`):
-  - verify `PUBLIC_BASE_URL` is public/reachable from the internet (not `localhost` in production)
-  - for image posts, upload JPEG or PNG (`.jpg` / `.jpeg` / `.png`)
-  - for video posts, use MP4 or MOV
-  - media uploads are capped at 512 MiB
-- CLI auth errors:
-  - verify `POSTFLOW_API_TOKEN` matches server `API_TOKEN`
+```bash
+# Clone
+git clone https://github.com/escarface/sarepost.git
+cd sarepost
+
+# Copy env
+cp .env.example .env
+
+# Run tests
+go test ./...
+
+# Run with race detector
+go test -race ./...
+
+# Start dev server (hot reload with air)
+air
+```
+
+### Code quality
+
+```bash
+go fmt ./...
+go test ./...
+go test -race ./...
+./scripts/check-coverage.sh
+golangci-lint run ./...
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+```
 
 ---
 
-## 7) Additional Docs
+## Troubleshooting
 
-- API contract: [docs/specs/openapi.yaml](docs/specs/openapi.yaml)
-- Deployment guide: [docs/coolify-deploy.md](docs/coolify-deploy.md)
+| Problem | Check |
+|---|---|
+| `401 unauthorized` | Verify `API_TOKEN` and `Authorization: Bearer` header |
+| OAuth callback errors | Ensure `PUBLIC_BASE_URL` matches your public domain; check app settings in the provider developer portal |
+| Instagram media upload fails | `PUBLIC_BASE_URL` must be publicly reachable; use JPEG/PNG for images, MP4/MOV for video; max 512 MiB |
+| CLI auth errors | Confirm `POSTFLOW_API_TOKEN` matches server `API_TOKEN` |
+| LinkedIn company page OAuth | Use `account_kind=organization` on the OAuth start URL to request company page scopes |
+
+---
+
+## Docs
+
+- [Architecture](docs/architecture.md)
+- [API spec](docs/specs/openapi.yaml)
+- [Deployment guide](docs/coolify-deploy.md)
+- [Release guide](docs/RELEASING.md)
+- [ADR: Modular monolith](docs/adr/0001-modular-monolith-application-layer.md)
