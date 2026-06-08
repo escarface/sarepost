@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	dlqapp "github.com/saredigital/sarepost/internal/application/dlq"
-	postsapp "github.com/saredigital/sarepost/internal/application/posts"
-	"github.com/saredigital/sarepost/internal/domain"
+	dlqapp "github.com/escarface/sarepost/internal/application/dlq"
+	postsapp "github.com/escarface/sarepost/internal/application/posts"
+	"github.com/escarface/sarepost/internal/domain"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

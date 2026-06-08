@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/application/ports"
-	"github.com/saredigital/sarepost/internal/secure"
+	"github.com/escarface/sarepost/internal/application/ports"
+	"github.com/escarface/sarepost/internal/secure"
 )
 
 const SettingSMTPNotifications = "notifications.smtp"

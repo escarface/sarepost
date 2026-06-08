@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 type xUploadResponse struct {

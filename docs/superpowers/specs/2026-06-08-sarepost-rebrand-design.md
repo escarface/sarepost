@@ -6,7 +6,7 @@
 
 ## Goal
 
-Migrate the project identity from `github.com/antoniolg/postflow` to `github.com/saredigital/sarepost` while preserving backward compatibility for all public surfaces (API, MCP tool names, CLI, env vars, binary names, internal identifiers).
+Migrate the project identity from `github.com/antoniolg/postflow` to `github.com/escarface/sarepost` while preserving backward compatibility for all public surfaces (API, MCP tool names, CLI, env vars, binary names, internal identifiers).
 
 ## Design Principle
 
@@ -22,8 +22,8 @@ Migrate the project identity from `github.com/antoniolg/postflow` to `github.com
 
 | File | Change |
 |---|---|
-| `go.mod:1` | `module github.com/antoniolg/postflow` → `module github.com/saredigital/sarepost` |
-| ~120 `.go` files | All `"github.com/antoniolg/postflow/..."` imports → `"github.com/saredigital/sarepost/..."` |
+| `go.mod:1` | `module github.com/antoniolg/postflow` → `module github.com/escarface/sarepost` |
+| ~120 `.go` files | All `"github.com/antoniolg/postflow/..."` imports → `"github.com/escarface/sarepost/..."` |
 | `Dockerfile:19` | ldflags `-X github.com/antoniolg/postflow/cmd/postflow-server.Version` → new path |
 | `.github/workflows/release-cli-homebrew.yml:80` | ldflags `-X github.com/antoniolg/postflow/internal/cli.Version` → new path |
 
@@ -31,14 +31,14 @@ Migrate the project identity from `github.com/antoniolg/postflow` to `github.com
 
 | File | Change |
 |---|---|
-| `.git/config` | `https://github.com/antoniolg/postflow.git` → `https://github.com/saredigital/sarepost.git` |
+| `.git/config` | `https://github.com/antoniolg/postflow.git` → `https://github.com/escarface/sarepost.git` |
 
 ### 3. Docker / GHCR
 
 | File | Line | Change |
 |---|---|---|
-| `docker-compose.yml:6` | `image: antoniolg/postflow:latest` | → `image: ghcr.io/saredigital/sarepost:latest` |
-| `.github/workflows/release-image.yml:13` | `IMAGE_NAME: ghcr.io/antoniolg/postflow` | → `ghcr.io/saredigital/sarepost` |
+| `docker-compose.yml:6` | `image: antoniolg/postflow:latest` | → `image: ghcr.io/escarface/sarepost:latest` |
+| `.github/workflows/release-image.yml:13` | `IMAGE_NAME: ghcr.io/antoniolg/postflow` | → `ghcr.io/escarface/sarepost` |
 | `.github/workflows/release-cli-homebrew.yml:20` | `GH_REPO: antoniolg/postflow` | → `saredigital/sarepost` |
 
 ### 4. Homebrew Tap
@@ -53,8 +53,8 @@ Migrate the project identity from `github.com/antoniolg/postflow` to `github.com
 
 | File | Change |
 |---|---|
-| `README.md` | All `github.com/antoniolg/postflow` → `github.com/saredigital/sarepost` |
-| `docs/coolify-deploy.md` | `ghcr.io/antoniolg/postflow` → `ghcr.io/saredigital/sarepost`, repo URLs |
+| `README.md` | All `github.com/antoniolg/postflow` → `github.com/escarface/sarepost` |
+| `docs/coolify-deploy.md` | `ghcr.io/antoniolg/postflow` → `ghcr.io/escarface/sarepost`, repo URLs |
 | `docs/RELEASING.md` | Image URLs and tap references |
 
 ### 6. Logos

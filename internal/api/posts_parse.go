@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	postsapp "github.com/saredigital/sarepost/internal/application/posts"
+	postsapp "github.com/escarface/sarepost/internal/application/posts"
 )
 
 const maxPostRequestBodyBytes = 4 * 1024 * 1024

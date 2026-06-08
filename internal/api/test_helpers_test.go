@@ -3,8 +3,8 @@ package api
 import (
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/db"
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func createTestAccount(t *testing.T, store *db.Store) domain.SocialAccount {

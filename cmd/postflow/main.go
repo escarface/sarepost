@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/saredigital/sarepost/internal/cli"
+	"github.com/escarface/sarepost/internal/cli"
 )
 
 func main() {

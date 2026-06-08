@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/db"
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/postflow"
-	"github.com/saredigital/sarepost/internal/secure"
+	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/postflow"
+	"github.com/escarface/sarepost/internal/secure"
 )
 
 func TestLoadCredentialsWithoutRowReturnsEmpty(t *testing.T) {

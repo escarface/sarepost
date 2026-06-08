@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/saredigital/sarepost
+  IMAGE_NAME: ghcr.io/escarface/sarepost
 
 jobs:
   build-and-push:

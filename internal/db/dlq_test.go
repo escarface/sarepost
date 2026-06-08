@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestRequeueDeadLetter(t *testing.T) {

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	postsapp "github.com/saredigital/sarepost/internal/application/posts"
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/postflow"
+	postsapp "github.com/escarface/sarepost/internal/application/posts"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/postflow"
 )
 
 type validatePostResponse struct {

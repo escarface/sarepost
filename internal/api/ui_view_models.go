@@ -3,8 +3,8 @@ package api
 import (
 	"time"
 
-	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
-	"github.com/saredigital/sarepost/internal/domain"
+	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 type settingsAccountItem struct {

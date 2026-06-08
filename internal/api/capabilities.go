@@ -1,6 +1,6 @@
 package api
 
-import "github.com/saredigital/sarepost/internal/capabilities"
+import "github.com/escarface/sarepost/internal/capabilities"
 
 func HTTPExposedCapabilities() map[string]struct{} {
 	return map[string]struct{}{

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/db"
 )
 
 const (

@@ -16,7 +16,7 @@ RUN set -eux; \
 	goarch="${TARGETARCH:-amd64}"; \
 	goarm=""; \
 	if [ "$goarch" = "arm" ] && [ -n "${TARGETVARIANT:-}" ]; then goarm="${TARGETVARIANT#v}"; fi; \
-	CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$goarm" go build -trimpath -ldflags "-s -w -X github.com/saredigital/sarepost/cmd/postflow-server.Version=${APP_VERSION}" -o /out/postflow-server ./cmd/postflow-server
+	CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOARM="$goarm" go build -trimpath -ldflags "-s -w -X github.com/escarface/sarepost/cmd/postflow-server.Version=${APP_VERSION}" -o /out/postflow-server ./cmd/postflow-server
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app

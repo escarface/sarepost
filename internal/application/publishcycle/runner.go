@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/application/ports"
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/postflow"
+	"github.com/escarface/sarepost/internal/application/ports"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/postflow"
 )
 
 type Store interface {

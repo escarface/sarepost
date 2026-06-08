@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestFacebookPublishCommentMode(t *testing.T) {

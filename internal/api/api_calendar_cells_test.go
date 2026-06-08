@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/db"
 )
 
 func TestCalendarCellsRenderAllEventsForDynamicOverflow(t *testing.T) {

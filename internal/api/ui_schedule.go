@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
-	"github.com/saredigital/sarepost/internal/db"
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/textfmt"
+	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
+	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/textfmt"
 )
 
 func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {

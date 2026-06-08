@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestFacebookRefreshIfNeededRefreshesExpiringToken(t *testing.T) {

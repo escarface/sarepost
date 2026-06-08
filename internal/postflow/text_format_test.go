@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestFormatPostTextForPublishKeepsPlainMarkdownText(t *testing.T) {

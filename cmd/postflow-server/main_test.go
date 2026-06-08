@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestBuildPublicMediaURLBuilderIncludesStableExtension(t *testing.T) {

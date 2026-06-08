@@ -13,14 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/api"
-	"github.com/saredigital/sarepost/internal/config"
-	"github.com/saredigital/sarepost/internal/db"
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/observability"
-	"github.com/saredigital/sarepost/internal/postflow"
-	"github.com/saredigital/sarepost/internal/secure"
-	"github.com/saredigital/sarepost/internal/worker"
+	"github.com/escarface/sarepost/internal/api"
+	"github.com/escarface/sarepost/internal/config"
+	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/observability"
+	"github.com/escarface/sarepost/internal/postflow"
+	"github.com/escarface/sarepost/internal/secure"
+	"github.com/escarface/sarepost/internal/worker"
 )
 
 var Version = "dev"

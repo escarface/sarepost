@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func createTestAccount(t *testing.T, store *Store, platform domain.Platform) domain.SocialAccount {

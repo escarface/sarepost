@@ -3,7 +3,7 @@ package api
 import (
 	"strings"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 type calendarEventGroupState struct {

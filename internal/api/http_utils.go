@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func sanitizeReturnTo(raw string) string {

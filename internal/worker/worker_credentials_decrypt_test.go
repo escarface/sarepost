@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/postflow"
-	"github.com/saredigital/sarepost/internal/secure"
+	"github.com/escarface/sarepost/internal/postflow"
+	"github.com/escarface/sarepost/internal/secure"
 )
 
 func TestLoadCredentialsReturnsDecryptErrorOnCipherMismatch(t *testing.T) {

@@ -3,8 +3,8 @@ package ports
 import (
 	"context"
 
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/postflow"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/postflow"
 )
 
 type ProviderRegistry interface {

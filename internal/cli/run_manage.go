@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 type healthResponse struct {

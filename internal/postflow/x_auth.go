@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 const xOAuthScope = "tweet.read tweet.write users.read media.write offline.access"

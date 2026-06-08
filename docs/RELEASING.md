@@ -75,9 +75,9 @@ gh run view <run-id>
 Expected outcome:
 
 - `Release CLI + Homebrew` uploads the release tarballs to GitHub Releases
-- `Release CLI + Homebrew` updates `saredigital/homebrew-tap` when `HOMEBREW_TAP_GITHUB_TOKEN` is configured
-- `Release Docker Image` publishes `ghcr.io/saredigital/sarepost:<tag>`
-- `Release Docker Image` also refreshes `ghcr.io/saredigital/sarepost:latest`
+- `Release CLI + Homebrew` updates `escarface/homebrew-tap` when `HOMEBREW_TAP_GITHUB_TOKEN` is configured
+- `Release Docker Image` publishes `ghcr.io/escarface/sarepost:<tag>`
+- `Release Docker Image` also refreshes `ghcr.io/escarface/sarepost:latest`
 
 Verify the release page includes the CLI archives:
 

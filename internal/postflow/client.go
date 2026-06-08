@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 type Draft struct {

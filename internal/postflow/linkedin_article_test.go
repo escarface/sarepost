@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestExtractFirstURL(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/saredigital/sarepost/internal/application/ports"
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/secure"
+	"github.com/escarface/sarepost/internal/application/ports"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/secure"
 )
 
 type memorySettingsStore struct {

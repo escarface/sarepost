@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrate project identity from `github.com/antoniolg/postflow` to `github.com/saredigital/sarepost` — module path, Docker/GHCR images, Homebrew tap, docs URLs, logos, and branding strings.
+**Goal:** Migrate project identity from `github.com/antoniolg/postflow` to `github.com/escarface/sarepost` — module path, Docker/GHCR images, Homebrew tap, docs URLs, logos, and branding strings.
 
 **Architecture:** Mechanical find-and-replace changes across ~120 Go files, Docker/CI configs, docs, and asset files. No logic changes. Backward compatible for all public surfaces (env vars, MCP tool names, binaries, internal identifiers remain untouched).
 
@@ -24,14 +24,14 @@ module github.com/antoniolg/postflow
 ```
 to:
 ```
-module github.com/saredigital/sarepost
+module github.com/escarface/sarepost
 ```
 
 - [ ] **Step 2: Replace all Go import paths**
 
 Run:
 ```bash
-find . -name "*.go" -exec sed -i '' 's|github.com/antoniolg/postflow|github.com/saredigital/sarepost|g' {} +
+find . -name "*.go" -exec sed -i '' 's|github.com/antoniolg/postflow|github.com/escarface/sarepost|g' {} +
 ```
 
 - [ ] **Step 3: Update Dockerfile ldflags**
@@ -42,7 +42,7 @@ In `Dockerfile` line 19, change:
 ```
 to:
 ```
--X github.com/saredigital/sarepost/cmd/postflow-server.Version=${APP_VERSION}
+-X github.com/escarface/sarepost/cmd/postflow-server.Version=${APP_VERSION}
 ```
 
 (Note: Mass sed in step 2 already updates this if it appears in a `.go` file. But Dockerfile is not a `.go` file, so do it explicitly.)
@@ -55,7 +55,7 @@ In `.github/workflows/release-cli-homebrew.yml` line 80, change:
 ```
 to:
 ```
--X github.com/saredigital/sarepost/internal/cli.Version=${TAG}
+-X github.com/escarface/sarepost/internal/cli.Version=${TAG}
 ```
 
 - [ ] **Step 5: Run go mod tidy**
@@ -84,7 +84,7 @@ Expected: All tests pass.
 
 ```bash
 git add -A
-git commit -m "refactor: rename go module to github.com/saredigital/sarepost"
+git commit -m "refactor: rename go module to github.com/escarface/sarepost"
 ```
 
 ---
@@ -104,7 +104,7 @@ In `docker-compose.yml` line 6, change:
 ```
 to:
 ```
-    image: ghcr.io/saredigital/sarepost:latest
+    image: ghcr.io/escarface/sarepost:latest
 ```
 
 - [ ] **Step 2: Update release-image.yml IMAGE_NAME**
@@ -115,7 +115,7 @@ In `.github/workflows/release-image.yml` line 13, change:
 ```
 to:
 ```
-  IMAGE_NAME: ghcr.io/saredigital/sarepost
+  IMAGE_NAME: ghcr.io/escarface/sarepost
 ```
 
 - [ ] **Step 3: Update release-cli-homebrew.yml GH_REPO**
@@ -205,7 +205,7 @@ cd postflow
 ```
 to:
 ```
-git clone https://github.com/saredigital/sarepost.git
+git clone https://github.com/escarface/sarepost.git
 cd sarepost
 ```
 
@@ -217,7 +217,7 @@ ghcr.io/antoniolg/postflow:latest
 ```
 to:
 ```
-ghcr.io/saredigital/sarepost:latest
+ghcr.io/escarface/sarepost:latest
 ```
 
 In `README.md` line 263, change:
@@ -226,7 +226,7 @@ ghcr.io/antoniolg/postflow:vX.Y.Z
 ```
 to:
 ```
-ghcr.io/saredigital/sarepost:vX.Y.Z
+ghcr.io/escarface/sarepost:vX.Y.Z
 ```
 
 - [ ] **Step 3: Update coolify-deploy.md GHCR URLs**
@@ -237,7 +237,7 @@ In `docs/coolify-deploy.md` line 8, change:
 ```
 to:
 ```
-2. Image: `ghcr.io/saredigital/sarepost:latest` (or pin a tag like `ghcr.io/saredigital/sarepost:vX.Y.Z`).
+2. Image: `ghcr.io/escarface/sarepost:latest` (or pin a tag like `ghcr.io/escarface/sarepost:vX.Y.Z`).
 ```
 
 In `docs/coolify-deploy.md` line 18, change:
@@ -255,7 +255,7 @@ In `docs/coolify-deploy.md` line 26, change:
 ```
 to:
 ```
-- GitHub Actions publishes Docker images to `ghcr.io/saredigital/sarepost`.
+- GitHub Actions publishes Docker images to `ghcr.io/escarface/sarepost`.
 ```
 
 - [ ] **Step 4: Update RELEASING.md GHCR URLs**
@@ -267,8 +267,8 @@ In `docs/RELEASING.md` line 80, change:
 ```
 to:
 ```
-- `Release Docker Image` publishes `ghcr.io/saredigital/sarepost:<tag>`
-- `Release Docker Image` also refreshes `ghcr.io/saredigital/sarepost:latest`
+- `Release Docker Image` publishes `ghcr.io/escarface/sarepost:<tag>`
+- `Release Docker Image` also refreshes `ghcr.io/escarface/sarepost:latest`
 ```
 
 - [ ] **Step 5: Commit**
@@ -468,4 +468,4 @@ rg "antoniolg/postflow" --type-not binary
 
 Expected: No output (all references updated).
 
-> Note: The git remote URL in `.git/config` will still point to the old repo. This is intentional — the remote should be updated when the new repo is created. Run: `git remote set-url origin https://github.com/saredigital/sarepost.git`
+> Note: The git remote URL in `.git/config` will still point to the old repo. This is intentional — the remote should be updated when the new repo is created. Run: `git remote set-url origin https://github.com/escarface/sarepost.git`

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	postsapp "github.com/saredigital/sarepost/internal/application/posts"
-	"github.com/saredigital/sarepost/internal/db"
-	"github.com/saredigital/sarepost/internal/domain"
+	postsapp "github.com/escarface/sarepost/internal/application/posts"
+	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

@@ -5,7 +5,7 @@
 ### Option A (recommended): deploy from prebuilt GHCR image
 
 1. In Coolify, create a new service from **Docker Image**.
-2. Image: `ghcr.io/saredigital/sarepost:latest` (or pin a tag like `ghcr.io/saredigital/sarepost:vX.Y.Z`).
+2. Image: `ghcr.io/escarface/sarepost:latest` (or pin a tag like `ghcr.io/escarface/sarepost:vX.Y.Z`).
 3. Set application internal port to `8080` in Coolify (do not publish host port `8080` via Docker `ports`).
 4. Attach a persistent volume mounted at `/srv/data`.
 5. If the package is private, add registry credentials in Coolify:
@@ -15,7 +15,7 @@
 
 ### Option B: deploy from repository build
 
-1. In Coolify, create a new service from Git repository `saredigital/sarepost`.
+1. In Coolify, create a new service from Git repository `escarface/sarepost`.
 2. Use branch `main` and enable auto-deploy on new commits.
 3. Build using project `Dockerfile`.
 4. Set application internal port to `8080` in Coolify (do not publish host port `8080` via Docker `ports`).
@@ -23,7 +23,7 @@
 
 ## 1.1) How GHCR image publishing works
 
-- GitHub Actions publishes Docker images to `ghcr.io/saredigital/sarepost`.
+- GitHub Actions publishes Docker images to `ghcr.io/escarface/sarepost`.
 - Trigger: only when a GitHub Release is published.
 - Tags pushed on each release:
   - release tag name (for example `v1.2.0`)

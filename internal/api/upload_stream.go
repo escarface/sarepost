@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/saredigital/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/db"
 )
 
 const (

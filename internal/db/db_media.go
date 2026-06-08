@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func (s *Store) CreateMedia(ctx context.Context, m domain.Media) (domain.Media, error) {

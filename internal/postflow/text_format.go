@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/saredigital/sarepost/internal/textfmt"
+	"github.com/escarface/sarepost/internal/textfmt"
 )
 
 func formatPostTextForPublish(raw string) string {

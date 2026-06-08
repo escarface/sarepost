@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func (s Server) resolveTargetAccount(ctx context.Context, accountIDRaw string) (domain.SocialAccount, error) {

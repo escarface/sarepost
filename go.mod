@@ -1,4 +1,4 @@
-module github.com/saredigital/sarepost
+module github.com/escarface/sarepost
 
 go 1.26.3
 

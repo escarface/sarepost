@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/saredigital/sarepost/internal/db"
-	"github.com/saredigital/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestPublicationsViewShowsOnlyScheduledInNext14Days(t *testing.T) {

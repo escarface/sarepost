@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/saredigital/sarepost/internal/capabilities"
+import "github.com/escarface/sarepost/internal/capabilities"
 
 func ExposedCapabilities() map[string]struct{} {
 	return map[string]struct{}{

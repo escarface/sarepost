@@ -3,9 +3,9 @@ package api
 import (
 	"sync"
 
-	"github.com/saredigital/sarepost/internal/domain"
-	"github.com/saredigital/sarepost/internal/postflow"
-	"github.com/saredigital/sarepost/internal/secure"
+	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/postflow"
+	"github.com/escarface/sarepost/internal/secure"
 )
 
 var (

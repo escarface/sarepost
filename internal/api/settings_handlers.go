@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	notificationsapp "github.com/saredigital/sarepost/internal/application/notifications"
+	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 )
 
 func (s Server) handleSetTimezone(w http.ResponseWriter, r *http.Request) {
