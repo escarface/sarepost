@@ -254,13 +254,13 @@ postflow media list --limit 20
 You can deploy from prebuilt image (no build on server):
 
 ```text
-ghcr.io/antoniolg/postflow:latest
+ghcr.io/saredigital/sarepost:latest
 ```
 
 or pinned:
 
 ```text
-ghcr.io/antoniolg/postflow:vX.Y.Z
+ghcr.io/saredigital/sarepost:vX.Y.Z
 ```
 
 Full production runbook:
