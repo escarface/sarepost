@@ -75,7 +75,7 @@ gh run view <run-id>
 Expected outcome:
 
 - `Release CLI + Homebrew` uploads the release tarballs to GitHub Releases
-- `Release CLI + Homebrew` updates `antoniolg/homebrew-tap` when `HOMEBREW_TAP_GITHUB_TOKEN` is configured
+- `Release CLI + Homebrew` updates `saredigital/homebrew-tap` when `HOMEBREW_TAP_GITHUB_TOKEN` is configured
 - `Release Docker Image` publishes `ghcr.io/antoniolg/postflow:<tag>`
 - `Release Docker Image` also refreshes `ghcr.io/antoniolg/postflow:latest`
 

@@ -16,7 +16,7 @@ permissions:
 env:
   BIN_NAME: postflow
   FORMULA_NAME: postflow
-  HOMEBREW_TAP_REPO: antoniolg/homebrew-tap
+  HOMEBREW_TAP_REPO: saredigital/homebrew-tap
   GH_REPO: saredigital/sarepost
 
 jobs:

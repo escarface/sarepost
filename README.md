@@ -19,8 +19,8 @@ This README is a **basic setup guide**.
 ### Start locally
 
 ```bash
-git clone https://github.com/antoniolg/postflow.git
-cd postflow
+git clone https://github.com/saredigital/sarepost.git
+cd sarepost
 cp .env.example .env
 ```
 
@@ -203,8 +203,8 @@ Tip: in the app UI (`settings`) you can copy ready-to-use MCP snippets for Claud
 ### Option A: Homebrew (recommended)
 
 ```bash
-brew tap antoniolg/tap
-brew install antoniolg/tap/postflow
+brew tap saredigital/tap
+brew install saredigital/tap/postflow
 postflow --help
 ```
 
