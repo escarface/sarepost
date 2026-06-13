@@ -252,6 +252,9 @@ func TestCreateViewIncludesComposerPreviewUploadAndNetworks(t *testing.T) {
 	if !strings.Contains(body, "id=\"create-scheduled-at\" type=\"datetime-local\" name=\"scheduled_at_local\" data-date-picker") {
 		t.Fatalf("expected create datetime input to use reusable date picker component")
 	}
+	if !regexp.MustCompile(`id="create-scheduled-at"[^>]*\srequired(\s|>|=)`).MatchString(body) {
+		t.Fatalf("expected create datetime input to be required before scheduling")
+	}
 	if !strings.Contains(body, "class=\"preview-panel\"") || !strings.Contains(body, "id=\"preview-thread\"") {
 		t.Fatalf("expected live preview panel in create view")
 	}
