@@ -162,7 +162,10 @@ func requestCanUseLocalSession(r *http.Request) bool {
 		return true
 	}
 	contentType := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
-	return strings.Contains(contentType, "application/x-www-form-urlencoded") || strings.Contains(contentType, "multipart/form-data")
+	if strings.Contains(contentType, "application/x-www-form-urlencoded") || strings.Contains(contentType, "multipart/form-data") {
+		return true
+	}
+	return strings.Contains(contentType, "application/json") && !isMCPPath(r.URL.Path)
 }
 
 func requestUsesHTTPS(r *http.Request) bool {

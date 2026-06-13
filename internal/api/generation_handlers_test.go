@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/escarface/sarepost/internal/db"
 )
@@ -67,6 +70,49 @@ func TestGenerateText_MockDriver(t *testing.T) {
 	}
 	if !strings.Contains(out.Text, "Announce launch") {
 		t.Errorf("unexpected text %q", out.Text)
+	}
+}
+
+func TestGenerateText_WithLocalSessionCookie(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("super-secret"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	if _, err := store.UpsertLocalOwnerBootstrap(t.Context(), "owner@example.com", string(passwordHash)); err != nil {
+		t.Fatalf("bootstrap owner: %v", err)
+	}
+
+	srv := Server{Store: store, DataDir: tempDir, GenerationDriver: "mock", LocalAuthEnabled: true}
+	h := srv.Handler()
+
+	form := url.Values{}
+	form.Set("email", "owner@example.com")
+	form.Set("password", "super-secret")
+	loginReq := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginReq.Header.Set("Accept", "text/html")
+	loginW := httptest.NewRecorder()
+	h.ServeHTTP(loginW, loginReq)
+	sessionCookie := cookieValue(t, loginW.Result().Cookies(), localSessionCookieName)
+	if sessionCookie == "" {
+		t.Fatalf("expected session cookie after login")
+	}
+
+	payload, _ := json.Marshal(map[string]any{"prompt": "Announce launch"})
+	req := httptest.NewRequest(http.MethodPost, "/generate/text", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: localSessionCookieName, Value: sessionCookie})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected session-authenticated request to reach the handler (400 no provider), got %d (%s)", w.Code, w.Body.String())
 	}
 }
 
