@@ -3,6 +3,7 @@ package api
 import (
 	"time"
 
+	generationapp "github.com/escarface/sarepost/internal/application/generation"
 	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 	"github.com/escarface/sarepost/internal/domain"
 )
@@ -190,6 +191,13 @@ type pageData struct {
 	SMTPError                   string
 	SMTPSuccess                 string
 	SMTPConfig                  notificationsapp.SMTPConfigView
+	GenError                    string
+	GenSuccess                  string
+	GenTextProvider             generationapp.ProviderConfigView
+	GenImageProvider            generationapp.ProviderConfigView
+	BrandProfiles               []generationapp.BrandProfile
+	TextProviderOptions         []string
+	ImageProviderOptions        []string
 	AccountsError               string
 	AccountsSuccess             string
 	OAuthPendingSelection       *oauthPendingSelectionView

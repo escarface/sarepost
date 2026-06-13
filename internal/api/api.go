@@ -33,6 +33,7 @@ type Server struct {
 	PublicBaseURL     string
 	AppVersion        string
 	LocalAuthEnabled  bool
+	GenerationDriver  string
 }
 
 func (s Server) Handler() http.Handler {
@@ -86,6 +87,11 @@ func (s Server) Handler() http.Handler {
 	mux.HandleFunc("POST /settings/timezone", s.handleSetTimezone)
 	mux.HandleFunc("POST /settings/smtp", s.handleSetSMTPNotifications)
 	mux.HandleFunc("POST /settings/smtp/test", s.handleTestSMTPNotifications)
+	mux.HandleFunc("POST /settings/generation/", s.handleSaveGenerationProvider)
+	mux.HandleFunc("POST /settings/brand-profiles", s.handleSaveBrandProfile)
+	mux.HandleFunc("POST /settings/brand-profiles/delete", s.handleDeleteBrandProfile)
+	mux.HandleFunc("POST /generate/text", s.handleGenerateText)
+	mux.HandleFunc("POST /generate/image", s.handleGenerateImage)
 	mux.HandleFunc("GET /", s.handleScheduleHTML)
 	return s.withMiddlewares(mux)
 }

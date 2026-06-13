@@ -85,6 +85,7 @@ func main() {
 		PublicBaseURL:     cfg.PublicBaseURL,
 		AppVersion:        Version,
 		LocalAuthEnabled:  localAuthEnabled,
+		GenerationDriver:  cfg.PostflowDriver,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

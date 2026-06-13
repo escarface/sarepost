@@ -1,9 +1,12 @@
 package api
 
 import (
+	"strings"
 	"sync"
 
+	generationapp "github.com/escarface/sarepost/internal/application/generation"
 	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/postflow"
 	"github.com/escarface/sarepost/internal/secure"
 )
@@ -38,4 +41,16 @@ func (s Server) credentialsCipher() *secure.Cipher {
 		fallbackCipher = cipher
 	})
 	return fallbackCipher
+}
+
+func (s Server) generationService() generationapp.Service {
+	driver := genai.DriverMock
+	if strings.EqualFold(strings.TrimSpace(s.GenerationDriver), "live") {
+		driver = genai.DriverLive
+	}
+	return generationapp.Service{
+		Store:  s.Store,
+		Cipher: s.credentialsCipher(),
+		Driver: driver,
+	}
 }

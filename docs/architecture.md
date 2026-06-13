@@ -14,8 +14,28 @@ Read when:
 - `internal/worker`: runtime adapter for background execution.
 - `internal/cli`: CLI adapter.
 - `internal/application`: use cases and orchestration.
-- `internal/db`, `internal/postflow`, `internal/secure`: infrastructure.
+- `internal/db`, `internal/postflow`, `internal/genai`, `internal/secure`: infrastructure.
 - `internal/domain`: entities and status enums.
+
+## AI generation (`internal/genai` + `internal/application/generation`)
+
+In-app text and image generation. `internal/genai` is an infrastructure package
+mirroring `internal/postflow`: small `TextProvider`/`ImageProvider` interfaces with
+concrete clients (Anthropic via the official Go SDK, OpenAI via HTTP) plus mock
+implementations used by `POSTFLOW_DRIVER=mock` and tests. Provider selection is
+dynamic — the API key is supplied per call from encrypted settings — so the package
+exposes `NewTextProvider`/`NewImageProvider` factories instead of a registry.
+
+`internal/application/generation` holds the use cases: provider config and brand
+profiles persisted in the `settings` table (API keys encrypted with `internal/secure`,
+following the SMTP config pattern) and `GenerateText`/`GenerateImage`, which merge the
+selected brand profile and platform rules into the prompt before delegating to a
+provider.
+
+**Intentional parity exception:** generation is exposed only through the Web UI
+(`/?view=generate` plus the `/generate/*` and `/settings/generation/*` endpoints). MCP
+and CLI clients already generate content through their own LLM, so generation tools are
+not added to those surfaces.
 
 ## Layer rules
 

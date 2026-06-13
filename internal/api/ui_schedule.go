@@ -15,6 +15,7 @@ import (
 	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/textfmt"
 )
 
@@ -34,7 +35,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 	if view == "" {
 		view = "calendar"
 	}
-	if view != "calendar" && view != "publications" && view != "drafts" && view != "create" && view != "failed" && view != "settings" {
+	if view != "calendar" && view != "publications" && view != "drafts" && view != "create" && view != "failed" && view != "settings" && view != "generate" {
 		view = "calendar"
 	}
 	editID := strings.TrimSpace(r.URL.Query().Get("edit_id"))
@@ -52,6 +53,8 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 	oauthSelectID := strings.TrimSpace(r.URL.Query().Get("oauth_select"))
 	mediaError := strings.TrimSpace(r.URL.Query().Get("media_error"))
 	mediaSuccess := strings.TrimSpace(r.URL.Query().Get("media_success"))
+	genError := strings.TrimSpace(r.URL.Query().Get("gen_error"))
+	genSuccess := strings.TrimSpace(r.URL.Query().Get("gen_success"))
 	displayMonth := time.Date(nowLocal.Year(), nowLocal.Month(), 1, 0, 0, 0, 0, uiLoc)
 	if monthRaw := strings.TrimSpace(r.URL.Query().Get("month")); monthRaw != "" {
 		if parsedMonth, err := time.ParseInLocation("2006-01", monthRaw, uiLoc); err == nil {
@@ -306,6 +309,23 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	genSvc := s.generationService()
+	genTextProvider, err := genSvc.GetTextProviderView(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	genImageProvider, err := genSvc.GetImageProviderView(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	brandProfiles, err := genSvc.ListBrandProfiles(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	calendarGroupsByDate := make(map[string][]publicationGroupItem)
 	calendarGroups := groupPublicationThreads(
 		threadBundlesFromRoots(orderedThreadRootsFromPosts(items), threadPostsByRoot),
@@ -517,6 +537,23 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if editID == "" {
+		if qText := strings.TrimSpace(r.URL.Query().Get("text")); qText != "" {
+			createText = qText
+		}
+		if qMediaID := strings.TrimSpace(r.URL.Query().Get("media_id")); qMediaID != "" {
+			if media, mErr := s.Store.GetMediaByIDs(r.Context(), []string{qMediaID}); mErr == nil && len(media) == 1 {
+				m := media[0]
+				createInitialMedia = append(createInitialMedia, createMediaAttachment{
+					ID:         m.ID,
+					Name:       strings.TrimSpace(m.OriginalName),
+					Size:       m.SizeBytes,
+					Mime:       strings.TrimSpace(m.MimeType),
+					PreviewURL: mediaContentURL(m.ID),
+				})
+			}
+		}
+	}
 	if len(createInitialSegments) == 0 {
 		createInitialSegments = append(createInitialSegments, createThreadSegment{
 			Text:  strings.TrimSpace(createText),
@@ -661,6 +698,13 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		SMTPError:                   smtpError,
 		SMTPSuccess:                 smtpSuccess,
 		SMTPConfig:                  smtpConfig,
+		GenError:                    genError,
+		GenSuccess:                  genSuccess,
+		GenTextProvider:             genTextProvider,
+		GenImageProvider:            genImageProvider,
+		BrandProfiles:               brandProfiles,
+		TextProviderOptions:         genai.SupportedTextProviders(),
+		ImageProviderOptions:        genai.SupportedImageProviders(),
 		AccountsError:               accountsError,
 		AccountsSuccess:             accountsSuccess,
 		OAuthPendingSelection:       oauthPendingSelection,

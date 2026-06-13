@@ -4002,6 +4002,12 @@
           </span>
           {{if gt .FailedCount 0}}<span class="nav-badge nav-badge-danger">{{.FailedCount}}</span>{{end}}
         </a>
+        <a class="nav-item {{if eq .ActiveNavView "generate"}}active{{end}}" href="/?view=generate">
+          <span class="nav-main">
+            <svg class="nav-icon nav-icon-generate" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/><path d="M19 14l.8 2L22 17l-2.2.9L19 20l-.9-2.1L16 17l2.1-1z"/></svg>
+            <span>{{t "nav.generate"}}</span>
+          </span>
+        </a>
         <a class="nav-item nav-item-settings {{if eq .ActiveNavView "settings"}}active{{end}}" href="/?view=settings">
           <span class="nav-main">
             <svg class="nav-icon nav-icon-settings" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -4015,7 +4021,7 @@
         <div class="title-row">
           {{if and (eq .View "create") .BackURL}}<a class="title-back" href="{{.BackURL}}" aria-label="{{t "common.back"}}">←</a>{{end}}
           <div class="title-copy">
-            <h1>{{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{if .EditingPost}}{{t "header.edit_post"}}{{else}}{{t "header.new_post"}}{{end}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else}}{{t "header.scheduled"}}{{end}}</h1>
+            <h1>{{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{if .EditingPost}}{{t "header.edit_post"}}{{else}}{{t "header.new_post"}}{{end}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "generate"}}{{t "header.generate"}}{{else}}{{t "header.scheduled"}}{{end}}</h1>
           </div>
           {{if eq .View "calendar"}}
           <div class="calendar-controls">
@@ -5198,6 +5204,170 @@
           <div class="field">
             <label>JSON config</label>
             <pre class="code-block">{{.MCPConfigJSON}}</pre>
+          </div>
+        </div>
+      </section>
+      <section class="editor editor-wide">
+        <div class="editor-head">{{t "settings.generation"}}</div>
+        <div class="editor-body">
+          {{if .GenError}}<div class="alert error">{{.GenError}}</div>{{end}}
+          {{if .GenSuccess}}<div class="alert success">{{.GenSuccess}}</div>{{end}}
+          <form method="post" action="/settings/generation/text">
+            <input type="hidden" name="return_to" value="{{.CurrentViewURL}}" />
+            <div class="meta"><span class="meta-soft">{{t "settings.gen_text_provider"}}</span></div>
+            <div class="field-grid two-columns">
+              <div class="field">
+                <label for="gen-text-provider">{{t "settings.provider"}}</label>
+                <select id="gen-text-provider" name="provider">
+                  {{range .TextProviderOptions}}<option value="{{.}}" {{if eq . $.GenTextProvider.Provider}}selected{{end}}>{{.}}</option>{{end}}
+                </select>
+              </div>
+              <div class="field">
+                <label for="gen-text-model">{{t "settings.model"}}</label>
+                <input id="gen-text-model" name="model" type="text" value="{{.GenTextProvider.Model}}" placeholder="claude-opus-4-8" autocomplete="off" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="gen-text-key">{{t "settings.api_key"}}{{if .GenTextProvider.KeyConfigured}} · {{t "settings.key_configured"}}{{end}}</label>
+              <input id="gen-text-key" name="api_key" type="password" placeholder="{{t "settings.api_key_placeholder"}}" autocomplete="off" />
+            </div>
+            <div class="editor-actions timezone-actions">
+              <button type="submit" class="btn-primary">{{t "settings.save"}}</button>
+            </div>
+          </form>
+          <form method="post" action="/settings/generation/image">
+            <input type="hidden" name="return_to" value="{{.CurrentViewURL}}" />
+            <div class="meta"><span class="meta-soft">{{t "settings.gen_image_provider"}}</span></div>
+            <div class="field-grid two-columns">
+              <div class="field">
+                <label for="gen-image-provider">{{t "settings.provider"}}</label>
+                <select id="gen-image-provider" name="provider">
+                  {{range .ImageProviderOptions}}<option value="{{.}}" {{if eq . $.GenImageProvider.Provider}}selected{{end}}>{{.}}</option>{{end}}
+                </select>
+              </div>
+              <div class="field">
+                <label for="gen-image-model">{{t "settings.model"}}</label>
+                <input id="gen-image-model" name="model" type="text" value="{{.GenImageProvider.Model}}" placeholder="gpt-image-1" autocomplete="off" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="gen-image-key">{{t "settings.api_key"}}{{if .GenImageProvider.KeyConfigured}} · {{t "settings.key_configured"}}{{end}}</label>
+              <input id="gen-image-key" name="api_key" type="password" placeholder="{{t "settings.api_key_placeholder"}}" autocomplete="off" />
+            </div>
+            <div class="editor-actions timezone-actions">
+              <button type="submit" class="btn-primary">{{t "settings.save"}}</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      <section class="editor editor-wide">
+        <div class="editor-head">{{t "settings.brand_profiles"}}</div>
+        <div class="editor-body">
+          {{range .BrandProfiles}}
+          <form method="post" action="/settings/brand-profiles" class="brand-profile-card">
+            <input type="hidden" name="return_to" value="{{$.CurrentViewURL}}" />
+            <input type="hidden" name="id" value="{{.ID}}" />
+            <div class="field">
+              <label>{{t "settings.brand_name"}}</label>
+              <input name="name" type="text" value="{{.Name}}" />
+            </div>
+            <div class="field">
+              <label>{{t "settings.brand_system_prompt"}}</label>
+              <textarea name="system_prompt" rows="3">{{.SystemPrompt}}</textarea>
+            </div>
+            <div class="field-grid two-columns">
+              <div class="field">
+                <label>{{t "settings.brand_tone"}}</label>
+                <input name="tone" type="text" value="{{.Tone}}" />
+              </div>
+              <div class="field">
+                <label>{{t "settings.brand_image_style"}}</label>
+                <input name="image_style" type="text" value="{{.ImageStyle}}" />
+              </div>
+            </div>
+            <div class="editor-actions timezone-actions">
+              <button type="submit" class="btn-primary">{{t "settings.save"}}</button>
+              <button type="submit" class="btn-danger" formaction="/settings/brand-profiles/delete">{{t "settings.delete"}}</button>
+            </div>
+          </form>
+          {{else}}
+          <div class="empty">{{t "settings.no_brand_profiles"}}</div>
+          {{end}}
+          <form method="post" action="/settings/brand-profiles" class="brand-profile-card">
+            <input type="hidden" name="return_to" value="{{.CurrentViewURL}}" />
+            <div class="meta"><span class="meta-soft">{{t "settings.add_brand"}}</span></div>
+            <div class="field">
+              <label>{{t "settings.brand_name"}}</label>
+              <input name="name" type="text" placeholder="Sare Digital" />
+            </div>
+            <div class="field">
+              <label>{{t "settings.brand_system_prompt"}}</label>
+              <textarea name="system_prompt" rows="3"></textarea>
+            </div>
+            <div class="field-grid two-columns">
+              <div class="field">
+                <label>{{t "settings.brand_tone"}}</label>
+                <input name="tone" type="text" />
+              </div>
+              <div class="field">
+                <label>{{t "settings.brand_image_style"}}</label>
+                <input name="image_style" type="text" />
+              </div>
+            </div>
+            <div class="editor-actions timezone-actions">
+              <button type="submit" class="btn-primary">{{t "settings.add_brand"}}</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      {{end}}
+      {{if eq .View "generate"}}
+      <section class="editor editor-wide" id="generate-view">
+        <div class="editor-head">{{t "header.generate"}}</div>
+        <div class="editor-body">
+          {{if .GenError}}<div class="alert error">{{.GenError}}</div>{{end}}
+          <div class="meta"><span class="meta-soft">{{t "generate.subtitle"}}</span></div>
+          {{if and (not .GenTextProvider.Configured) (not .GenImageProvider.Configured)}}
+          <div class="alert error">{{t "generate.no_provider"}} <a href="/?view=settings">{{t "nav.settings"}}</a></div>
+          {{end}}
+          <div class="field-grid two-columns">
+            <div class="field">
+              <label for="gen-brand">{{t "generate.brand"}}</label>
+              <select id="gen-brand">
+                <option value="">—</option>
+                {{range .BrandProfiles}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+              </select>
+            </div>
+            <div class="field">
+              <label for="gen-platform">{{t "generate.platform"}}</label>
+              <select id="gen-platform">
+                <option value="">—</option>
+                <option value="x">X</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="facebook">Facebook</option>
+                <option value="instagram">Instagram</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="gen-prompt">{{t "generate.prompt"}}</label>
+            <textarea id="gen-prompt" rows="4" placeholder="{{t "generate.prompt"}}"></textarea>
+          </div>
+          <div class="editor-actions timezone-actions">
+            <button type="button" class="btn-primary" id="gen-text-btn">{{t "generate.generate_text"}}</button>
+            <button type="button" class="btn-secondary" id="gen-image-btn">{{t "generate.generate_image"}}</button>
+          </div>
+          <div class="field">
+            <label for="gen-result">{{t "generate.result"}}</label>
+            <textarea id="gen-result" rows="5"></textarea>
+          </div>
+          <div id="gen-image-preview" class="gen-image-preview" hidden>
+            <img id="gen-image-img" alt="" />
+          </div>
+          <input type="hidden" id="gen-media-id" value="" />
+          <div class="editor-actions timezone-actions">
+            <button type="button" class="btn-primary" id="gen-use-btn">{{t "generate.use_in_post"}}</button>
+            <span class="meta-soft" id="gen-status"></span>
           </div>
         </div>
       </section>
@@ -8080,6 +8250,90 @@
     }
     input.value = browserTimezone;
     input.focus();
+  });
+})();
+</script>
+<script>
+(() => {
+  const view = document.getElementById('generate-view');
+  if (!view) return;
+  const promptEl = document.getElementById('gen-prompt');
+  const brandEl = document.getElementById('gen-brand');
+  const platformEl = document.getElementById('gen-platform');
+  const resultEl = document.getElementById('gen-result');
+  const statusEl = document.getElementById('gen-status');
+  const mediaIdEl = document.getElementById('gen-media-id');
+  const imgWrap = document.getElementById('gen-image-preview');
+  const imgEl = document.getElementById('gen-image-img');
+  const textBtn = document.getElementById('gen-text-btn');
+  const imageBtn = document.getElementById('gen-image-btn');
+  const useBtn = document.getElementById('gen-use-btn');
+
+  const setStatus = (msg, isError) => {
+    statusEl.textContent = msg || '';
+    statusEl.style.color = isError ? 'var(--danger, #c0392b)' : '';
+  };
+
+  const postJSON = async (url, payload) => {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || ('request failed (' + resp.status + ')'));
+    return data;
+  };
+
+  textBtn?.addEventListener('click', async () => {
+    const prompt = (promptEl.value || '').trim();
+    if (!prompt) { setStatus('prompt required', true); return; }
+    textBtn.disabled = true;
+    setStatus('generating…', false);
+    try {
+      const data = await postJSON('/generate/text', {
+        prompt,
+        platform: platformEl.value,
+        brand_profile_id: brandEl.value,
+      });
+      resultEl.value = data.text || '';
+      setStatus(data.provider ? ('generated · ' + data.provider) : 'generated', false);
+    } catch (e) {
+      setStatus(e.message, true);
+    } finally {
+      textBtn.disabled = false;
+    }
+  });
+
+  imageBtn?.addEventListener('click', async () => {
+    const prompt = (promptEl.value || '').trim();
+    if (!prompt) { setStatus('prompt required', true); return; }
+    imageBtn.disabled = true;
+    setStatus('generating image…', false);
+    try {
+      const data = await postJSON('/generate/image', {
+        prompt,
+        brand_profile_id: brandEl.value,
+      });
+      mediaIdEl.value = data.media_id || '';
+      if (data.preview_url) {
+        imgEl.src = data.preview_url;
+        imgWrap.hidden = false;
+      }
+      setStatus(data.provider ? ('image ready · ' + data.provider) : 'image ready', false);
+    } catch (e) {
+      setStatus(e.message, true);
+    } finally {
+      imageBtn.disabled = false;
+    }
+  });
+
+  useBtn?.addEventListener('click', () => {
+    const params = new URLSearchParams({ view: 'create' });
+    const text = (resultEl.value || '').trim();
+    if (text) params.set('text', text);
+    if (mediaIdEl.value) params.set('media_id', mediaIdEl.value);
+    window.location.href = '/?' + params.toString();
   });
 })();
 </script>

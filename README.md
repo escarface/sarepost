@@ -8,6 +8,7 @@ Built in Go with SQLite. LLM-first: every capability is consistently exposed thr
 
 ## Features
 
+- **In-app AI generation** — generate post copy and images from the Web UI with configurable LLM/image providers (Anthropic, OpenAI) and reusable brand profiles
 - **Multi-platform publishing** — X, LinkedIn (profiles + company pages), Facebook, and Instagram
 - **Thread/thread support** — create root posts with follow-up replies or comments
 - **Media management** — upload images and video, attach to posts
@@ -35,11 +36,31 @@ internal/worker   → background publishing runtime
 internal/application → business use cases (posts, media, DLQ, notifications)
 internal/db       → SQLite persistence
 internal/postflow → provider SDK clients (X, LinkedIn, Meta)
+internal/genai    → text/image generation clients (Anthropic, OpenAI, mock)
 internal/secure   → encryption
 internal/domain   → entities and enums
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for layer rules and design decisions.
+
+---
+
+## AI generation
+
+The **Generate** tab in the Web UI generates post copy and images with AI, then hands
+the result off to the new-post composer (text prefilled, generated image attached).
+
+- Configure providers in **Settings → AI generation**: pick a provider and model for
+  text (Anthropic, OpenAI) and image (OpenAI) and paste an API key. Keys are encrypted
+  at rest with `POSTFLOW_MASTER_KEY`.
+- Define **brand profiles** (system prompt, tone, image style) that are applied
+  automatically to generation, alongside the target platform's rules.
+- With `POSTFLOW_DRIVER=mock` (the default), generation uses built-in mock providers and
+  makes no network calls — useful for local development and tests. Set
+  `POSTFLOW_DRIVER=live` to call real provider APIs.
+
+Generation is a **Web-UI-only** feature: MCP and CLI clients already generate content
+through their own LLM, so no generation tools are exposed on those surfaces.
 
 ---
 
