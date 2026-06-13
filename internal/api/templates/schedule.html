@@ -1023,6 +1023,146 @@
       border-color: #434343;
       background-color: #242424;
     }
+    .post-preview-modal[hidden] {
+      display: none;
+    }
+    .post-preview-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+    .post-preview-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.68);
+      backdrop-filter: blur(6px);
+    }
+    .post-preview-dialog {
+      position: relative;
+      width: min(520px, calc(100vw - 32px));
+      max-height: min(760px, calc(100vh - 32px));
+      overflow: auto;
+      border: 1px solid rgba(255, 107, 53, 0.38);
+      border-radius: 14px;
+      background: #171717;
+      box-shadow: 0 22px 70px rgba(0, 0, 0, 0.46);
+    }
+    .post-preview-head {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px 16px 10px;
+      background: rgba(23, 23, 23, 0.94);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(10px);
+    }
+    .post-preview-eyebrow {
+      font-size: 10px;
+      color: #ff6b35;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+    }
+    .post-preview-title {
+      margin: 3px 0 0;
+      font-size: 18px;
+      line-height: 1.1;
+      color: #f1f1f1;
+    }
+    .post-preview-close {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 8px;
+      background: #262626;
+      color: #f1f1f1;
+      cursor: pointer;
+    }
+    .post-preview-content {
+      padding: 16px;
+    }
+    .post-preview-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .post-preview-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #adadad;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .post-preview-platforms {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .post-preview-platforms svg {
+      width: 15px;
+      height: 15px;
+    }
+    .post-preview-copy,
+    .post-preview-step-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      color: #f2f2f2;
+      font-size: 13px;
+      line-height: 1.48;
+    }
+    .post-preview-copy p,
+    .post-preview-step-text p {
+      margin: 0 0 8px;
+    }
+    .post-preview-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 2px;
+    }
+    .post-preview-step {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .post-preview-step-index {
+      width: 22px;
+      height: 22px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #ff6b35;
+      color: #111;
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .post-preview-media {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      gap: 5px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(255, 107, 53, 0.14);
+      color: #ffc1a8;
+      font-size: 11px;
+      font-weight: 700;
+    }
     .publication-card-head {
       display: flex;
       align-items: flex-start;
@@ -4095,7 +4235,7 @@
                 </div>
                 <div class="day-events" data-day-events>
                   {{range .Events}}
-                  <div class="day-event {{.StatusClass}}" data-day-event data-status="{{.StatusKey}}" data-platform="{{if .MultiPlatform}}multi{{else}}{{.Platform}}{{end}}" data-event-group="{{.PostCount}}" data-event-platform-count="{{len .Platforms}}">
+                  <div class="day-event {{.StatusClass}}" data-day-event data-status="{{.StatusKey}}" data-post-preview data-post-preview-template-id="post-preview-{{.PreviewID}}" data-platform="{{if .MultiPlatform}}multi{{else}}{{.Platform}}{{end}}" data-event-group="{{.PostCount}}" data-event-platform-count="{{len .Platforms}}">
                     <div class="day-event-main">
                       <span class="event-dot" aria-hidden="true"></span>
                       <span class="event-time">{{.TimeLabel}}</span>
@@ -4131,6 +4271,50 @@
                   {{end}}
                 </div>
               </a>
+              {{range .Events}}
+              <template id="post-preview-{{.PreviewID}}" data-post-preview-template>
+                <article class="post-preview-card">
+                  <div class="post-preview-meta">
+                    <span>{{.TimeLabel}} · {{.StatusLabel}}</span>
+                    <span class="post-preview-platforms">
+                      {{range .Platforms}}
+                      <span title="{{.}}">
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          {{if eq . "x"}}
+                          <use href="#pf-brand-x"></use>
+                          {{else if eq . "linkedin"}}
+                          <use href="#pf-brand-linkedin"></use>
+                          {{else if eq . "facebook"}}
+                          <use href="#pf-brand-facebook"></use>
+                          {{else if eq . "instagram"}}
+                          <use href="#pf-brand-instagram"></use>
+                          {{else}}
+                          <use href="#pf-brand-default"></use>
+                          {{end}}
+                        </svg>
+                      </span>
+                      {{end}}
+                      {{if gt .PostCount 1}}<span>x{{.PostCount}}</span>{{end}}
+                    </span>
+                  </div>
+                  <div class="post-preview-copy">{{previewMarkdown .Text}}</div>
+                  {{if gt .MediaCount 0}}<span class="post-preview-media">{{t "common.media_count" .MediaCount}}</span>{{end}}
+                  {{if gt (len .FollowUpSteps) 0}}
+                  <div class="post-preview-steps">
+                    {{range .FollowUpSteps}}
+                    <div class="post-preview-step">
+                      <span class="post-preview-step-index">{{.Position}}</span>
+                      <div>
+                        <div class="post-preview-step-text">{{previewMarkdown .Text}}</div>
+                        {{if gt .MediaCount 0}}<span class="post-preview-media">{{t "common.media_count" .MediaCount}}</span>{{end}}
+                      </div>
+                    </div>
+                    {{end}}
+                  </div>
+                  {{end}}
+                </article>
+              </template>
+              {{end}}
             </div>
             {{end}}
           </div>
@@ -4438,6 +4622,19 @@
           {{end}}
         </div>
       </aside>
+      </div>
+      <div class="post-preview-modal" id="post-preview-modal" hidden>
+        <div class="post-preview-backdrop" data-post-preview-close></div>
+        <section class="post-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="post-preview-title">
+          <div class="post-preview-head">
+            <div>
+              <div class="post-preview-eyebrow">{{t "calendar.post_preview_eyebrow"}}</div>
+              <h2 class="post-preview-title" id="post-preview-title">{{t "calendar.post_preview"}}</h2>
+            </div>
+            <button type="button" class="post-preview-close" data-post-preview-close aria-label="{{t "common.close"}}">×</button>
+          </div>
+          <div class="post-preview-content" id="post-preview-content"></div>
+        </section>
       </div>
       {{end}}
 
@@ -5419,6 +5616,60 @@
     </main>
   </div>
 <script>
+(() => {
+  const modal = document.getElementById("post-preview-modal");
+  const content = document.getElementById("post-preview-content");
+  if (!(modal instanceof HTMLElement) || !(content instanceof HTMLElement)) {
+    return;
+  }
+  let lastTrigger = null;
+
+  const closePreview = () => {
+    modal.hidden = true;
+    content.innerHTML = "";
+    if (lastTrigger instanceof HTMLElement) {
+      lastTrigger.focus({ preventScroll: true });
+    }
+    lastTrigger = null;
+  };
+
+  const openPreview = (trigger) => {
+    const templateID = String(trigger.dataset.postPreviewTemplateId || "").trim();
+    const template = templateID ? document.getElementById(templateID) : null;
+    if (!(template instanceof HTMLTemplateElement)) {
+      return;
+    }
+    content.innerHTML = "";
+    content.appendChild(template.content.cloneNode(true));
+    lastTrigger = trigger;
+    modal.hidden = false;
+    const closeButton = modal.querySelector("[data-post-preview-close]");
+    if (closeButton instanceof HTMLElement) {
+      closeButton.focus({ preventScroll: true });
+    }
+  };
+
+  document.querySelectorAll("[data-post-preview]").forEach((node) => {
+    if (!(node instanceof HTMLElement)) {
+      return;
+    }
+    node.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openPreview(node);
+    });
+  });
+
+  modal.querySelectorAll("[data-post-preview-close]").forEach((node) => {
+    node.addEventListener("click", closePreview);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!modal.hidden && event.key === "Escape") {
+      closePreview();
+    }
+  });
+})();
+
 (() => {
   const isInteractive = (node) => !!node.closest("a,button,input,select,textarea,form,label");
   document.querySelectorAll("[data-edit-url]").forEach((el) => {

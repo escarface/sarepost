@@ -125,6 +125,15 @@ func TestCalendarDayEventShowsPlatformLogoOnRight(t *testing.T) {
 	if !strings.Contains(selectedDayEvents, `class="event-network"`) {
 		t.Fatalf("expected selected-day event to render platform icon container")
 	}
+	if !strings.Contains(selectedDayEvents, `data-post-preview`) || !strings.Contains(selectedDayEvents, `data-post-preview-template-id`) {
+		t.Fatalf("expected selected-day event to expose a clickable post preview trigger")
+	}
+	if !strings.Contains(body, `data-post-preview-template`) {
+		t.Fatalf("expected calendar view to include a post preview template")
+	}
+	if !strings.Contains(body, `id="post-preview-modal"`) || !strings.Contains(body, `id="post-preview-content"`) {
+		t.Fatalf("expected calendar view to include post preview modal shell")
+	}
 }
 
 func TestCalendarDayEventCollapsesMultilinePreviewIntoSingleVisualLine(t *testing.T) {

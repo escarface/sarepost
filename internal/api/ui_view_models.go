@@ -37,12 +37,16 @@ type oauthPendingSelectionView struct {
 }
 
 type calendarEvent struct {
+	PreviewID     string
 	TimeLabel     string
 	StatusClass   string
 	StatusLabel   string
 	StatusKey     string
 	TextPreview   string
+	Text          string
 	ThreadLabel   string
+	FollowUpSteps []publicationStepPreview
+	MediaCount    int
 	Platform      domain.Platform
 	Platforms     []domain.Platform
 	PostCount     int
