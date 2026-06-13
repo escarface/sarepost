@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -157,10 +156,6 @@ func (p *InstagramProvider) HandleOAuthCallback(ctx context.Context, in OAuthCal
 		})
 	}
 	if len(accounts) == 0 {
-		slog.Warn("meta instagram oauth returned no business accounts",
-			"meta_pages", summarizeMetaPages(pages),
-			"user_access_token", maskToken(token.AccessToken),
-		)
 		return nil, fmt.Errorf("meta oauth returned no instagram business accounts")
 	}
 	return accounts, nil
@@ -209,11 +204,6 @@ func (p *FacebookProvider) exchangeCode(ctx context.Context, in OAuthCallbackInp
 	if strings.TrimSpace(out.AccessToken) == "" {
 		return metaTokenResponse{}, fmt.Errorf("meta token exchange returned empty access_token")
 	}
-	slog.Info("meta oauth exchanged code for user token",
-		"token_type", strings.TrimSpace(out.TokenType),
-		"expires_in_seconds", out.ExpiresIn,
-		"user_access_token", maskToken(out.AccessToken),
-	)
 	return out, nil
 }
 
@@ -246,46 +236,12 @@ func (p *FacebookProvider) fetchPages(ctx context.Context, token metaTokenRespon
 	if err := json.Unmarshal(body, &out); err != nil {
 		return nil, err
 	}
-	slog.Info("meta oauth fetched pages",
-		"page_count", len(out.Data),
-		"meta_pages", summarizeMetaPages(out.Data),
-		"user_access_token", maskToken(token.AccessToken),
-	)
 	return out.Data, nil
 }
 
 func (p *InstagramProvider) fetchPages(ctx context.Context, token metaTokenResponse) ([]metaPage, error) {
 	fb := FacebookProvider{cfg: p.cfg, client: p.client}
 	return fb.fetchPages(ctx, token)
-}
-
-func summarizeMetaPages(pages []metaPage) []map[string]any {
-	items := make([]map[string]any, 0, len(pages))
-	for _, page := range pages {
-		item := map[string]any{
-			"id":                strings.TrimSpace(page.ID),
-			"name":              strings.TrimSpace(page.Name),
-			"has_access_token":  strings.TrimSpace(page.AccessToken) != "",
-			"page_access_token": maskToken(page.AccessToken),
-		}
-		if page.InstagramBusinessAccount != nil {
-			item["instagram_business_account_id"] = strings.TrimSpace(page.InstagramBusinessAccount.ID)
-			item["instagram_username"] = strings.TrimSpace(page.InstagramBusinessAccount.Username)
-		}
-		items = append(items, item)
-	}
-	return items
-}
-
-func maskToken(raw string) string {
-	token := strings.TrimSpace(raw)
-	if token == "" {
-		return ""
-	}
-	if len(token) <= 8 {
-		return token[:1] + "..."
-	}
-	return token[:4] + "..." + token[len(token)-4:]
 }
 
 func (p *FacebookProvider) exchangeLongLivedToken(ctx context.Context, accessToken string) (metaTokenResponse, error) {

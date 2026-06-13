@@ -146,3 +146,65 @@ Documentation language in this repo is **English**.
 - [ ] Docs updated (`README`, OpenAPI, architecture notes as needed)
 - [ ] `go test ./...` passes
 - [ ] Full gate run for significant changes
+
+## 10) Publishing Operations (production by default)
+
+When the user asks to create, upload, schedule, or inspect real social
+publications, use the production PostFlow instance:
+
+```bash
+export POSTFLOW_BASE_URL="https://sarepost.casacasala.online"
+export POSTFLOW_API_TOKEN="<configured production token>"
+go run ./cmd/postflow --json accounts list
+```
+
+Operational rules:
+
+- Always use the SarePost MCP tools or the PostFlow CLI when scheduling real
+  publications. Do not schedule publications through ad hoc database writes,
+  direct HTTP calls, or local-only helpers unless the user explicitly requests a
+  local/non-production workflow.
+- Do not use `http://localhost:8080` for real publishing unless the user
+  explicitly requests the local instance. The local `postflow.db` may have no
+  connected accounts even when production accounts are connected.
+- `PUBLIC_BASE_URL` configures server callbacks and public media URLs; it does
+  not configure the CLI destination. The CLI uses `POSTFLOW_BASE_URL`.
+- The server reads `API_TOKEN`, while the CLI reads `POSTFLOW_API_TOKEN`. Never
+  write tokens into tracked files or expose them in output.
+- Before publishing, run `accounts list` against production and select the
+  intended account by both platform and display name. For Sare Digital, do not
+  accidentally select unrelated connected pages.
+- Inspect the target time window with `schedule list` before creating posts.
+- Keep scheduled timestamps in RFC3339 with an explicit timezone offset.
+
+Standard CLI flow:
+
+```bash
+# 1. Inspect production accounts and schedule.
+go run ./cmd/postflow --json accounts list
+go run ./cmd/postflow --json schedule list \
+  --from 2026-06-09T00:00:00+02:00 \
+  --to 2026-06-09T23:59:59+02:00
+
+# 2. Upload media and retain the returned media ID.
+go run ./cmd/postflow --json media upload \
+  --file /absolute/path/to/image.png \
+  --kind image
+
+# 3. Create the scheduled publication with an idempotency key.
+go run ./cmd/postflow --json posts create \
+  --account-id acc_xxx \
+  --media-id med_xxx \
+  --text "Publication copy" \
+  --scheduled-at 2026-06-09T17:00:00+02:00 \
+  --idempotency-key descriptive-unique-key
+
+# 4. Verify the final publication is present and has status "scheduled".
+go run ./cmd/postflow --json schedule list \
+  --from 2026-06-09T16:59:00+02:00 \
+  --to 2026-06-09T17:01:00+02:00
+```
+
+For image-based publication requests, use the `imagegen` skill, save final
+assets under `output/imagegen/`, upload the platform-appropriate asset, and
+verify that the scheduled publication reports `has_media: true`.
