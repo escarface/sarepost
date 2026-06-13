@@ -10,3 +10,6 @@ data/
 .air-tmp/
 .DS_Store
 docs/superpowers/
+.opencode/
+tmp/
+output/imagegen/
