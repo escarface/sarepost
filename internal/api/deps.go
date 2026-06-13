@@ -1,10 +1,14 @@
 package api
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"strings"
 	"sync"
 
 	generationapp "github.com/escarface/sarepost/internal/application/generation"
+	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/domain"
 	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/postflow"
@@ -49,8 +53,29 @@ func (s Server) generationService() generationapp.Service {
 		driver = genai.DriverLive
 	}
 	return generationapp.Service{
-		Store:  s.Store,
-		Cipher: s.credentialsCipher(),
-		Driver: driver,
+		Store:       s.Store,
+		Cipher:      s.credentialsCipher(),
+		Driver:      driver,
+		MediaReader: storeMediaReader{store: s.Store},
 	}
+}
+
+// storeMediaReader adapts the media store + disk to generationapp.MediaReader.
+type storeMediaReader struct {
+	store *db.Store
+}
+
+func (r storeMediaReader) ReadMedia(ctx context.Context, mediaID string) ([]byte, string, error) {
+	media, err := r.store.GetMediaByIDs(ctx, []string{strings.TrimSpace(mediaID)})
+	if err != nil {
+		return nil, "", err
+	}
+	if len(media) == 0 {
+		return nil, "", fmt.Errorf("media %s not found", mediaID)
+	}
+	data, err := os.ReadFile(media[0].StoragePath)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, media[0].MimeType, nil
 }

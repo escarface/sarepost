@@ -21,6 +21,12 @@ type TextProviderFactory func(genai.Driver, genai.ProviderConfig) (genai.TextPro
 // ImageProviderFactory builds an image provider from driver + config.
 type ImageProviderFactory func(genai.Driver, genai.ProviderConfig) (genai.ImageProvider, error)
 
+// MediaReader loads stored media bytes by id. Satisfied by the adapter so the
+// application layer stays free of storage/filesystem concerns.
+type MediaReader interface {
+	ReadMedia(ctx context.Context, mediaID string) (data []byte, mimeType string, err error)
+}
+
 // Service orchestrates in-app text and image generation. Business logic only —
 // it persists nothing beyond settings; the adapter persists generated media.
 type Service struct {
@@ -29,6 +35,7 @@ type Service struct {
 	Driver       genai.Driver
 	TextFactory  TextProviderFactory
 	ImageFactory ImageProviderFactory
+	MediaReader  MediaReader
 }
 
 // GenerateTextInput is a text-generation request.
@@ -139,9 +146,15 @@ func (s Service) GenerateImage(ctx context.Context, in GenerateImageInput) (Gene
 	if err != nil {
 		return GenerateImageOutput{}, err
 	}
+	refImage, refMime, err := s.loadReferenceImage(ctx, profile)
+	if err != nil {
+		return GenerateImageOutput{}, err
+	}
 	result, err := provider.GenerateImage(ctx, genai.ImageRequest{
-		Prompt: buildImagePrompt(profile, prompt),
-		Size:   in.Size,
+		Prompt:       buildImagePrompt(prompt, len(refImage) > 0),
+		Size:         in.Size,
+		RefImage:     refImage,
+		RefImageMime: refMime,
 	})
 	if err != nil {
 		return GenerateImageOutput{}, err
@@ -185,12 +198,23 @@ func buildTextSystemPrompt(profile BrandProfile, platform domain.Platform) strin
 	return b.String()
 }
 
-func buildImagePrompt(profile BrandProfile, prompt string) string {
-	style := strings.TrimSpace(profile.ImageStyle)
-	if style == "" {
-		return prompt
+func (s Service) loadReferenceImage(ctx context.Context, profile BrandProfile) ([]byte, string, error) {
+	mediaID := strings.TrimSpace(profile.ImageRefMediaID)
+	if mediaID == "" || s.MediaReader == nil {
+		return nil, "", nil
 	}
-	return prompt + "\n\nVisual style: " + style
+	data, mime, err := s.MediaReader.ReadMedia(ctx, mediaID)
+	if err != nil {
+		return nil, "", fmt.Errorf("load brand reference image: %w", err)
+	}
+	return data, mime, nil
+}
+
+func buildImagePrompt(prompt string, hasReference bool) string {
+	if hasReference {
+		return prompt + "\n\nMatch the visual style, color palette, and overall look of the provided reference image."
+	}
+	return prompt
 }
 
 func platformGuidance(platform domain.Platform) string {

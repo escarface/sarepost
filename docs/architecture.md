@@ -30,7 +30,9 @@ exposes `NewTextProvider`/`NewImageProvider` factories instead of a registry.
 profiles persisted in the `settings` table (API keys encrypted with `internal/secure`,
 following the SMTP config pattern) and `GenerateText`/`GenerateImage`, which merge the
 selected brand profile and platform rules into the prompt before delegating to a
-provider.
+provider. A brand profile may reference an uploaded media item as a visual style
+reference; the adapter supplies a `MediaReader` so `GenerateImage` can load the bytes
+and pass them to the provider for image-to-image generation (OpenAI `/images/edits`).
 
 **Intentional parity exception:** generation is exposed only through the Web UI
 (`/?view=generate` plus the `/generate/*` and `/settings/generation/*` endpoints). MCP

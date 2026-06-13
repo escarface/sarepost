@@ -53,8 +53,9 @@ the result off to the new-post composer (text prefilled, generated image attache
 - Configure providers in **Settings → AI generation**: pick a provider and model for
   text (Anthropic, OpenAI) and image (OpenAI) and paste an API key. Keys are encrypted
   at rest with `POSTFLOW_MASTER_KEY`.
-- Define **brand profiles** (system prompt, tone, image style) that are applied
-  automatically to generation, alongside the target platform's rules.
+- Define **brand profiles** (system prompt, tone, and an uploaded image-style
+  reference) that are applied automatically to generation, alongside the target
+  platform's rules. The reference image guides generated images (image-to-image).
 - With `POSTFLOW_DRIVER=mock` (the default), generation uses built-in mock providers and
   makes no network calls — useful for local development and tests. Set
   `POSTFLOW_DRIVER=live` to call real provider APIs.

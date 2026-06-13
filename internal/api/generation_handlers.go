@@ -124,19 +124,20 @@ func (s Server) handleSaveBrandProfile(w http.ResponseWriter, r *http.Request) {
 	var update generationapp.BrandProfileUpdate
 	if fromForm {
 		update = generationapp.BrandProfileUpdate{
-			ID:           r.FormValue("id"),
-			Name:         r.FormValue("name"),
-			SystemPrompt: r.FormValue("system_prompt"),
-			Tone:         r.FormValue("tone"),
-			ImageStyle:   r.FormValue("image_style"),
+			ID:              r.FormValue("id"),
+			Name:            r.FormValue("name"),
+			SystemPrompt:    r.FormValue("system_prompt"),
+			Tone:            r.FormValue("tone"),
+			ImageRefMediaID: r.FormValue("image_ref_media_id"),
 		}
 	} else {
 		var body struct {
-			ID           string `json:"id"`
-			Name         string `json:"name"`
-			SystemPrompt string `json:"system_prompt"`
-			Tone         string `json:"tone"`
-			ImageStyle   string `json:"image_style"`
+			ID              string `json:"id"`
+			Name            string `json:"name"`
+			SystemPrompt    string `json:"system_prompt"`
+			Tone            string `json:"tone"`
+			ImageRefMediaID string `json:"image_ref_media_id"`
+			KeepImageRef    bool   `json:"keep_image_ref"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))

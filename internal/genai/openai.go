@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -105,6 +106,12 @@ func newOpenAIImageProvider(cfg ProviderConfig) openAIImageProvider {
 
 func (p openAIImageProvider) Name() string { return ProviderOpenAI }
 
+type openAIImageResponse struct {
+	Data []struct {
+		B64JSON string `json:"b64_json"`
+	} `json:"data"`
+}
+
 func (p openAIImageProvider) GenerateImage(ctx context.Context, req ImageRequest) (ImageResult, error) {
 	if strings.TrimSpace(req.Prompt) == "" {
 		return ImageResult{}, fmt.Errorf("prompt is required")
@@ -113,14 +120,17 @@ func (p openAIImageProvider) GenerateImage(ctx context.Context, req ImageRequest
 	if size == "" {
 		size = "1024x1024"
 	}
-	body := map[string]any{"model": p.model, "prompt": req.Prompt, "size": size, "n": 1}
 
-	var parsed struct {
-		Data []struct {
-			B64JSON string `json:"b64_json"`
-		} `json:"data"`
+	var parsed openAIImageResponse
+	var err error
+	if len(req.RefImage) > 0 {
+		// Image-to-image: the reference guides the visual style.
+		err = p.postImageEdit(ctx, req, size, &parsed)
+	} else {
+		body := map[string]any{"model": p.model, "prompt": req.Prompt, "size": size, "n": 1}
+		err = openAIPostJSON(ctx, p.baseURL, p.apiKey, "/images/generations", body, &parsed)
 	}
-	if err := openAIPostJSON(ctx, p.baseURL, p.apiKey, "/images/generations", body, &parsed); err != nil {
+	if err != nil {
 		return ImageResult{}, err
 	}
 	if len(parsed.Data) == 0 || parsed.Data[0].B64JSON == "" {
@@ -131,6 +141,65 @@ func (p openAIImageProvider) GenerateImage(ctx context.Context, req ImageRequest
 		return ImageResult{}, fmt.Errorf("decode openai image: %w", err)
 	}
 	return ImageResult{Data: raw, MimeType: "image/png", Model: p.model}, nil
+}
+
+// postImageEdit calls /images/edits with the reference image as multipart form data.
+func (p openAIImageProvider) postImageEdit(ctx context.Context, req ImageRequest, size string, out any) error {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fields := map[string]string{"model": p.model, "prompt": req.Prompt, "size": size, "n": "1"}
+	for k, v := range fields {
+		if err := mw.WriteField(k, v); err != nil {
+			return err
+		}
+	}
+	filename := "reference" + extensionForMime(req.RefImageMime)
+	part, err := mw.CreateFormFile("image", filename)
+	if err != nil {
+		return err
+	}
+	if _, err := part.Write(req.RefImage); err != nil {
+		return err
+	}
+	if err := mw.Close(); err != nil {
+		return err
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/images/edits", &buf)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Content-Type", mw.FormDataContentType())
+	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := openAIHTTPClient().Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("openai request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("openai request failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(data)))
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("decode openai response: %w", err)
+	}
+	return nil
+}
+
+func extensionForMime(mime string) string {
+	switch strings.ToLower(strings.TrimSpace(mime)) {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ".png"
+	}
 }
 
 func openAIPostJSON(ctx context.Context, baseURL, apiKey, path string, body any, out any) error {

@@ -51,6 +51,10 @@ type ImageRequest struct {
 	Prompt string
 	// Size is a provider-agnostic hint like "1024x1024". Empty means provider default.
 	Size string
+	// RefImage, when set, is a reference image whose visual style guides the
+	// generation (image-to-image). RefImageMime is its MIME type (e.g. image/png).
+	RefImage     []byte
+	RefImageMime string
 }
 
 // ImageResult carries the raw generated image bytes and its MIME type.

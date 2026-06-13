@@ -18,7 +18,9 @@ type BrandProfile struct {
 	Name         string `json:"name"`
 	SystemPrompt string `json:"system_prompt,omitempty"`
 	Tone         string `json:"tone,omitempty"`
-	ImageStyle   string `json:"image_style,omitempty"`
+	// ImageRefMediaID is the id of an uploaded media item used as a visual style
+	// reference when generating images for this brand.
+	ImageRefMediaID string `json:"image_ref_media_id,omitempty"`
 }
 
 // BrandProfileUpdate is the create/update input. An empty ID creates a new one.
@@ -27,7 +29,11 @@ type BrandProfileUpdate struct {
 	Name         string
 	SystemPrompt string
 	Tone         string
-	ImageStyle   string
+	// ImageRefMediaID sets the reference image. When empty and KeepImageRef is
+	// true, the stored reference is retained (used on edit when no new file is
+	// uploaded); when empty and KeepImageRef is false, the reference is cleared.
+	ImageRefMediaID string
+	KeepImageRef    bool
 }
 
 // ListBrandProfiles returns the stored brand profiles sorted by name.
@@ -70,11 +76,19 @@ func (s Service) SaveBrandProfile(ctx context.Context, update BrandProfileUpdate
 		return BrandProfile{}, err
 	}
 	profile := BrandProfile{
-		ID:           strings.TrimSpace(update.ID),
-		Name:         name,
-		SystemPrompt: strings.TrimSpace(update.SystemPrompt),
-		Tone:         strings.TrimSpace(update.Tone),
-		ImageStyle:   strings.TrimSpace(update.ImageStyle),
+		ID:              strings.TrimSpace(update.ID),
+		Name:            name,
+		SystemPrompt:    strings.TrimSpace(update.SystemPrompt),
+		Tone:            strings.TrimSpace(update.Tone),
+		ImageRefMediaID: strings.TrimSpace(update.ImageRefMediaID),
+	}
+	if profile.ImageRefMediaID == "" && update.KeepImageRef && profile.ID != "" {
+		for i := range profiles {
+			if profiles[i].ID == profile.ID {
+				profile.ImageRefMediaID = profiles[i].ImageRefMediaID
+				break
+			}
+		}
 	}
 	if profile.ID == "" {
 		id, err := newBrandProfileID()

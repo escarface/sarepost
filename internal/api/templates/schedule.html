@@ -1379,6 +1379,33 @@
     .editor.editor-wide {
       max-width: 920px;
     }
+    .brand-image-ref {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .brand-image-ref-thumb {
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #2a2a2a;
+      background: #1a1a1a;
+    }
+    .brand-image-ref-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .brand-image-ref-status {
+      font-size: 12px;
+      color: #b8b8b8;
+    }
+    .brand-image-ref-hint {
+      font-size: 12px;
+      color: #8a8a8a;
+    }
     .editor-head {
       padding: 10px 12px;
       border-bottom: 1px solid #2a2a2a;
@@ -5275,14 +5302,21 @@
               <label>{{t "settings.brand_system_prompt"}}</label>
               <textarea name="system_prompt" rows="3">{{.SystemPrompt}}</textarea>
             </div>
-            <div class="field-grid two-columns">
-              <div class="field">
-                <label>{{t "settings.brand_tone"}}</label>
-                <input name="tone" type="text" value="{{.Tone}}" />
-              </div>
-              <div class="field">
-                <label>{{t "settings.brand_image_style"}}</label>
-                <input name="image_style" type="text" value="{{.ImageStyle}}" />
+            <div class="field">
+              <label>{{t "settings.brand_tone"}}</label>
+              <input name="tone" type="text" value="{{.Tone}}" />
+            </div>
+            <div class="field">
+              <label>{{t "settings.brand_image_ref"}}</label>
+              <div class="brand-image-ref" data-brand-image-ref>
+                <input type="hidden" name="image_ref_media_id" value="{{.ImageRefMediaID}}" data-brand-image-input />
+                <img class="brand-image-ref-thumb" data-brand-image-thumb src="{{if .ImageRefMediaID}}/media/{{.ImageRefMediaID}}/content{{end}}" alt="" {{if not .ImageRefMediaID}}hidden{{end}} />
+                <div class="brand-image-ref-controls">
+                  <input type="file" accept="image/*" data-brand-image-file class="brand-image-ref-file" />
+                  <button type="button" class="btn-secondary brand-image-ref-clear" data-brand-image-clear {{if not .ImageRefMediaID}}hidden{{end}}>{{t "settings.brand_image_ref_remove"}}</button>
+                  <span class="brand-image-ref-status" data-brand-image-status></span>
+                </div>
+                <span class="brand-image-ref-hint">{{t "settings.brand_image_ref_hint"}}</span>
               </div>
             </div>
             <div class="editor-actions timezone-actions">
@@ -5304,14 +5338,21 @@
               <label>{{t "settings.brand_system_prompt"}}</label>
               <textarea name="system_prompt" rows="3"></textarea>
             </div>
-            <div class="field-grid two-columns">
-              <div class="field">
-                <label>{{t "settings.brand_tone"}}</label>
-                <input name="tone" type="text" />
-              </div>
-              <div class="field">
-                <label>{{t "settings.brand_image_style"}}</label>
-                <input name="image_style" type="text" />
+            <div class="field">
+              <label>{{t "settings.brand_tone"}}</label>
+              <input name="tone" type="text" />
+            </div>
+            <div class="field">
+              <label>{{t "settings.brand_image_ref"}}</label>
+              <div class="brand-image-ref" data-brand-image-ref>
+                <input type="hidden" name="image_ref_media_id" value="" data-brand-image-input />
+                <img class="brand-image-ref-thumb" data-brand-image-thumb src="" alt="" hidden />
+                <div class="brand-image-ref-controls">
+                  <input type="file" accept="image/*" data-brand-image-file class="brand-image-ref-file" />
+                  <button type="button" class="btn-secondary brand-image-ref-clear" data-brand-image-clear hidden>{{t "settings.brand_image_ref_remove"}}</button>
+                  <span class="brand-image-ref-status" data-brand-image-status></span>
+                </div>
+                <span class="brand-image-ref-hint">{{t "settings.brand_image_ref_hint"}}</span>
               </div>
             </div>
             <div class="editor-actions timezone-actions">
@@ -8334,6 +8375,71 @@
     if (text) params.set('text', text);
     if (mediaIdEl.value) params.set('media_id', mediaIdEl.value);
     window.location.href = '/?' + params.toString();
+  });
+})();
+</script>
+<script>
+(() => {
+  const widgets = document.querySelectorAll('[data-brand-image-ref]');
+  if (!widgets.length) return;
+
+  const uploadImage = async (file) => {
+    const payload = new FormData();
+    payload.append('kind', 'image');
+    payload.append('file', file);
+    const res = await fetch('/media', { method: 'POST', body: payload });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('upload failed (' + res.status + ')'));
+    return data;
+  };
+
+  widgets.forEach((widget) => {
+    const input = widget.querySelector('[data-brand-image-input]');
+    const thumb = widget.querySelector('[data-brand-image-thumb]');
+    const fileEl = widget.querySelector('[data-brand-image-file]');
+    const clearBtn = widget.querySelector('[data-brand-image-clear]');
+    const statusEl = widget.querySelector('[data-brand-image-status]');
+
+    const setStatus = (msg, isError) => {
+      if (!statusEl) return;
+      statusEl.textContent = msg || '';
+      statusEl.style.color = isError ? 'var(--danger, #c0392b)' : '';
+    };
+
+    const showThumb = (mediaID) => {
+      input.value = mediaID || '';
+      if (mediaID) {
+        thumb.src = '/media/' + mediaID + '/content';
+        thumb.hidden = false;
+        if (clearBtn) clearBtn.hidden = false;
+      } else {
+        thumb.removeAttribute('src');
+        thumb.hidden = true;
+        if (clearBtn) clearBtn.hidden = true;
+      }
+    };
+
+    fileEl?.addEventListener('change', async () => {
+      const file = fileEl.files && fileEl.files[0];
+      if (!file) return;
+      fileEl.disabled = true;
+      setStatus('uploading…', false);
+      try {
+        const data = await uploadImage(file);
+        showThumb(data.id || data.media_id || '');
+        setStatus('uploaded', false);
+      } catch (e) {
+        setStatus(e.message, true);
+      } finally {
+        fileEl.disabled = false;
+        fileEl.value = '';
+      }
+    });
+
+    clearBtn?.addEventListener('click', () => {
+      showThumb('');
+      setStatus('', false);
+    });
   });
 })();
 </script>

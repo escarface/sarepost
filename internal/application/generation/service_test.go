@@ -59,6 +59,33 @@ func (c *capturingText) GenerateText(_ context.Context, req genai.TextRequest) (
 	return genai.TextResult{Text: "generated copy", Model: "stub-model"}, nil
 }
 
+type capturingImage struct {
+	gotPrompt   string
+	gotRefImage []byte
+	gotRefMime  string
+}
+
+func (c *capturingImage) Name() string { return "stub-image" }
+func (c *capturingImage) GenerateImage(_ context.Context, req genai.ImageRequest) (genai.ImageResult, error) {
+	c.gotPrompt = req.Prompt
+	c.gotRefImage = req.RefImage
+	c.gotRefMime = req.RefImageMime
+	return genai.ImageResult{Data: []byte{0x1}, MimeType: "image/png", Model: "stub-image-model"}, nil
+}
+
+type fakeMediaReader struct {
+	data map[string][]byte
+	mime map[string]string
+}
+
+func (f fakeMediaReader) ReadMedia(_ context.Context, mediaID string) ([]byte, string, error) {
+	d, ok := f.data[mediaID]
+	if !ok {
+		return nil, "", errors.New("media not found")
+	}
+	return d, f.mime[mediaID], nil
+}
+
 func TestGenerateText_NoProviderConfigured(t *testing.T) {
 	svc := Service{Store: newMemSettings(), Cipher: testCipher(t), Driver: genai.DriverMock}
 	_, err := svc.GenerateText(context.Background(), GenerateTextInput{Prompt: "hi"})
@@ -139,6 +166,76 @@ func TestGenerateImage_UsesMockDriverWithoutKey(t *testing.T) {
 	}
 	if len(out.Data) == 0 || out.MimeType != "image/png" {
 		t.Fatalf("unexpected image result: %d bytes, %q", len(out.Data), out.MimeType)
+	}
+}
+
+func TestGenerateImage_AppliesBrandReferenceImage(t *testing.T) {
+	store := newMemSettings()
+	reader := fakeMediaReader{
+		data: map[string][]byte{"med_ref": []byte("PNGDATA")},
+		mime: map[string]string{"med_ref": "image/png"},
+	}
+	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock, MediaReader: reader}
+	if _, err := svc.SaveImageProviderConfig(context.Background(), ProviderConfigUpdate{
+		Provider: genai.ProviderOpenAI, Model: "gpt-image-1", APIKey: "sk-test",
+	}); err != nil {
+		t.Fatalf("save provider: %v", err)
+	}
+	profile, err := svc.SaveBrandProfile(context.Background(), BrandProfileUpdate{
+		Name: "Sare", ImageRefMediaID: "med_ref",
+	})
+	if err != nil {
+		t.Fatalf("save brand: %v", err)
+	}
+
+	capt := &capturingImage{}
+	svc.ImageFactory = func(_ genai.Driver, _ genai.ProviderConfig) (genai.ImageProvider, error) {
+		return capt, nil
+	}
+	if _, err := svc.GenerateImage(context.Background(), GenerateImageInput{
+		Prompt: "a banner", BrandProfileID: profile.ID,
+	}); err != nil {
+		t.Fatalf("generate image: %v", err)
+	}
+	if string(capt.gotRefImage) != "PNGDATA" {
+		t.Errorf("reference image not passed to provider: %q", capt.gotRefImage)
+	}
+	if capt.gotRefMime != "image/png" {
+		t.Errorf("reference mime not passed: %q", capt.gotRefMime)
+	}
+	if !strings.Contains(capt.gotPrompt, "reference image") {
+		t.Errorf("prompt missing reference hint: %q", capt.gotPrompt)
+	}
+}
+
+func TestBrandProfile_KeepImageRefRetainsReference(t *testing.T) {
+	store := newMemSettings()
+	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock}
+	created, err := svc.SaveBrandProfile(context.Background(), BrandProfileUpdate{
+		Name: "Sare", ImageRefMediaID: "med_ref",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// Re-save without a media id but KeepImageRef set: reference must persist.
+	updated, err := svc.SaveBrandProfile(context.Background(), BrandProfileUpdate{
+		ID: created.ID, Name: "Sare 2", KeepImageRef: true,
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.ImageRefMediaID != "med_ref" {
+		t.Errorf("expected retained reference, got %q", updated.ImageRefMediaID)
+	}
+	// Re-save without KeepImageRef clears the reference.
+	cleared, err := svc.SaveBrandProfile(context.Background(), BrandProfileUpdate{
+		ID: created.ID, Name: "Sare 3",
+	})
+	if err != nil {
+		t.Fatalf("clear: %v", err)
+	}
+	if cleared.ImageRefMediaID != "" {
+		t.Errorf("expected cleared reference, got %q", cleared.ImageRefMediaID)
 	}
 }
 
