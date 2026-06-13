@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strings"
 	"time"
 )
@@ -153,8 +154,15 @@ func (p openAIImageProvider) postImageEdit(ctx context.Context, req ImageRequest
 			return err
 		}
 	}
-	filename := "reference" + extensionForMime(req.RefImageMime)
-	part, err := mw.CreateFormFile("image", filename)
+	refMime := strings.TrimSpace(req.RefImageMime)
+	if refMime == "" {
+		refMime = "image/png"
+	}
+	filename := "reference" + extensionForMime(refMime)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename=%q`, filename))
+	header.Set("Content-Type", refMime)
+	part, err := mw.CreatePart(header)
 	if err != nil {
 		return err
 	}

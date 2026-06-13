@@ -57,6 +57,12 @@ func TestOpenAIImageProvider_RoutesByReference(t *testing.T) {
 				if !strings.Contains(string(gotBody), "REFBYTES") {
 					t.Errorf("reference bytes not in multipart body")
 				}
+				if !strings.Contains(string(gotBody), `Content-Type: image/png`) {
+					t.Errorf("reference part content-type not set to image/png, body=%q", gotBody)
+				}
+				if strings.Contains(string(gotBody), "application/octet-stream") {
+					t.Errorf("reference part should not use application/octet-stream, body=%q", gotBody)
+				}
 			} else if gotContentType != "application/json" {
 				t.Errorf("expected json content-type, got %q", gotContentType)
 			}
