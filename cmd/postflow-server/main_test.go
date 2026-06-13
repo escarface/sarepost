@@ -1,11 +1,20 @@
 package main
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/escarface/sarepost/internal/domain"
 )
+
+func TestNewHTTPServerAllowsLongRunningGenerationResponses(t *testing.T) {
+	server := newHTTPServer("8080", http.NewServeMux())
+	if server.WriteTimeout < 2*time.Minute {
+		t.Fatalf("expected write timeout to allow image generation, got %s", server.WriteTimeout)
+	}
+}
 
 func TestBuildPublicMediaURLBuilderIncludesStableExtension(t *testing.T) {
 	builder := buildPublicMediaURLBuilder("https://postflow.example/")

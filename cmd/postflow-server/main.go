@@ -100,13 +100,7 @@ func main() {
 	}
 	go w.Start(ctx)
 
-	httpServer := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      apiServer.Handler(),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
+	httpServer := newHTTPServer(cfg.Port, apiServer.Handler())
 
 	go func() {
 		<-ctx.Done()
@@ -119,6 +113,16 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("http server failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func newHTTPServer(port string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:         ":" + port,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 2 * time.Minute,
+		IdleTimeout:  60 * time.Second,
 	}
 }
 
