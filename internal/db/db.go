@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -88,6 +89,23 @@ func (s *Store) CreatePost(ctx context.Context, params CreatePostParams) (Create
 
 	for _, mediaID := range mediaIDs {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id) VALUES (?, ?)`, p.ID, strings.TrimSpace(mediaID)); err != nil {
+			return CreatePostResult{}, err
+		}
+	}
+	if campaignID := strings.TrimSpace(params.CampaignID); campaignID != "" {
+		editorialStatus := params.EditorialStatus
+		if editorialStatus == "" {
+			editorialStatus = domain.EditorialStatusDrafting
+		}
+		tagJSON, err := json.Marshal(normalizeStringList(params.PostTags))
+		if err != nil {
+			return CreatePostResult{}, err
+		}
+		nowFmt := now.Format(time.RFC3339Nano)
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO campaign_posts (post_id, campaign_id, editorial_status, requires_approval, tags, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, p.ID, campaignID, editorialStatus, boolInt(params.RequiresApproval), string(tagJSON), nowFmt, nowFmt); err != nil {
 			return CreatePostResult{}, err
 		}
 	}
@@ -200,7 +218,30 @@ func (s *Store) GetPost(ctx context.Context, id string) (domain.Post, error) {
 		m.CreatedAt, _ = time.Parse(time.RFC3339Nano, c)
 		p.Media = append(p.Media, m)
 	}
-	return p, rows.Err()
+	if err := rows.Err(); err != nil {
+		return domain.Post{}, err
+	}
+	var campaignID, editorialStatus, approvedAt, tags sql.NullString
+	var requiresApproval sql.NullInt64
+	err = s.db.QueryRowContext(ctx, `
+		SELECT campaign_id, editorial_status, requires_approval, approved_at, tags
+		FROM campaign_posts
+		WHERE post_id = ?
+	`, p.ID).Scan(&campaignID, &editorialStatus, &requiresApproval, &approvedAt, &tags)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return domain.Post{}, err
+	}
+	if err == nil {
+		p.CampaignID = strings.TrimSpace(campaignID.String)
+		p.EditorialStatus = domain.EditorialStatus(strings.TrimSpace(editorialStatus.String))
+		p.RequiresApproval = requiresApproval.Valid && requiresApproval.Int64 == 1
+		if approvedAt.Valid && strings.TrimSpace(approvedAt.String) != "" {
+			t, _ := time.Parse(time.RFC3339Nano, approvedAt.String)
+			p.ApprovedAt = &t
+		}
+		p.Tags = parseStringList(tags.String)
+	}
+	return p, nil
 }
 
 func (s *Store) GetPostByIdempotencyKey(ctx context.Context, idempotencyKey string) (domain.Post, error) {
@@ -421,10 +462,16 @@ func (s *Store) DeletePostEditable(ctx context.Context, id string) error {
 	}
 
 	for _, postID := range ids {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM campaign_posts WHERE post_id = ?`, postID); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM post_media WHERE post_id = ?`, postID); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM dead_letters WHERE post_id = ?`, postID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM campaign_posts WHERE post_id = ?`, postID); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM posts WHERE id = ?`, postID); err != nil {

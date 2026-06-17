@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	campaignsapp "github.com/escarface/sarepost/internal/application/campaigns"
 	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/domain"
@@ -35,7 +36,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 	if view == "" {
 		view = "calendar"
 	}
-	if view != "calendar" && view != "publications" && view != "drafts" && view != "create" && view != "failed" && view != "settings" && view != "generate" {
+	if view != "calendar" && view != "publications" && view != "drafts" && view != "create" && view != "failed" && view != "settings" && view != "generate" && view != "campaigns" && view != "backlog" {
 		view = "calendar"
 	}
 	editID := strings.TrimSpace(r.URL.Query().Get("edit_id"))
@@ -77,6 +78,23 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	drafts, err := s.Store.ListDrafts(r.Context(), maxMCPListLimit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	campaignSvc := campaignsapp.Service{Store: s.Store}
+	campaigns, err := campaignSvc.List(r.Context(), campaignsapp.ListFilter{Limit: maxMCPListLimit})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	editorialBacklog, err := s.Store.ListEditorialBacklog(r.Context(), domain.EditorialBacklogFilter{
+		CampaignID:      strings.TrimSpace(r.URL.Query().Get("campaign_id")),
+		Platform:        domain.Platform(strings.TrimSpace(r.URL.Query().Get("platform"))),
+		EditorialStatus: domain.EditorialStatus(strings.TrimSpace(r.URL.Query().Get("editorial_status"))),
+		Tag:             strings.TrimSpace(r.URL.Query().Get("tag")),
+		Limit:           maxMCPListLimit,
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -409,6 +427,10 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		currentViewURL = "/?view=failed"
 	case "settings":
 		currentViewURL = "/?view=settings"
+	case "campaigns":
+		currentViewURL = "/?view=campaigns"
+	case "backlog":
+		currentViewURL = "/?view=backlog"
 	case "create":
 		if returnTo != "" {
 			currentViewURL = returnTo
@@ -453,7 +475,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 			if parsed, err := url.Parse(returnTo); err == nil {
 				sourceView := strings.ToLower(strings.TrimSpace(parsed.Query().Get("view")))
 				switch sourceView {
-				case "publications", "calendar", "drafts", "failed", "settings":
+				case "publications", "calendar", "drafts", "failed", "settings", "campaigns", "backlog":
 					activeNavView = sourceView
 				}
 			}
@@ -484,6 +506,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 	var createScheduledLocal string
 	var createAccountID string
 	createAccountIDs := make([]string, 0, 2)
+	createCampaignID := strings.TrimSpace(r.URL.Query().Get("campaign_id"))
 	if editID != "" {
 		p, err := s.Store.GetPost(r.Context(), editID)
 		if err == nil {
@@ -508,6 +531,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 				editingPost = &rootPost
 				createText = rootPost.Text
 				createAccountID = strings.TrimSpace(rootPost.AccountID)
+				createCampaignID = strings.TrimSpace(rootPost.CampaignID)
 				if !rootPost.ScheduledAt.IsZero() {
 					createScheduledLocal = rootPost.ScheduledAt.In(uiLoc).Format("2006-01-02T15:04")
 				}
@@ -526,6 +550,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 				editingPost = &p
 				createText = p.Text
 				createAccountID = strings.TrimSpace(p.AccountID)
+				createCampaignID = strings.TrimSpace(p.CampaignID)
 				if !p.ScheduledAt.IsZero() {
 					createScheduledLocal = p.ScheduledAt.In(uiLoc).Format("2006-01-02T15:04")
 				}
@@ -631,6 +656,10 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 			_, ok := selectedCreateAccountIDs[strings.TrimSpace(accountID)]
 			return ok
 		},
+		"campaignSelected": func(campaignID string) bool {
+			campaignID = strings.TrimSpace(campaignID)
+			return campaignID != "" && campaignID == strings.TrimSpace(createCampaignID)
+		},
 		"accountOptionLabel": func(account domain.SocialAccount) string {
 			parts := []string{strings.TrimSpace(account.DisplayName), strings.TrimSpace(string(account.Platform))}
 			switch domain.NormalizeAccountKind(account.Platform, account.AccountKind) {
@@ -676,6 +705,8 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		DraftGroups:                 draftGroups,
 		FailedItems:                 failedItems,
 		FailedGroups:                failedGroups,
+		Campaigns:                   campaigns,
+		EditorialBacklog:            editorialBacklog,
 		CurrentViewURL:              currentViewURL,
 		CreateViewURL:               createViewURL,
 		ReturnTo:                    returnTo,
@@ -686,6 +717,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		CreateInitialSegments:       createInitialSegments,
 		CreateAccountID:             createAccountID,
 		CreateAccountIDs:            createAccountIDs,
+		CreateCampaignID:            createCampaignID,
 		EditPostIDs:                 editPostIDs,
 		CreateText:                  createText,
 		CreateScheduledLocal:        createScheduledLocal,
@@ -716,6 +748,8 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		PublicationsWindowDays:      publicationsWindowDays,
 		DraftCount:                  len(draftGroups),
 		FailedCount:                 len(failedGroups),
+		CampaignCount:               len(campaigns),
+		BacklogCount:                len(editorialBacklog),
 		SettingsAccounts:            settingsAccounts,
 		MediaLibrary:                mediaLibrary,
 		CreateRecentMedia:           createRecentMedia,

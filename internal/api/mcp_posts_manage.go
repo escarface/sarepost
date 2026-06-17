@@ -33,6 +33,11 @@ type mcpSchedulePostOutput struct {
 	Post   mcpPostSummary `json:"post"`
 }
 
+type mcpPreviewScheduleInput struct {
+	PostID      string `json:"post_id" jsonschema:"Draft post ID."`
+	ScheduledAt string `json:"scheduled_at" jsonschema:"RFC3339 or datetime-local value in UI timezone."`
+}
+
 type mcpEditPostInput struct {
 	PostID      string                  `json:"post_id" jsonschema:"Editable post ID."`
 	PostIDs     []string                `json:"post_ids,omitempty" jsonschema:"Optional additional editable post IDs to update with the same edit."`
@@ -111,6 +116,27 @@ func (s Server) mcpSchedulePostTool(ctx context.Context, _ *mcp.CallToolRequest,
 		Status: string(post.Status),
 		Post:   toMCPPostSummary(post),
 	}, nil
+}
+
+func (s Server) mcpPreviewScheduleTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpPreviewScheduleInput) (*mcp.CallToolResult, postsapp.SchedulePreview, error) {
+	postID := strings.TrimSpace(in.PostID)
+	if postID == "" {
+		return nil, postsapp.SchedulePreview{}, errors.New("post_id is required")
+	}
+	uiLoc, _, _, err := s.resolveUILocation(ctx)
+	if err != nil {
+		return nil, postsapp.SchedulePreview{}, err
+	}
+	scheduledAt, err := parseScheduledAtInputInLocation(strings.TrimSpace(in.ScheduledAt), uiLoc)
+	if err != nil {
+		return nil, postsapp.SchedulePreview{}, err
+	}
+	svc := postsapp.MutationsService{Store: s.Store}
+	preview, err := svc.PreviewSchedule(ctx, postID, scheduledAt, uiLoc)
+	if err != nil {
+		return nil, postsapp.SchedulePreview{}, err
+	}
+	return nil, preview, nil
 }
 
 func (s Server) mcpEditPostTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpEditPostInput) (*mcp.CallToolResult, mcpEditPostOutput, error) {

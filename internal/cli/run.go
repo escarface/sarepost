@@ -91,13 +91,14 @@ type mediaListResponse struct {
 }
 
 type mediaDTO struct {
-	ID           string `json:"id"`
-	Kind         string `json:"kind"`
-	OriginalName string `json:"original_name"`
-	MimeType     string `json:"mime_type"`
-	SizeBytes    int64  `json:"size_bytes"`
-	UsageCount   int    `json:"usage_count"`
-	InUse        bool   `json:"in_use"`
+	ID           string   `json:"id"`
+	Kind         string   `json:"kind"`
+	OriginalName string   `json:"original_name"`
+	MimeType     string   `json:"mime_type"`
+	SizeBytes    int64    `json:"size_bytes"`
+	UsageCount   int      `json:"usage_count"`
+	InUse        bool     `json:"in_use"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 type stringListFlag []string
@@ -135,6 +136,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runSchedule(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "drafts":
 		return runDrafts(ctx, client, cfg, rest[1:], stdout, stderr)
+	case "campaigns":
+		return runCampaigns(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "posts":
 		return runPosts(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "accounts":
@@ -248,7 +251,7 @@ func runSchedule(ctx context.Context, client *APIClient, cfg config, args []stri
 
 func runPosts(ctx context.Context, client *APIClient, cfg config, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: postflow posts <create|validate|schedule|edit|delete|cancel> [flags]")
+		fmt.Fprintln(stderr, "usage: postflow posts <create|validate|schedule|preview-schedule|edit|delete|cancel|approve> [flags]")
 		return 2
 	}
 	switch args[0] {
@@ -258,12 +261,16 @@ func runPosts(ctx context.Context, client *APIClient, cfg config, args []string,
 		return runPostsValidate(ctx, client, cfg, args[1:], stdout, stderr)
 	case "schedule":
 		return runPostsSchedule(ctx, client, cfg, args[1:], stdout, stderr)
+	case "preview-schedule":
+		return runPostsPreviewSchedule(ctx, client, cfg, args[1:], stdout, stderr)
 	case "edit":
 		return runPostsEdit(ctx, client, cfg, args[1:], stdout, stderr)
 	case "delete":
 		return runPostsDelete(ctx, client, cfg, args[1:], stdout, stderr)
 	case "cancel":
 		return runPostsCancel(ctx, client, cfg, args[1:], stdout, stderr)
+	case "approve":
+		return runPostsApprove(ctx, client, cfg, args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown posts subcommand: %s\n", args[0])
 		return 2
@@ -278,6 +285,10 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 	var scheduledAt string
 	var maxAttempts int
 	var idempotencyKey string
+	var campaignID string
+	var editorialStatus string
+	var tags string
+	var requiresApproval bool
 	var segmentsJSON string
 	var mediaIDs stringListFlag
 	fs.StringVar(&accountID, "account-id", "", "Target account ID")
@@ -286,6 +297,10 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 	fs.StringVar(&segmentsJSON, "segments-json", "", "Thread segments JSON: [{\"text\":\"...\",\"media_ids\":[\"med_x\"]}]")
 	fs.IntVar(&maxAttempts, "max-attempts", 0, "Max publish retries")
 	fs.StringVar(&idempotencyKey, "idempotency-key", "", "Idempotency key")
+	fs.StringVar(&campaignID, "campaign-id", "", "Optional campaign ID")
+	fs.StringVar(&editorialStatus, "editorial-status", "", "Optional editorial status: idea|drafting|needs_review|approved|scheduled")
+	fs.BoolVar(&requiresApproval, "requires-approval", false, "Require approval before scheduling")
+	fs.StringVar(&tags, "tags", "", "Comma-separated editorial tags")
 	fs.Var(&mediaIDs, "media-id", "Media ID (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -323,6 +338,18 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 	}
 	if maxAttempts > 0 {
 		payload["max_attempts"] = maxAttempts
+	}
+	if strings.TrimSpace(campaignID) != "" {
+		payload["campaign_id"] = strings.TrimSpace(campaignID)
+	}
+	if strings.TrimSpace(editorialStatus) != "" {
+		payload["editorial_status"] = strings.TrimSpace(editorialStatus)
+	}
+	if requiresApproval {
+		payload["requires_approval"] = true
+	}
+	if tagValues := splitCLIList(tags); len(tagValues) > 0 {
+		payload["tags"] = tagValues
 	}
 	headers := map[string]string{}
 	if strings.TrimSpace(idempotencyKey) != "" {
@@ -502,12 +529,16 @@ func runMedia(ctx context.Context, client *APIClient, cfg config, args []string,
 		fs := flag.NewFlagSet("media list", flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		limit := fs.Int("limit", 100, "Max number of media items")
+		tag := fs.String("tag", "", "Optional editorial tag filter")
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
 		query := url.Values{}
 		if *limit > 0 {
 			query.Set("limit", fmt.Sprintf("%d", *limit))
+		}
+		if strings.TrimSpace(*tag) != "" {
+			query.Set("tag", strings.TrimSpace(*tag))
 		}
 		var out mediaListResponse
 		if err := client.Get(ctx, "/media", query, &out); err != nil {
@@ -526,6 +557,7 @@ func runMedia(ctx context.Context, client *APIClient, cfg config, args []string,
 		fs.SetOutput(stderr)
 		filePath := fs.String("file", "", "Path to file")
 		kind := fs.String("kind", "video", "Media kind")
+		tags := fs.String("tags", "", "Comma-separated editorial tags")
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
@@ -533,7 +565,7 @@ func runMedia(ctx context.Context, client *APIClient, cfg config, args []string,
 			fmt.Fprintln(stderr, "--file is required")
 			return 2
 		}
-		fields := map[string]string{"kind": strings.TrimSpace(*kind)}
+		fields := map[string]string{"kind": strings.TrimSpace(*kind), "tags": strings.TrimSpace(*tags)}
 		var out map[string]any
 		if err := client.PostMultipartFile(ctx, "/media", "file", strings.TrimSpace(*filePath), fields, &out); err != nil {
 			fmt.Fprintln(stderr, err.Error())
@@ -618,6 +650,7 @@ Commands:
   posts create           Create post via /posts
   posts validate         Validate payload via /posts/validate
   posts schedule         Schedule a draft via /posts/{id}/schedule
+  posts preview-schedule Preview scheduling guardrails via /posts/{id}/preview-schedule
   posts edit             Edit an editable post via /posts/{id}/edit
   posts delete           Delete an editable post via /posts/{id}/delete
   posts cancel           Cancel scheduled post via /posts/{id}/cancel
@@ -642,6 +675,7 @@ Examples:
   postflow posts create --account-id acc_abc123 --text "hello world" --scheduled-at 2026-03-01T10:00:00Z
   postflow posts validate --account-id acc_abc123 --text "draft check" --scheduled-at 2026-03-01T10:00:00Z
   postflow posts schedule --id pst_abc123 --scheduled-at 2026-03-01T10:00:00Z
+  postflow posts preview-schedule --id pst_abc123 --scheduled-at 2026-03-01T10:00:00Z
   postflow posts edit --id pst_abc123 --text "updated copy" --intent schedule --scheduled-at 2026-03-01T10:30:00Z
   postflow posts edit --id pst_abc123 --segments-json '[{"text":"root updated"},{"text":"reply updated"}]'
   postflow posts edit --id pst_abc123 --text "updated with media" --replace-media --media-id med_a --media-id med_b

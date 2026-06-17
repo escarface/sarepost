@@ -130,6 +130,18 @@ func (e *parityEnv) seedFailedDeadLetter(text string) string {
 	return ""
 }
 
+func (e *parityEnv) apiConfigureTextGeneration() {
+	e.t.Helper()
+	_, status := e.apiJSON("POST", "/settings/generation/text", map[string]any{
+		"provider": "anthropic",
+		"model":    "mock-text",
+		"api_key":  "sk-parity",
+	}, "application/json")
+	if status != 200 {
+		e.t.Fatalf("configure text generation status %d", status)
+	}
+}
+
 func assertPostText(t *testing.T, store *db.Store, postID, expectedText string) {
 	t.Helper()
 	post, err := store.GetPost(t.Context(), postID)

@@ -54,6 +54,64 @@ func (s Server) newMCPHandler() http.Handler {
 	}, s.mcpListDraftsTool)
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_create_campaign",
+		Description: "Create an editorial campaign with brief fields, tags, date range, and timezone.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpCreateCampaignTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_list_campaigns",
+		Description: "List editorial campaigns with optional status/tag filters.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+		},
+	}, s.mcpListCampaignsTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_update_campaign",
+		Description: "Update an editorial campaign and its brief fields.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpUpdateCampaignTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_archive_campaign",
+		Description: "Archive an editorial campaign.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpArchiveCampaignTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_add_post_to_campaign",
+		Description: "Attach an existing post to a campaign with editorial metadata.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpAddPostToCampaignTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_create_campaign_drafts",
+		Description: "Generate platform-specific draft posts from a campaign brief and attach them to the campaign.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpCreateCampaignDraftsTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_list_editorial_backlog",
+		Description: "List campaign-linked draft/scheduled/failed posts by campaign, platform, editorial status, or tag.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+		},
+	}, s.mcpListEditorialBacklogTool)
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_list_accounts",
 		Description: "List connected/registered accounts.",
 		Annotations: &mcp.ToolAnnotations{
@@ -134,6 +192,23 @@ func (s Server) newMCPHandler() http.Handler {
 			IdempotentHint: false,
 		},
 	}, s.mcpSchedulePostTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_preview_schedule",
+		Description: "Preview scheduling a draft without mutating it, including normalized text, account, media, local time, and guardrail warnings.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+		},
+	}, s.mcpPreviewScheduleTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_approve_post",
+		Description: "Approve a campaign-linked post so it can be scheduled when approval is required.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpApprovePostTool)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_edit_post",
@@ -280,13 +355,17 @@ type mcpListFailedInput struct {
 }
 
 type mcpCreatePostInput struct {
-	AccountID      string                  `json:"account_id" jsonschema:"Target connected account ID."`
-	Text           string                  `json:"text" jsonschema:"Post text content."`
-	ScheduledAt    string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 or datetime-local value. Empty means draft."`
-	MediaIDs       []string                `json:"media_ids,omitempty" jsonschema:"Existing media IDs to attach."`
-	Segments       []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] where first segment is the root post."`
-	MaxAttempts    int                     `json:"max_attempts,omitempty" jsonschema:"Max publish retries. Default from server config."`
-	IdempotencyKey string                  `json:"idempotency_key,omitempty" jsonschema:"Optional idempotency key (max 128 chars)."`
+	AccountID        string                  `json:"account_id" jsonschema:"Target connected account ID."`
+	Text             string                  `json:"text" jsonschema:"Post text content."`
+	ScheduledAt      string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 or datetime-local value. Empty means draft."`
+	MediaIDs         []string                `json:"media_ids,omitempty" jsonschema:"Existing media IDs to attach."`
+	Segments         []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] where first segment is the root post."`
+	MaxAttempts      int                     `json:"max_attempts,omitempty" jsonschema:"Max publish retries. Default from server config."`
+	IdempotencyKey   string                  `json:"idempotency_key,omitempty" jsonschema:"Optional idempotency key (max 128 chars)."`
+	CampaignID       string                  `json:"campaign_id,omitempty" jsonschema:"Optional editorial campaign ID."`
+	EditorialStatus  string                  `json:"editorial_status,omitempty" jsonschema:"Optional editorial status: idea|drafting|needs_review|approved|scheduled."`
+	RequiresApproval bool                    `json:"requires_approval,omitempty" jsonschema:"Whether approval is required before scheduling."`
+	Tags             []string                `json:"tags,omitempty" jsonschema:"Optional editorial tags."`
 }
 
 type mcpValidatePostInput struct {
@@ -304,21 +383,26 @@ type mcpThreadSegmentInput struct {
 }
 
 type mcpPostSummary struct {
-	ID             string `json:"id"`
-	AccountID      string `json:"account_id"`
-	Platform       string `json:"platform"`
-	Status         string `json:"status"`
-	Text           string `json:"text"`
-	ScheduledAt    string `json:"scheduled_at,omitempty"`
-	PublishedAt    string `json:"published_at,omitempty"`
-	UpdatedAt      string `json:"updated_at"`
-	MediaCount     int    `json:"media_count"`
-	Attempts       int    `json:"attempts"`
-	MaxAttempts    int    `json:"max_attempts"`
-	ThreadGroupID  string `json:"thread_group_id,omitempty"`
-	ThreadPosition int    `json:"thread_position,omitempty"`
-	ParentPostID   string `json:"parent_post_id,omitempty"`
-	RootPostID     string `json:"root_post_id,omitempty"`
+	ID               string   `json:"id"`
+	AccountID        string   `json:"account_id"`
+	Platform         string   `json:"platform"`
+	Status           string   `json:"status"`
+	Text             string   `json:"text"`
+	ScheduledAt      string   `json:"scheduled_at,omitempty"`
+	PublishedAt      string   `json:"published_at,omitempty"`
+	UpdatedAt        string   `json:"updated_at"`
+	MediaCount       int      `json:"media_count"`
+	Attempts         int      `json:"attempts"`
+	MaxAttempts      int      `json:"max_attempts"`
+	ThreadGroupID    string   `json:"thread_group_id,omitempty"`
+	ThreadPosition   int      `json:"thread_position,omitempty"`
+	ParentPostID     string   `json:"parent_post_id,omitempty"`
+	RootPostID       string   `json:"root_post_id,omitempty"`
+	CampaignID       string   `json:"campaign_id,omitempty"`
+	EditorialStatus  string   `json:"editorial_status,omitempty"`
+	RequiresApproval bool     `json:"requires_approval,omitempty"`
+	ApprovedAt       string   `json:"approved_at,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
 }
 
 type mcpListScheduleOutput struct {
@@ -531,13 +615,17 @@ func (s Server) mcpCreatePostTool(ctx context.Context, _ *mcp.CallToolRequest, i
 		DefaultMaxRetries: s.DefaultMaxRetries,
 	}
 	createOut, err := createService.Create(ctx, postsapp.CreateInput{
-		AccountIDs:     []string{in.AccountID},
-		Text:           text,
-		ScheduledAt:    scheduledAt,
-		MediaIDs:       mediaIDs,
-		Segments:       toAppSegments(segments),
-		MaxAttempts:    in.MaxAttempts,
-		IdempotencyKey: strings.TrimSpace(in.IdempotencyKey),
+		AccountIDs:       []string{in.AccountID},
+		Text:             text,
+		ScheduledAt:      scheduledAt,
+		MediaIDs:         mediaIDs,
+		Segments:         toAppSegments(segments),
+		MaxAttempts:      in.MaxAttempts,
+		IdempotencyKey:   strings.TrimSpace(in.IdempotencyKey),
+		CampaignID:       strings.TrimSpace(in.CampaignID),
+		EditorialStatus:  domain.EditorialStatus(strings.TrimSpace(in.EditorialStatus)),
+		RequiresApproval: in.RequiresApproval,
+		Tags:             in.Tags,
 	})
 	if err != nil {
 		return nil, mcpCreatePostOutput{}, err
@@ -647,21 +735,26 @@ func toMCPPostSummary(post domain.Post) mcpPostSummary {
 		rootPostID = strings.TrimSpace(*post.RootPostID)
 	}
 	return mcpPostSummary{
-		ID:             post.ID,
-		AccountID:      post.AccountID,
-		Platform:       string(post.Platform),
-		Status:         string(post.Status),
-		Text:           strings.TrimSpace(post.Text),
-		ScheduledAt:    formatMCPTime(post.ScheduledAt),
-		PublishedAt:    formatMCPTimePtr(post.PublishedAt),
-		UpdatedAt:      formatMCPTime(post.UpdatedAt),
-		MediaCount:     len(post.Media),
-		Attempts:       post.Attempts,
-		MaxAttempts:    post.MaxAttempts,
-		ThreadGroupID:  strings.TrimSpace(post.ThreadGroupID),
-		ThreadPosition: post.ThreadPosition,
-		ParentPostID:   parentPostID,
-		RootPostID:     rootPostID,
+		ID:               post.ID,
+		AccountID:        post.AccountID,
+		Platform:         string(post.Platform),
+		Status:           string(post.Status),
+		Text:             strings.TrimSpace(post.Text),
+		ScheduledAt:      formatMCPTime(post.ScheduledAt),
+		PublishedAt:      formatMCPTimePtr(post.PublishedAt),
+		UpdatedAt:        formatMCPTime(post.UpdatedAt),
+		MediaCount:       len(post.Media),
+		Attempts:         post.Attempts,
+		MaxAttempts:      post.MaxAttempts,
+		ThreadGroupID:    strings.TrimSpace(post.ThreadGroupID),
+		ThreadPosition:   post.ThreadPosition,
+		ParentPostID:     parentPostID,
+		RootPostID:       rootPostID,
+		CampaignID:       strings.TrimSpace(post.CampaignID),
+		EditorialStatus:  string(post.EditorialStatus),
+		RequiresApproval: post.RequiresApproval,
+		ApprovedAt:       formatMCPTimePtr(post.ApprovedAt),
+		Tags:             post.Tags,
 	}
 }
 

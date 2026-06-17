@@ -14,6 +14,9 @@ Built in Go with SQLite. LLM-first: every capability is consistently exposed thr
 - **Media management** — upload images and video, attach to posts
 - **Scheduling** — set posts to publish at a future date and time
 - **Draft workflow** — create posts as drafts, validate, then schedule
+- **Editorial campaigns** — group posts under campaign briefs with audience, tone, CTA, tags, and archive state
+- **Editorial approval** — mark posts as `needs_review`, require approval, and block scheduling until approved
+- **Editorial backlog** — search pending content by campaign, platform, editorial status, tag, and date range
 - **Dead-letter queue** — inspect and requeue failed publications
 - **OAuth account connection** — connect social accounts via standard OAuth flows
 - **MCP endpoint** — expose publishing tools to LLMs (Claude, Codex, ChatGPT)
@@ -62,6 +65,28 @@ the result off to the new-post composer (text prefilled, generated image attache
 
 Generation is a **Web-UI-only** feature: MCP and CLI clients already generate content
 through their own LLM, so no generation tools are exposed on those surfaces.
+
+---
+
+## Editorial campaigns
+
+Campaigns turn PostFlow into an editorial planning layer instead of only a scheduler.
+Create a campaign with its brief fields (`objective`, `audience`, `tone`, `cta`,
+`restrictions`, `tags`, `timezone`), then create or attach posts with `campaign_id`.
+
+Posts keep their technical publication status (`draft`, `scheduled`, `published`, etc.)
+separate from editorial status (`idea`, `drafting`, `needs_review`, `approved`,
+`scheduled`). If `requires_approval=true`, PostFlow rejects scheduling until the post
+is approved. Posts linked to archived campaigns are also blocked from create/schedule
+flows.
+
+Scheduling includes editorial guardrails: PostFlow rejects account-level calendar
+conflicts in the nearby time window and recent duplicate text for the same account.
+These checks run before drafts are scheduled or editable drafts are converted into
+scheduled posts.
+
+The Web UI includes **Campaigns** and **Backlog** tabs. API, MCP, and CLI expose the
+same campaign, approval, and backlog capabilities for LLM-first workflows.
 
 ---
 
@@ -201,9 +226,18 @@ Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls req
 | `postflow_create_post` | Create a new post |
 | `postflow_cancel_post` | Cancel a scheduled post |
 | `postflow_schedule_post` | Schedule a draft post |
+| `postflow_preview_schedule` | Preview schedule guardrails without mutating a draft |
 | `postflow_edit_post` | Edit post content or schedule |
 | `postflow_delete_post` | Delete a post |
+| `postflow_approve_post` | Approve editorial content before scheduling |
 | `postflow_validate_post` | Validate post before saving |
+| `postflow_create_campaign` | Create an editorial campaign |
+| `postflow_list_campaigns` | List editorial campaigns |
+| `postflow_update_campaign` | Update an editorial campaign |
+| `postflow_archive_campaign` | Archive an editorial campaign |
+| `postflow_add_post_to_campaign` | Attach an existing post to a campaign |
+| `postflow_create_campaign_drafts` | Generate draft variants from a campaign brief |
+| `postflow_list_editorial_backlog` | List content pending editorial action |
 | `postflow_upload_media` | Upload image or video |
 | `postflow_list_media` | List uploaded media |
 | `postflow_delete_media` | Delete media |
@@ -256,9 +290,23 @@ postflow posts validate --account-id acc_xxx --segments-json '[{"text":"root"},{
 # Create
 postflow posts create --account-id acc_xxx --text "Hello world" --scheduled-at 2026-03-01T10:00:00Z
 postflow posts create --account-id acc_xxx --segments-json '[{"text":"root"},{"text":"reply","media_ids":["med_x"]}]' --scheduled-at 2026-03-01T10:00:00Z
+postflow posts create --account-id acc_xxx --campaign-id cmp_xxx --editorial-status needs_review --requires-approval --tags launch,linkedin --text "Review this"
 
 # Schedule a draft
+postflow posts preview-schedule --id pst_xxx --scheduled-at 2026-03-01T10:00:00Z
 postflow posts schedule --id pst_xxx --scheduled-at 2026-03-01T10:00:00Z
+
+# Editorial approval
+postflow posts approve --id pst_xxx
+
+# Campaigns and backlog
+postflow campaigns create --name "Q3 launch" --objective "Drive qualified demand" --audience "SaaS founders" --tone "direct" --cta "Book a demo" --tags launch,q3
+postflow campaigns list --status active
+postflow campaigns update --id cmp_xxx --status paused --name "Q3 launch revised"
+postflow campaigns archive --id cmp_xxx
+postflow campaigns add-post --campaign-id cmp_xxx --post-id pst_xxx --editorial-status needs_review --requires-approval
+postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --idea "Turn the launch proof point into a founder-facing LinkedIn post" --variants-per-post 3
+postflow campaigns backlog --campaign-id cmp_xxx --editorial-status needs_review
 
 # Edit
 postflow posts edit --id pst_xxx --text "Updated copy" --intent schedule --scheduled-at 2026-03-01T10:30:00Z
@@ -278,8 +326,8 @@ postflow dlq list --limit 50
 postflow dlq requeue --id dlq_xxx
 
 # Media
-postflow media upload --file ./image.jpg --kind image
-postflow media list --limit 20
+postflow media upload --file ./image.jpg --kind image --tags launch,product
+postflow media list --limit 20 --tag launch
 
 # Settings
 postflow settings set-timezone --timezone Europe/Madrid

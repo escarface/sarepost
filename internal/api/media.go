@@ -18,19 +18,20 @@ import (
 const defaultMediaListLimit = mediaapp.DefaultListLimit
 
 type mediaListItem struct {
-	ID           string `json:"id"`
-	Kind         string `json:"kind"`
-	OriginalName string `json:"original_name"`
-	MimeType     string `json:"mime_type"`
-	SizeBytes    int64  `json:"size_bytes"`
-	SizeLabel    string `json:"size_label"`
-	CreatedAt    string `json:"created_at"`
-	CreatedLabel string `json:"created_label"`
-	UsageCount   int    `json:"usage_count"`
-	InUse        bool   `json:"in_use"`
-	IsImage      bool   `json:"is_image"`
-	IsVideo      bool   `json:"is_video"`
-	PreviewURL   string `json:"preview_url"`
+	ID           string   `json:"id"`
+	Kind         string   `json:"kind"`
+	OriginalName string   `json:"original_name"`
+	MimeType     string   `json:"mime_type"`
+	SizeBytes    int64    `json:"size_bytes"`
+	SizeLabel    string   `json:"size_label"`
+	CreatedAt    string   `json:"created_at"`
+	CreatedLabel string   `json:"created_label"`
+	UsageCount   int      `json:"usage_count"`
+	InUse        bool     `json:"in_use"`
+	IsImage      bool     `json:"is_image"`
+	IsVideo      bool     `json:"is_video"`
+	PreviewURL   string   `json:"preview_url"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 func mediaContentURL(id string) string {
@@ -82,12 +83,17 @@ func toMediaListItemWithUsage(media domain.Media, usageCount int, loc *time.Loca
 		IsImage:      isImage,
 		IsVideo:      isVideo,
 		PreviewURL:   mediaContentURL(media.ID),
+		Tags:         append([]string(nil), media.Tags...),
 	}
 }
 
 func (s Server) listMediaItems(ctx context.Context, limit int, loc *time.Location) ([]mediaListItem, error) {
+	return s.listMediaItemsFiltered(ctx, domain.MediaListFilter{Limit: limit}, loc)
+}
+
+func (s Server) listMediaItemsFiltered(ctx context.Context, filter domain.MediaListFilter, loc *time.Location) ([]mediaListItem, error) {
 	svc := mediaapp.Service{Store: s.Store}
-	raw, err := svc.List(ctx, limit)
+	raw, err := svc.ListFiltered(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +136,13 @@ func (s Server) handleListMedia(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = parsed
 	}
+	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
 
 	uiLoc, _, _, err := s.resolveUILocation(r.Context())
 	if err != nil {
 		uiLoc = time.UTC
 	}
-	items, err := s.listMediaItems(r.Context(), limit, uiLoc)
+	items, err := s.listMediaItemsFiltered(r.Context(), domain.MediaListFilter{Limit: limit, Tag: tag}, uiLoc)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

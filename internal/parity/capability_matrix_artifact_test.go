@@ -211,7 +211,7 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 			},
 			capabilities.SurfaceCLI: func(env *parityEnv) error {
 				postID := env.apiCreatePost("matrix schedule cli", time.Time{}, nil)
-				env.cliSchedulePost(postID, time.Now().UTC().Add(45*time.Minute))
+				env.cliSchedulePost(postID, time.Now().UTC().Add(55*time.Minute))
 				post, err := env.store.GetPost(env.t.Context(), postID)
 				if err != nil {
 					return err
@@ -223,7 +223,7 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 			},
 			capabilities.SurfaceMCP: func(env *parityEnv) error {
 				postID := env.apiCreatePost("matrix schedule mcp", time.Time{}, nil)
-				env.mcpSchedulePost(postID, time.Now().UTC().Add(45*time.Minute))
+				env.mcpSchedulePost(postID, time.Now().UTC().Add(65*time.Minute))
 				post, err := env.store.GetPost(env.t.Context(), postID)
 				if err != nil {
 					return err
@@ -234,10 +234,40 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 				return nil
 			},
 		},
+		capabilities.CapabilityPostsPreviewSchedule: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				postID := env.apiCreatePost("matrix preview schedule api", time.Time{}, nil)
+				_, status := env.apiJSON(http.MethodPost, "/posts/"+postID+"/preview-schedule", map[string]any{
+					"scheduled_at": time.Now().UTC().Add(150 * time.Minute).Format(time.RFC3339),
+				}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				postID := env.apiCreatePost("matrix preview schedule cli", time.Time{}, nil)
+				code, _, stderr := env.runCLIResult("posts", "preview-schedule", "--id", postID, "--scheduled-at", time.Now().UTC().Add(160*time.Minute).Format(time.RFC3339))
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				postID := env.apiCreatePost("matrix preview schedule mcp", time.Time{}, nil)
+				if msg := env.mcpCallToolError("postflow_preview_schedule", map[string]any{
+					"post_id":      postID,
+					"scheduled_at": time.Now().UTC().Add(170 * time.Minute).Format(time.RFC3339),
+				}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
 		capabilities.CapabilityPostsEdit: {
 			capabilities.SurfaceAPI: func(env *parityEnv) error {
 				postID := env.apiCreatePost("matrix edit start api", time.Time{}, nil)
-				env.apiEditPost(postID, "matrix edit api", "schedule", time.Now().UTC().Add(70*time.Minute))
+				env.apiEditPost(postID, "matrix edit api", "schedule", time.Now().UTC().Add(120*time.Minute))
 				post, err := env.store.GetPost(env.t.Context(), postID)
 				if err != nil {
 					return err
@@ -252,7 +282,7 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 			},
 			capabilities.SurfaceCLI: func(env *parityEnv) error {
 				postID := env.apiCreatePost("matrix edit start cli", time.Time{}, nil)
-				env.cliEditPost(postID, "matrix edit cli", "schedule", time.Now().UTC().Add(70*time.Minute))
+				env.cliEditPost(postID, "matrix edit cli", "schedule", time.Now().UTC().Add(130*time.Minute))
 				post, err := env.store.GetPost(env.t.Context(), postID)
 				if err != nil {
 					return err
@@ -267,7 +297,7 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 			},
 			capabilities.SurfaceMCP: func(env *parityEnv) error {
 				postID := env.apiCreatePost("matrix edit start mcp", time.Time{}, nil)
-				env.mcpEditPost(postID, "matrix edit mcp", "schedule", time.Now().UTC().Add(70*time.Minute))
+				env.mcpEditPost(postID, "matrix edit mcp", "schedule", time.Now().UTC().Add(140*time.Minute))
 				post, err := env.store.GetPost(env.t.Context(), postID)
 				if err != nil {
 					return err
@@ -654,7 +684,278 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 				return nil
 			},
 		},
+		capabilities.CapabilityCampaignsCreate: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				_, err := apiCreateCampaign(env, "matrix campaign create api")
+				return err
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				code, _, stderr := env.runCLIResult("campaigns", "create", "--name", "matrix campaign create cli", "--timezone", "Europe/Madrid")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				if msg := env.mcpCallToolError("postflow_create_campaign", map[string]any{"name": "matrix campaign create mcp", "timezone": "Europe/Madrid"}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityCampaignsList: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				_, status := env.apiJSON(http.MethodGet, "/campaigns?limit=10", nil, "")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected status 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				code, _, stderr := env.runCLIResult("campaigns", "list", "--limit", "10")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				if msg := env.mcpCallToolError("postflow_list_campaigns", map[string]any{"limit": 10}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityCampaignsUpdate: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign update api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID, map[string]any{"name": "matrix campaign updated api", "status": "paused", "timezone": "Europe/Madrid"}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected status 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign update cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("campaigns", "update", "--id", campaignID, "--name", "matrix campaign updated cli", "--status", "paused", "--timezone", "Europe/Madrid")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign update mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_update_campaign", map[string]any{"campaign_id": campaignID, "name": "matrix campaign updated mcp", "status": "paused", "timezone": "Europe/Madrid"}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityCampaignsArchive: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign archive api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/archive", map[string]any{}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected status 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign archive cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("campaigns", "archive", "--id", campaignID)
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign archive mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_archive_campaign", map[string]any{"campaign_id": campaignID}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityCampaignsPostsAdd: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign add api")
+				if err != nil {
+					return err
+				}
+				postID := env.apiCreatePost("matrix campaign add api post", time.Time{}, nil)
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/posts", map[string]any{"post_id": postID, "editorial_status": "needs_review", "requires_approval": true}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected status 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign add cli")
+				if err != nil {
+					return err
+				}
+				postID := env.apiCreatePost("matrix campaign add cli post", time.Time{}, nil)
+				code, _, stderr := env.runCLIResult("campaigns", "add-post", "--id", campaignID, "--post-id", postID, "--editorial-status", "needs_review", "--requires-approval")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix campaign add mcp")
+				if err != nil {
+					return err
+				}
+				postID := env.apiCreatePost("matrix campaign add mcp post", time.Time{}, nil)
+				if msg := env.mcpCallToolError("postflow_add_post_to_campaign", map[string]any{"campaign_id": campaignID, "post_id": postID, "editorial_status": "needs_review", "requires_approval": true}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityCampaignsDraftsCreate: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				campaignID, err := apiCreateCampaign(env, "matrix campaign drafts api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/drafts", map[string]any{"account_id": env.account.ID, "idea": "matrix draft api", "variants_per_post": 1}, "application/json")
+				if status != http.StatusCreated {
+					return fmt.Errorf("expected status 201, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				campaignID, err := apiCreateCampaign(env, "matrix campaign drafts cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("campaigns", "create-drafts", "--id", campaignID, "--account-id", env.account.ID, "--idea", "matrix draft cli", "--variants-per-post", "1")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				campaignID, err := apiCreateCampaign(env, "matrix campaign drafts mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_create_campaign_drafts", map[string]any{"campaign_id": campaignID, "account_id": env.account.ID, "idea": "matrix draft mcp", "variants_per_post": 1}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityCampaignsBacklog: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				_, status := env.apiJSON(http.MethodGet, "/editorial/backlog?limit=10", nil, "")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected status 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				code, _, stderr := env.runCLIResult("campaigns", "backlog", "--limit", "10")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				if msg := env.mcpCallToolError("postflow_list_editorial_backlog", map[string]any{"limit": 10}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
+		capabilities.CapabilityPostsApprove: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix approve api")
+				if err != nil {
+					return err
+				}
+				postID := env.apiCreatePost("matrix approve api post", time.Time{}, nil)
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/posts", map[string]any{"post_id": postID, "editorial_status": "needs_review", "requires_approval": true}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("add post status %d", status)
+				}
+				_, status = env.apiJSON(http.MethodPost, "/posts/"+postID+"/approve", map[string]any{}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("approve status %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix approve cli")
+				if err != nil {
+					return err
+				}
+				postID := env.apiCreatePost("matrix approve cli post", time.Time{}, nil)
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/posts", map[string]any{"post_id": postID, "editorial_status": "needs_review", "requires_approval": true}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("add post status %d", status)
+				}
+				code, _, stderr := env.runCLIResult("posts", "approve", "--id", postID)
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				campaignID, err := apiCreateCampaign(env, "matrix approve mcp")
+				if err != nil {
+					return err
+				}
+				postID := env.apiCreatePost("matrix approve mcp post", time.Time{}, nil)
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/posts", map[string]any{"post_id": postID, "editorial_status": "needs_review", "requires_approval": true}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("add post status %d", status)
+				}
+				if msg := env.mcpCallToolError("postflow_approve_post", map[string]any{"post_id": postID}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
 	}
+}
+
+func apiCreateCampaign(env *parityEnv, name string) (string, error) {
+	raw, status := env.apiJSON(http.MethodPost, "/campaigns", map[string]any{"name": name, "timezone": "Europe/Madrid"}, "application/json")
+	if status != http.StatusCreated {
+		return "", fmt.Errorf("create campaign status %d: %s", status, strings.TrimSpace(string(raw)))
+	}
+	var payload struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(payload.ID) == "" {
+		return "", fmt.Errorf("campaign response missing id")
+	}
+	return strings.TrimSpace(payload.ID), nil
 }
 
 func uploadMediaViaAPI(env *parityEnv, filePath string) (string, error) {

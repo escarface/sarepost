@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,14 +20,19 @@ func (s *Store) CreateMedia(ctx context.Context, m domain.Media) (domain.Media, 
 		}
 		m.ID = id
 	}
-	m.CreatedAt = time.Now().UTC()
-	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO media (id, kind, original_name, storage_path, mime_type, size_bytes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, m.ID, strings.TrimSpace(m.Kind), strings.TrimSpace(m.OriginalName), strings.TrimSpace(m.StoragePath), strings.TrimSpace(m.MimeType), m.SizeBytes, m.CreatedAt.Format(time.RFC3339Nano))
+	tags, err := json.Marshal(normalizeStringList(m.Tags))
 	if err != nil {
 		return domain.Media{}, err
 	}
+	m.CreatedAt = time.Now().UTC()
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO media (id, kind, original_name, storage_path, mime_type, size_bytes, created_at, tags)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, m.ID, strings.TrimSpace(m.Kind), strings.TrimSpace(m.OriginalName), strings.TrimSpace(m.StoragePath), strings.TrimSpace(m.MimeType), m.SizeBytes, m.CreatedAt.Format(time.RFC3339Nano), string(tags))
+	if err != nil {
+		return domain.Media{}, err
+	}
+	m.Tags = parseStringList(string(tags))
 	return m, nil
 }
 
@@ -37,11 +43,11 @@ func (s *Store) GetMediaByIDs(ctx context.Context, ids []string) ([]domain.Media
 	out := make([]domain.Media, 0, len(ids))
 	for _, id := range ids {
 		var m domain.Media
-		var created string
+		var created, tags string
 		err := s.db.QueryRowContext(ctx, `
-			SELECT id, kind, original_name, storage_path, mime_type, size_bytes, created_at
+			SELECT id, kind, original_name, storage_path, mime_type, size_bytes, created_at, tags
 			FROM media WHERE id = ?
-		`, strings.TrimSpace(id)).Scan(&m.ID, &m.Kind, &m.OriginalName, &m.StoragePath, &m.MimeType, &m.SizeBytes, &created)
+		`, strings.TrimSpace(id)).Scan(&m.ID, &m.Kind, &m.OriginalName, &m.StoragePath, &m.MimeType, &m.SizeBytes, &created, &tags)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil, fmt.Errorf("media %s not found", strings.TrimSpace(id))
@@ -49,6 +55,7 @@ func (s *Store) GetMediaByIDs(ctx context.Context, ids []string) ([]domain.Media
 			return nil, err
 		}
 		m.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+		m.Tags = parseStringList(tags)
 		out = append(out, m)
 	}
 	return out, nil

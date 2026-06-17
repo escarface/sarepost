@@ -394,6 +394,9 @@ paths:
                 file:
                   type: string
                   format: binary
+                tags:
+                  type: string
+                  description: Comma-separated editorial tags for later media search.
       responses:
         '201':
           description: Media created
@@ -415,6 +418,11 @@ paths:
             minimum: 1
             maximum: 500
             default: 100
+        - in: query
+          name: tag
+          schema:
+            type: string
+          description: Optional editorial tag filter.
       responses:
         '200':
           description: Media list
@@ -455,6 +463,247 @@ paths:
           $ref: '#/components/responses/Error'
         '409':
           $ref: '#/components/responses/Error'
+
+  /campaigns:
+    get:
+      summary: List editorial campaigns
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/CampaignStatus'
+        - in: query
+          name: tag
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Campaign list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Campaign'
+    post:
+      summary: Create an editorial campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignInput'
+      responses:
+        '201':
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /campaigns/{id}:
+    post:
+      summary: Update an editorial campaign
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/CampaignInput'
+                - type: object
+                  properties:
+                    status:
+                      $ref: '#/components/schemas/CampaignStatus'
+      responses:
+        '200':
+          description: Campaign updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+
+  /campaigns/{id}/archive:
+    post:
+      summary: Archive an editorial campaign
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      responses:
+        '200':
+          description: Campaign archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '404':
+          $ref: '#/components/responses/Error'
+
+  /campaigns/{id}/posts:
+    post:
+      summary: Add an existing post to a campaign
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [post_id]
+              properties:
+                post_id:
+                  type: string
+                editorial_status:
+                  $ref: '#/components/schemas/EditorialStatus'
+                requires_approval:
+                  type: boolean
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Linked post
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  post:
+                    $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /campaigns/{id}/drafts:
+    post:
+      summary: Generate campaign draft variants
+      description: Generates platform-aware draft posts from the campaign brief and links them to the campaign.
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                account_id:
+                  type: string
+                  description: Convenience single-account field. Ignored when account_ids is provided.
+                account_ids:
+                  type: array
+                  items:
+                    type: string
+                idea:
+                  type: string
+                variants_per_post:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 1
+                brand_profile_id:
+                  type: string
+                editorial_status:
+                  $ref: '#/components/schemas/EditorialStatus'
+                requires_approval:
+                  type: boolean
+                  default: true
+                tags:
+                  type: array
+                  items:
+                    type: string
+                idempotency_prefix:
+                  type: string
+      responses:
+        '201':
+          description: Draft variants created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  campaign:
+                    $ref: '#/components/schemas/Campaign'
+                  created_count:
+                    type: integer
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+
+  /editorial/backlog:
+    get:
+      summary: List editorial backlog items
+      parameters:
+        - in: query
+          name: campaign_id
+          schema:
+            type: string
+        - in: query
+          name: platform
+          schema:
+            $ref: '#/components/schemas/Platform'
+        - in: query
+          name: editorial_status
+          schema:
+            $ref: '#/components/schemas/EditorialStatus'
+        - in: query
+          name: tag
+          schema:
+            type: string
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Editorial backlog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EditorialBacklogItem'
 
   /posts:
     post:
@@ -602,6 +851,66 @@ paths:
                     example: scheduled
                   post:
                     $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+
+  /posts/{id}/approve:
+    post:
+      summary: Approve a post for editorial scheduling
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Post approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    $ref: '#/components/schemas/EditorialStatus'
+                  post:
+                    $ref: '#/components/schemas/Post'
+        '409':
+          $ref: '#/components/responses/Error'
+
+  /posts/{id}/preview-schedule:
+    post:
+      summary: Preview scheduling guardrails without mutating the post
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduled_at:
+                  type: string
+                  format: date-time
+                scheduled_at_local:
+                  type: string
+                  description: Datetime-local value parsed in the configured UI timezone.
+      responses:
+        '200':
+          description: Normalized scheduling preview with warnings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchedulePreview'
         '400':
           $ref: '#/components/responses/Error'
         '409':
@@ -1120,6 +1429,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/OAuthPlatform'
+    CampaignID:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
 
   responses:
     Error:
@@ -1198,6 +1513,131 @@ components:
           $ref: '#/components/schemas/AccountKind'
       description: Optional for LinkedIn OAuth. Defaults to `personal`; use `organization` to request company page scopes.
 
+    CampaignStatus:
+      type: string
+      enum: [active, paused, archived]
+
+    EditorialStatus:
+      type: string
+      enum: [idea, drafting, needs_review, approved, scheduled]
+
+    CampaignInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        objective:
+          type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        notes:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        timezone:
+          type: string
+          example: Europe/Madrid
+        audience:
+          type: string
+        tone:
+          type: string
+        cta:
+          type: string
+        restrictions:
+          type: string
+
+    Campaign:
+      allOf:
+        - $ref: '#/components/schemas/CampaignInput'
+        - type: object
+          properties:
+            id:
+              type: string
+            status:
+              $ref: '#/components/schemas/CampaignStatus'
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    EditorialBacklogItem:
+      type: object
+      properties:
+        post_id:
+          type: string
+        campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        account_id:
+          type: string
+        platform:
+          $ref: '#/components/schemas/Platform'
+        text:
+          type: string
+        post_status:
+          type: string
+          enum: [draft, scheduled, publishing, published, failed, canceled]
+        editorial_status:
+          $ref: '#/components/schemas/EditorialStatus'
+        requires_approval:
+          type: boolean
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        scheduled_at:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+
+    SchedulePreview:
+      type: object
+      properties:
+        post_id:
+          type: string
+        account_id:
+          type: string
+        account_name:
+          type: string
+        platform:
+          $ref: '#/components/schemas/Platform'
+        text:
+          type: string
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+        campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+        scheduled_local:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        warnings:
+          type: array
+          description: Guardrail warnings such as approval required, archived campaign, nearby account conflict, or recent duplicate text.
+          items:
+            type: string
+
     CreatePostRequest:
       type: object
       required: [account_id]
@@ -1223,6 +1663,18 @@ components:
           type: string
           format: date-time
           description: Optional. Empty value creates a draft.
+        campaign_id:
+          type: string
+          description: Optional editorial campaign association. Archived campaigns reject create/schedule operations.
+        editorial_status:
+          $ref: '#/components/schemas/EditorialStatus'
+        requires_approval:
+          type: boolean
+          description: When true, the post must be approved before scheduling.
+        tags:
+          type: array
+          items:
+            type: string
         max_attempts:
           type: integer
           minimum: 1
@@ -1292,6 +1744,10 @@ components:
           type: boolean
         preview_url:
           type: string
+        tags:
+          type: array
+          items:
+            type: string
 
     MediaListItem:
       type: object
@@ -1315,6 +1771,10 @@ components:
           type: boolean
         preview_url:
           type: string
+        tags:
+          type: array
+          items:
+            type: string
 
     Post:
       type: object
@@ -1333,6 +1793,20 @@ components:
         scheduled_at:
           type: string
           format: date-time
+        campaign_id:
+          type: string
+        editorial_status:
+          $ref: '#/components/schemas/EditorialStatus'
+        requires_approval:
+          type: boolean
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
         thread_group_id:
           type: string
         thread_position:

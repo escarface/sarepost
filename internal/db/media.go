@@ -19,12 +19,24 @@ type MediaWithUsage struct {
 }
 
 func (s *Store) ListMedia(ctx context.Context, limit int) ([]MediaWithUsage, error) {
+	return s.ListMediaFiltered(ctx, domain.MediaListFilter{Limit: limit})
+}
+
+func (s *Store) ListMediaFiltered(ctx context.Context, filter domain.MediaListFilter) ([]MediaWithUsage, error) {
+	limit := filter.Limit
 	if limit <= 0 {
 		limit = 200
 	}
 	if limit > 500 {
 		limit = 500
 	}
+	args := []any{domain.PostStatusPublished, domain.PostStatusCanceled}
+	where := ""
+	if tag := strings.TrimSpace(filter.Tag); tag != "" {
+		where = `WHERE m.tags LIKE ?`
+		args = append(args, "%"+tag+"%")
+	}
+	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
 			m.id,
@@ -34,10 +46,12 @@ func (s *Store) ListMedia(ctx context.Context, limit int) ([]MediaWithUsage, err
 			m.mime_type,
 			m.size_bytes,
 			m.created_at,
+			m.tags,
 			SUM(CASE WHEN p.status NOT IN (?, ?) THEN 1 ELSE 0 END) AS usage_count
 		FROM media m
 		LEFT JOIN post_media pm ON pm.media_id = m.id
 		LEFT JOIN posts p ON p.id = pm.post_id
+		`+where+`
 		GROUP BY
 			m.id,
 			m.kind,
@@ -45,10 +59,11 @@ func (s *Store) ListMedia(ctx context.Context, limit int) ([]MediaWithUsage, err
 			m.storage_path,
 			m.mime_type,
 			m.size_bytes,
-			m.created_at
+			m.created_at,
+			m.tags
 		ORDER BY m.created_at DESC
 		LIMIT ?
-	`, domain.PostStatusPublished, domain.PostStatusCanceled, limit)
+	`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +71,7 @@ func (s *Store) ListMedia(ctx context.Context, limit int) ([]MediaWithUsage, err
 
 	items := make([]MediaWithUsage, 0, limit)
 	for rows.Next() {
-		var created string
+		var created, tags string
 		var item MediaWithUsage
 		if err := rows.Scan(
 			&item.Media.ID,
@@ -66,11 +81,13 @@ func (s *Store) ListMedia(ctx context.Context, limit int) ([]MediaWithUsage, err
 			&item.Media.MimeType,
 			&item.Media.SizeBytes,
 			&created,
+			&tags,
 			&item.UsageCount,
 		); err != nil {
 			return nil, err
 		}
 		item.Media.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+		item.Media.Tags = parseStringList(tags)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -86,7 +103,7 @@ func (s *Store) DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain
 	}
 	defer tx.Rollback()
 	var media domain.Media
-	var created string
+	var created, tags string
 	var usageCount int
 	err = tx.QueryRowContext(ctx, `
 		SELECT
@@ -97,6 +114,7 @@ func (s *Store) DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain
 			m.mime_type,
 			m.size_bytes,
 			m.created_at,
+			m.tags,
 			SUM(CASE WHEN p.status NOT IN (?, ?) THEN 1 ELSE 0 END) AS usage_count
 		FROM media m
 		LEFT JOIN post_media pm ON pm.media_id = m.id
@@ -109,7 +127,8 @@ func (s *Store) DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain
 			m.storage_path,
 			m.mime_type,
 			m.size_bytes,
-			m.created_at
+			m.created_at,
+			m.tags
 	`, domain.PostStatusPublished, domain.PostStatusCanceled, mediaID).Scan(
 		&media.ID,
 		&media.Kind,
@@ -118,12 +137,14 @@ func (s *Store) DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain
 		&media.MimeType,
 		&media.SizeBytes,
 		&created,
+		&tags,
 		&usageCount,
 	)
 	if err != nil {
 		return domain.Media{}, err
 	}
 	media.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+	media.Tags = parseStringList(tags)
 
 	if usageCount > 0 {
 		return domain.Media{}, fmt.Errorf("%w: used by %d non-published posts", ErrMediaInUse, usageCount)
@@ -161,7 +182,8 @@ func (s *Store) DeleteMediaUnusedByPendingPosts(ctx context.Context) ([]domain.M
 			m.storage_path,
 			m.mime_type,
 			m.size_bytes,
-			m.created_at
+			m.created_at,
+			m.tags
 		FROM media m
 		WHERE NOT EXISTS (
 			SELECT 1
@@ -180,7 +202,7 @@ func (s *Store) DeleteMediaUnusedByPendingPosts(ctx context.Context) ([]domain.M
 	deleted := make([]domain.Media, 0, 32)
 	ids := make([]string, 0, 32)
 	for rows.Next() {
-		var created string
+		var created, tags string
 		var item domain.Media
 		if err := rows.Scan(
 			&item.ID,
@@ -190,10 +212,12 @@ func (s *Store) DeleteMediaUnusedByPendingPosts(ctx context.Context) ([]domain.M
 			&item.MimeType,
 			&item.SizeBytes,
 			&created,
+			&tags,
 		); err != nil {
 			return nil, err
 		}
 		item.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+		item.Tags = parseStringList(tags)
 		deleted = append(deleted, item)
 		ids = append(ids, item.ID)
 	}

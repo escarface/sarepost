@@ -21,6 +21,7 @@ var (
 
 type Store interface {
 	ListMedia(ctx context.Context, limit int) ([]db.MediaWithUsage, error)
+	ListMediaFiltered(ctx context.Context, filter domain.MediaListFilter) ([]db.MediaWithUsage, error)
 	DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain.Media, error)
 	DeleteMediaUnusedByPendingPosts(ctx context.Context) ([]domain.Media, error)
 }
@@ -44,6 +45,15 @@ func ClampListLimit(limit int) int {
 
 func (s Service) List(ctx context.Context, limit int) ([]db.MediaWithUsage, error) {
 	return s.Store.ListMedia(ctx, ClampListLimit(limit))
+}
+
+func (s Service) ListFiltered(ctx context.Context, filter domain.MediaListFilter) ([]db.MediaWithUsage, error) {
+	filter.Limit = ClampListLimit(filter.Limit)
+	filter.Tag = strings.TrimSpace(filter.Tag)
+	if filter.Tag == "" {
+		return s.List(ctx, filter.Limit)
+	}
+	return s.Store.ListMediaFiltered(ctx, filter)
 }
 
 func (s Service) Delete(ctx context.Context, mediaID string) (domain.Media, error) {

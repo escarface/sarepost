@@ -13,6 +13,7 @@ import (
 
 type fakeStore struct {
 	lastListLimit int
+	lastFilter    domain.MediaListFilter
 	listItems     []db.MediaWithUsage
 	deleteInput   string
 	deleteOutput  domain.Media
@@ -23,6 +24,11 @@ type fakeStore struct {
 
 func (f *fakeStore) ListMedia(_ context.Context, limit int) ([]db.MediaWithUsage, error) {
 	f.lastListLimit = limit
+	return f.listItems, nil
+}
+
+func (f *fakeStore) ListMediaFiltered(_ context.Context, filter domain.MediaListFilter) ([]db.MediaWithUsage, error) {
+	f.lastFilter = filter
 	return f.listItems, nil
 }
 
@@ -65,6 +71,18 @@ func TestListUsesClampedLimit(t *testing.T) {
 	}
 	if store.lastListLimit != MaxListLimit {
 		t.Fatalf("expected clamped limit %d, got %d", MaxListLimit, store.lastListLimit)
+	}
+}
+
+func TestListFilteredUsesTagAndClampedLimit(t *testing.T) {
+	store := &fakeStore{}
+	svc := Service{Store: store}
+
+	if _, err := svc.ListFiltered(t.Context(), domain.MediaListFilter{Tag: " launch ", Limit: MaxListLimit + 10}); err != nil {
+		t.Fatalf("list filtered failed: %v", err)
+	}
+	if store.lastFilter.Tag != "launch" || store.lastFilter.Limit != MaxListLimit {
+		t.Fatalf("unexpected filter: %#v", store.lastFilter)
 	}
 }
 

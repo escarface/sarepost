@@ -96,14 +96,14 @@ func TestRequiredCapabilitiesBehaviorParity(t *testing.T) {
 	})
 
 	t.Run("posts.schedule", func(t *testing.T) {
-		scheduledAt := time.Now().UTC().Add(40 * time.Minute).Round(time.Second)
+		baseScheduledAt := time.Now().UTC().Add(40 * time.Minute).Round(time.Second)
 		apiID := env.apiCreatePost("schedule via api", time.Time{}, nil)
 		cliID := env.apiCreatePost("schedule via cli", time.Time{}, nil)
 		mcpID := env.apiCreatePost("schedule via mcp", time.Time{}, nil)
 
-		env.apiSchedulePost(apiID, scheduledAt)
-		env.cliSchedulePost(cliID, scheduledAt)
-		env.mcpSchedulePost(mcpID, scheduledAt)
+		env.apiSchedulePost(apiID, baseScheduledAt)
+		env.cliSchedulePost(cliID, baseScheduledAt.Add(10*time.Minute))
+		env.mcpSchedulePost(mcpID, baseScheduledAt.Add(20*time.Minute))
 
 		for _, postID := range []string{apiID, cliID, mcpID} {
 			post, err := env.store.GetPost(t.Context(), postID)
@@ -117,14 +117,14 @@ func TestRequiredCapabilitiesBehaviorParity(t *testing.T) {
 	})
 
 	t.Run("posts.edit", func(t *testing.T) {
-		scheduledAt := time.Now().UTC().Add(50 * time.Minute).Round(time.Second)
+		baseScheduledAt := time.Now().UTC().Add(75 * time.Minute).Round(time.Second)
 		apiID := env.apiCreatePost("edit start api", time.Time{}, nil)
 		cliID := env.apiCreatePost("edit start cli", time.Time{}, nil)
 		mcpID := env.apiCreatePost("edit start mcp", time.Time{}, nil)
 
-		env.apiEditPost(apiID, "edit done api", "schedule", scheduledAt)
-		env.cliEditPost(cliID, "edit done cli", "schedule", scheduledAt)
-		env.mcpEditPost(mcpID, "edit done mcp", "schedule", scheduledAt)
+		env.apiEditPost(apiID, "edit done api", "schedule", baseScheduledAt)
+		env.cliEditPost(cliID, "edit done cli", "schedule", baseScheduledAt.Add(10*time.Minute))
+		env.mcpEditPost(mcpID, "edit done mcp", "schedule", baseScheduledAt.Add(20*time.Minute))
 
 		assertPostText(t, env.store, apiID, "edit done api")
 		assertPostText(t, env.store, cliID, "edit done cli")

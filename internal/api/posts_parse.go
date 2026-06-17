@@ -58,11 +58,15 @@ func parseCreatePostRequest(r *http.Request) (createPostRequest, bool, error) {
 		return createPostRequest{}, true, fmt.Errorf("invalid form body: %w", err)
 	}
 	req := createPostRequest{
-		AccountID: strings.TrimSpace(r.FormValue("account_id")),
-		Text:      strings.TrimSpace(r.FormValue("text")),
-		Intent:    strings.ToLower(strings.TrimSpace(r.FormValue("intent"))),
-		ReturnTo:  strings.TrimSpace(r.FormValue("return_to")),
+		AccountID:        strings.TrimSpace(r.FormValue("account_id")),
+		Text:             strings.TrimSpace(r.FormValue("text")),
+		Intent:           strings.ToLower(strings.TrimSpace(r.FormValue("intent"))),
+		ReturnTo:         strings.TrimSpace(r.FormValue("return_to")),
+		CampaignID:       strings.TrimSpace(r.FormValue("campaign_id")),
+		EditorialStatus:  strings.TrimSpace(r.FormValue("editorial_status")),
+		RequiresApproval: strings.TrimSpace(r.FormValue("requires_approval")) == "true" || strings.TrimSpace(r.FormValue("requires_approval")) == "on",
 	}
+	req.Tags = splitCSV(r.FormValue("tags"))
 	for _, rawID := range r.Form["account_ids"] {
 		id := strings.TrimSpace(rawID)
 		if id == "" {

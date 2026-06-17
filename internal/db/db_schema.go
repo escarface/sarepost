@@ -22,9 +22,13 @@ type Store struct {
 }
 
 type CreatePostParams struct {
-	Post           domain.Post
-	MediaIDs       []string
-	IdempotencyKey string
+	Post             domain.Post
+	MediaIDs         []string
+	IdempotencyKey   string
+	CampaignID       string
+	EditorialStatus  domain.EditorialStatus
+	RequiresApproval bool
+	PostTags         []string
 }
 
 type CreatePostResult struct {

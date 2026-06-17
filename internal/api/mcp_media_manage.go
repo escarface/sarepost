@@ -7,23 +7,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/escarface/sarepost/internal/domain"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type mcpListMediaInput struct {
-	Limit int `json:"limit,omitempty" jsonschema:"Max items to return (1-500). Default: 200."`
+	Limit int    `json:"limit,omitempty" jsonschema:"Max items to return (1-500). Default: 200."`
+	Tag   string `json:"tag,omitempty" jsonschema:"Optional editorial tag filter."`
 }
 
 type mcpMediaSummary struct {
-	MediaID      string `json:"media_id"`
-	Kind         string `json:"kind"`
-	OriginalName string `json:"original_name"`
-	MimeType     string `json:"mime_type"`
-	SizeBytes    int64  `json:"size_bytes"`
-	CreatedAt    string `json:"created_at,omitempty"`
-	UsageCount   int    `json:"usage_count"`
-	InUse        bool   `json:"in_use"`
-	PreviewURL   string `json:"preview_url,omitempty"`
+	MediaID      string   `json:"media_id"`
+	Kind         string   `json:"kind"`
+	OriginalName string   `json:"original_name"`
+	MimeType     string   `json:"mime_type"`
+	SizeBytes    int64    `json:"size_bytes"`
+	CreatedAt    string   `json:"created_at,omitempty"`
+	UsageCount   int      `json:"usage_count"`
+	InUse        bool     `json:"in_use"`
+	PreviewURL   string   `json:"preview_url,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 type mcpListMediaOutput struct {
@@ -51,11 +54,12 @@ func toMCPMediaSummary(item mediaListItem) mcpMediaSummary {
 		UsageCount:   item.UsageCount,
 		InUse:        item.InUse,
 		PreviewURL:   item.PreviewURL,
+		Tags:         append([]string(nil), item.Tags...),
 	}
 }
 
 func (s Server) mcpListMediaTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpListMediaInput) (*mcp.CallToolResult, mcpListMediaOutput, error) {
-	items, err := s.listMediaItems(ctx, in.Limit, time.UTC)
+	items, err := s.listMediaItemsFiltered(ctx, domain.MediaListFilter{Limit: in.Limit, Tag: strings.TrimSpace(in.Tag)}, time.UTC)
 	if err != nil {
 		return nil, mcpListMediaOutput{}, err
 	}

@@ -15,15 +15,19 @@ import (
 )
 
 type createPostRequest struct {
-	AccountID   string              `json:"account_id"`
-	AccountIDs  []string            `json:"account_ids"`
-	Text        string              `json:"text"`
-	ScheduledAt string              `json:"scheduled_at"`
-	MediaIDs    []string            `json:"media_ids"`
-	Segments    []createPostSegment `json:"segments"`
-	MaxAttempts int                 `json:"max_attempts"`
-	Intent      string              `json:"intent"`
-	ReturnTo    string              `json:"return_to"`
+	AccountID        string              `json:"account_id"`
+	AccountIDs       []string            `json:"account_ids"`
+	Text             string              `json:"text"`
+	ScheduledAt      string              `json:"scheduled_at"`
+	MediaIDs         []string            `json:"media_ids"`
+	Segments         []createPostSegment `json:"segments"`
+	MaxAttempts      int                 `json:"max_attempts"`
+	Intent           string              `json:"intent"`
+	ReturnTo         string              `json:"return_to"`
+	CampaignID       string              `json:"campaign_id"`
+	EditorialStatus  string              `json:"editorial_status"`
+	RequiresApproval bool                `json:"requires_approval"`
+	Tags             []string            `json:"tags"`
 }
 
 type createPostSegment struct {
@@ -106,13 +110,17 @@ func (s Server) handleCreatePost(w http.ResponseWriter, r *http.Request) {
 		DefaultMaxRetries: s.DefaultMaxRetries,
 	}
 	createOut, err := createService.Create(r.Context(), postsapp.CreateInput{
-		AccountIDs:     accountIDs,
-		Text:           text,
-		ScheduledAt:    scheduledAt,
-		MediaIDs:       req.MediaIDs,
-		Segments:       segments,
-		MaxAttempts:    req.MaxAttempts,
-		IdempotencyKey: idempotencyKey,
+		AccountIDs:       accountIDs,
+		Text:             text,
+		ScheduledAt:      scheduledAt,
+		MediaIDs:         req.MediaIDs,
+		Segments:         segments,
+		MaxAttempts:      req.MaxAttempts,
+		IdempotencyKey:   idempotencyKey,
+		CampaignID:       req.CampaignID,
+		EditorialStatus:  domain.EditorialStatus(strings.TrimSpace(req.EditorialStatus)),
+		RequiresApproval: req.RequiresApproval,
+		Tags:             req.Tags,
 	})
 	if err != nil {
 		status, message := mapCreatePostError(err, fromForm)
@@ -192,6 +200,9 @@ func mapCreatePostError(err error, fromForm bool) (int, string) {
 	if errors.Is(err, postsapp.ErrIdempotencyKeyTooLong) && !fromForm {
 		return http.StatusBadRequest, "Idempotency-Key too long (max 128 chars)"
 	}
+	if errors.Is(err, postsapp.ErrCampaignArchived) {
+		return http.StatusConflict, err.Error()
+	}
 	if postsapp.IsValidationError(err) {
 		return http.StatusBadRequest, err.Error()
 	}
@@ -265,10 +276,14 @@ func (s Server) handlePostActions(w http.ResponseWriter, r *http.Request) {
 		s.handleCancelPost(w, r)
 	case strings.HasSuffix(r.URL.Path, "/schedule"):
 		s.handleScheduleDraftPost(w, r)
+	case strings.HasSuffix(r.URL.Path, "/preview-schedule"):
+		s.handlePreviewSchedulePost(w, r)
 	case strings.HasSuffix(r.URL.Path, "/edit"):
 		s.handleEditPost(w, r)
 	case strings.HasSuffix(r.URL.Path, "/delete"):
 		s.handleDeletePost(w, r)
+	case strings.HasSuffix(r.URL.Path, "/approve"):
+		s.handleApprovePost(w, r)
 	default:
 		writeError(w, http.StatusNotFound, errors.New("not found"))
 	}
@@ -405,6 +420,57 @@ func appendSelectionQueryValues(rawURL string, accountIDs []string, postIDs []st
 	return parsed.String()
 }
 
+func (s Server) handlePreviewSchedulePost(w http.ResponseWriter, r *http.Request) {
+	postID, err := extractPostIDFromPath(r.URL.Path, "preview-schedule")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	uiLoc, _, _, err := s.resolveUILocation(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	scheduledAtRaw := strings.TrimSpace(r.FormValue("scheduled_at"))
+	if scheduledAtRaw == "" {
+		localRaw := strings.TrimSpace(r.FormValue("scheduled_at_local"))
+		if localRaw != "" {
+			localTime, err := time.ParseInLocation("2006-01-02T15:04", localRaw, uiLoc)
+			if err == nil {
+				scheduledAtRaw = localTime.UTC().Format(time.RFC3339)
+			}
+		}
+	}
+	if scheduledAtRaw == "" {
+		var body struct {
+			ScheduledAt      string `json:"scheduled_at"`
+			ScheduledAtLocal string `json:"scheduled_at_local"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			scheduledAtRaw = strings.TrimSpace(body.ScheduledAt)
+			if scheduledAtRaw == "" {
+				scheduledAtRaw = strings.TrimSpace(body.ScheduledAtLocal)
+			}
+		}
+	}
+	scheduledAt, err := parseScheduledAtInputInLocation(scheduledAtRaw, uiLoc)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	svc := postsapp.MutationsService{Store: s.Store}
+	preview, err := svc.PreviewSchedule(r.Context(), postID, scheduledAt, uiLoc)
+	if err != nil {
+		if errors.Is(err, postsapp.ErrPostIDRequired) || errors.Is(err, postsapp.ErrScheduledAtNeeded) {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, preview)
+}
+
 func (s Server) handleScheduleDraftPost(w http.ResponseWriter, r *http.Request) {
 	postID, err := extractPostIDFromPath(r.URL.Path, "schedule")
 	if err != nil {
@@ -452,6 +518,10 @@ func (s Server) handleScheduleDraftPost(w http.ResponseWriter, r *http.Request) 
 	}
 	if errors.Is(err, postsapp.ErrScheduledAtNeeded) {
 		writeError(w, http.StatusBadRequest, errors.New("scheduled_at is required"))
+		return
+	}
+	if errors.Is(err, postsapp.ErrPostApprovalRequired) {
+		writeError(w, http.StatusConflict, err)
 		return
 	}
 	if err != nil {
@@ -618,6 +688,15 @@ func (s Server) handleEditPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeError(w, http.StatusBadRequest, errors.New("scheduled_at is required"))
+		return
+	}
+	if errors.Is(err, postsapp.ErrPostApprovalRequired) {
+		if fromForm {
+			redirectURL := createViewURL(postID, text, scheduledAtRaw, returnTo, "post requires approval before scheduling", "")
+			http.Redirect(w, r, appendSelectionQueryValues(redirectURL, accountIDs, postIDs), http.StatusSeeOther)
+			return
+		}
+		writeError(w, http.StatusConflict, err)
 		return
 	}
 	if err != nil {

@@ -26,7 +26,9 @@ type fakeMutationsStore struct {
 	updateThreadSteps  []db.ThreadStepUpdate
 	post               domain.Post
 	account            domain.SocialAccount
+	campaign           domain.Campaign
 	mediaByID          map[string]domain.Media
+	schedule           []domain.Post
 	err                error
 }
 
@@ -77,6 +79,16 @@ func (f *fakeMutationsStore) GetAccount(_ context.Context, _ string) (domain.Soc
 	return f.account, nil
 }
 
+func (f *fakeMutationsStore) GetCampaign(_ context.Context, _ string) (domain.Campaign, error) {
+	if f.err != nil {
+		return domain.Campaign{}, f.err
+	}
+	if strings.TrimSpace(f.campaign.ID) == "" {
+		return domain.Campaign{Status: domain.CampaignStatusActive}, nil
+	}
+	return f.campaign, nil
+}
+
 func (f *fakeMutationsStore) GetMediaByIDs(_ context.Context, ids []string) ([]domain.Media, error) {
 	if f.err != nil {
 		return nil, f.err
@@ -90,6 +102,13 @@ func (f *fakeMutationsStore) GetMediaByIDs(_ context.Context, ids []string) ([]d
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+func (f *fakeMutationsStore) ListSchedule(context.Context, time.Time, time.Time) ([]domain.Post, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return append([]domain.Post(nil), f.schedule...), nil
 }
 
 func TestResolveScheduledAtForEdit(t *testing.T) {
@@ -139,6 +158,226 @@ func TestResolveScheduledAtForEdit(t *testing.T) {
 	if !preserved.Equal(explicit.UTC()) {
 		t.Fatalf("expected preserved scheduled_at, got %s", preserved)
 	}
+}
+
+func TestScheduleDraftRequiresApprovalWhenEditorialMetadataDemandsIt(t *testing.T) {
+	store := &scheduleApprovalStore{
+		post: domain.Post{
+			ID:               "pst_review",
+			Status:           domain.PostStatusDraft,
+			RequiresApproval: true,
+			EditorialStatus:  domain.EditorialStatusNeedsReview,
+		},
+	}
+	svc := MutationsService{Store: store}
+
+	_, err := svc.ScheduleDraft(t.Context(), "pst_review", time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC))
+	if !errors.Is(err, ErrPostApprovalRequired) {
+		t.Fatalf("expected ErrPostApprovalRequired, got %v", err)
+	}
+	if store.scheduled {
+		t.Fatalf("post should not be scheduled before approval")
+	}
+
+	approvedAt := time.Date(2026, 6, 17, 10, 0, 0, 0, time.UTC)
+	store.post.EditorialStatus = domain.EditorialStatusApproved
+	store.post.ApprovedAt = &approvedAt
+	if _, err := svc.ScheduleDraft(t.Context(), "pst_review", time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("schedule approved post: %v", err)
+	}
+	if !store.scheduled {
+		t.Fatalf("expected approved post to be scheduled")
+	}
+}
+
+type scheduleApprovalStore struct {
+	post      domain.Post
+	account   domain.SocialAccount
+	campaign  domain.Campaign
+	schedule  []domain.Post
+	scheduled bool
+}
+
+func (s *scheduleApprovalStore) CancelPost(context.Context, string) error         { return nil }
+func (s *scheduleApprovalStore) DeletePostEditable(context.Context, string) error { return nil }
+func (s *scheduleApprovalStore) ScheduleDraftPost(_ context.Context, _ string, scheduledAt time.Time) error {
+	s.scheduled = true
+	s.post.ScheduledAt = scheduledAt
+	s.post.Status = domain.PostStatusScheduled
+	return nil
+}
+func (s *scheduleApprovalStore) UpdatePostEditable(context.Context, string, string, time.Time, []string, bool) error {
+	return nil
+}
+func (s *scheduleApprovalStore) UpdateThreadEditable(context.Context, string, []db.ThreadStepUpdate) error {
+	return nil
+}
+func (s *scheduleApprovalStore) GetPost(_ context.Context, _ string) (domain.Post, error) {
+	return s.post, nil
+}
+func (s *scheduleApprovalStore) GetAccount(context.Context, string) (domain.SocialAccount, error) {
+	return s.account, nil
+}
+func (s *scheduleApprovalStore) GetCampaign(context.Context, string) (domain.Campaign, error) {
+	if strings.TrimSpace(s.campaign.ID) == "" {
+		return domain.Campaign{Status: domain.CampaignStatusActive}, nil
+	}
+	return s.campaign, nil
+}
+func (s *scheduleApprovalStore) GetMediaByIDs(context.Context, []string) ([]domain.Media, error) {
+	return nil, nil
+}
+func (s *scheduleApprovalStore) ListSchedule(context.Context, time.Time, time.Time) ([]domain.Post, error) {
+	return append([]domain.Post(nil), s.schedule...), nil
+}
+
+func TestScheduleDraftRejectsArchivedCampaign(t *testing.T) {
+	store := &scheduleApprovalStore{
+		post: domain.Post{
+			ID:               "pst_archived_campaign",
+			Status:           domain.PostStatusDraft,
+			CampaignID:       "cam_archived",
+			EditorialStatus:  domain.EditorialStatusApproved,
+			RequiresApproval: false,
+		},
+		campaign: domain.Campaign{ID: "cam_archived", Status: domain.CampaignStatusArchived},
+	}
+	svc := MutationsService{Store: store}
+
+	_, err := svc.ScheduleDraft(t.Context(), "pst_archived_campaign", time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC))
+	if !errors.Is(err, ErrCampaignArchived) {
+		t.Fatalf("expected ErrCampaignArchived, got %v", err)
+	}
+	if store.scheduled {
+		t.Fatalf("post should not be scheduled for archived campaign")
+	}
+}
+
+func TestScheduleDraftRejectsCalendarConflict(t *testing.T) {
+	target := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+	store := &scheduleApprovalStore{
+		post: domain.Post{
+			ID:        "pst_candidate",
+			AccountID: "acc_1",
+			Platform:  domain.PlatformX,
+			Text:      "new launch post",
+			Status:    domain.PostStatusDraft,
+		},
+		schedule: []domain.Post{{
+			ID:          "pst_existing",
+			AccountID:   "acc_1",
+			Platform:    domain.PlatformX,
+			Text:        "other post",
+			Status:      domain.PostStatusScheduled,
+			ScheduledAt: target.Add(3 * time.Minute),
+		}},
+	}
+	svc := MutationsService{Store: store}
+
+	_, err := svc.ScheduleDraft(t.Context(), "pst_candidate", target)
+	if !errors.Is(err, ErrScheduleConflict) {
+		t.Fatalf("expected ErrScheduleConflict, got %v", err)
+	}
+	if store.scheduled {
+		t.Fatalf("post should not be scheduled with a nearby account conflict")
+	}
+}
+
+func TestScheduleDraftRejectsRecentDuplicateContent(t *testing.T) {
+	target := time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC)
+	store := &scheduleApprovalStore{
+		post: domain.Post{
+			ID:        "pst_candidate",
+			AccountID: "acc_1",
+			Platform:  domain.PlatformX,
+			Text:      "Same message",
+			Status:    domain.PostStatusDraft,
+		},
+		schedule: []domain.Post{{
+			ID:          "pst_existing",
+			AccountID:   "acc_1",
+			Platform:    domain.PlatformX,
+			Text:        " same   message ",
+			Status:      domain.PostStatusScheduled,
+			ScheduledAt: target.AddDate(0, 0, -3),
+		}},
+	}
+	svc := MutationsService{Store: store}
+
+	_, err := svc.ScheduleDraft(t.Context(), "pst_candidate", target)
+	if !errors.Is(err, ErrDuplicateContentRecent) {
+		t.Fatalf("expected ErrDuplicateContentRecent, got %v", err)
+	}
+	if store.scheduled {
+		t.Fatalf("post should not be scheduled with recent duplicate content")
+	}
+}
+
+func TestPreviewScheduleReturnsNormalizedPreviewAndWarnings(t *testing.T) {
+	target := time.Date(2026, 7, 8, 10, 0, 0, 0, time.UTC)
+	approvedAt := time.Date(2026, 6, 17, 10, 0, 0, 0, time.UTC)
+	madrid := time.FixedZone("Europe/Madrid", 2*60*60)
+	store := &scheduleApprovalStore{
+		post: domain.Post{
+			ID:               "pst_preview",
+			AccountID:        "acc_1",
+			Platform:         domain.PlatformX,
+			Text:             "Same message",
+			Status:           domain.PostStatusDraft,
+			CampaignID:       "cam_archived",
+			RequiresApproval: true,
+			EditorialStatus:  domain.EditorialStatusNeedsReview,
+			Media: []domain.Media{{
+				ID:           "med_1",
+				Kind:         "image",
+				OriginalName: "launch.png",
+			}},
+			ApprovedAt: nil,
+		},
+		account:  domain.SocialAccount{ID: "acc_1", DisplayName: "Main X", Platform: domain.PlatformX},
+		campaign: domain.Campaign{ID: "cam_archived", Name: "Archived launch", Status: domain.CampaignStatusArchived},
+		schedule: []domain.Post{{
+			ID:          "pst_existing",
+			AccountID:   "acc_1",
+			Platform:    domain.PlatformX,
+			Text:        " same   message ",
+			Status:      domain.PostStatusScheduled,
+			ScheduledAt: target.Add(3 * time.Minute),
+			ApprovedAt:  &approvedAt,
+		}},
+	}
+	svc := MutationsService{Store: store}
+
+	preview, err := svc.PreviewSchedule(t.Context(), "pst_preview", target, madrid)
+	if err != nil {
+		t.Fatalf("preview schedule: %v", err)
+	}
+	if preview.PostID != "pst_preview" || preview.AccountName != "Main X" || preview.Platform != string(domain.PlatformX) {
+		t.Fatalf("unexpected preview identity: %+v", preview)
+	}
+	if !preview.ScheduledAt.Equal(target) || preview.ScheduledLocal != "2026-07-08T12:00:00+02:00" || preview.Timezone != "Europe/Madrid" {
+		t.Fatalf("unexpected schedule fields: %+v", preview)
+	}
+	for _, expected := range []error{ErrPostApprovalRequired, ErrCampaignArchived, ErrScheduleConflict, ErrDuplicateContentRecent} {
+		if !stringSliceContains(preview.Warnings, expected.Error()) {
+			t.Fatalf("expected warning %q in %+v", expected.Error(), preview.Warnings)
+		}
+	}
+	if len(preview.Media) != 1 || preview.Media[0].ID != "med_1" {
+		t.Fatalf("expected media in preview, got %+v", preview.Media)
+	}
+	if store.scheduled {
+		t.Fatalf("preview must not schedule the post")
+	}
+}
+
+func stringSliceContains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func TestMutationsServiceValidatePostID(t *testing.T) {

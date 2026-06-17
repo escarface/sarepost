@@ -71,6 +71,10 @@ func (s Server) Handler() http.Handler {
 	mux.HandleFunc("POST /posts", s.handleCreatePost)
 	mux.HandleFunc("POST /posts/", s.handlePostActions)
 	mux.HandleFunc("POST /posts/validate", s.handleValidatePost)
+	mux.HandleFunc("GET /campaigns", s.handleListCampaigns)
+	mux.HandleFunc("POST /campaigns", s.handleCreateCampaign)
+	mux.HandleFunc("POST /campaigns/", s.handleCampaignActions)
+	mux.HandleFunc("GET /editorial/backlog", s.handleEditorialBacklog)
 	mux.HandleFunc("GET /accounts", s.handleListAccounts)
 	mux.HandleFunc("POST /accounts/static", s.handleCreateStaticAccount)
 	mux.HandleFunc("POST /accounts/", s.handleAccountActions)
@@ -138,6 +142,7 @@ func (s Server) handleUploadMedia(w http.ResponseWriter, r *http.Request) {
 		StoragePath:  upload.StoragePath,
 		MimeType:     upload.MimeType,
 		SizeBytes:    upload.SizeBytes,
+		Tags:         splitCSV(r.FormValue("tags")),
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -158,6 +163,7 @@ func (s Server) handleUploadMedia(w http.ResponseWriter, r *http.Request) {
 		"is_image":      strings.HasPrefix(mimeLower, "image/"),
 		"is_video":      strings.HasPrefix(mimeLower, "video/"),
 		"preview_url":   mediaContentURL(created.ID),
+		"tags":          created.Tags,
 	})
 }
 

@@ -24,12 +24,14 @@ var (
 	ErrIdempotencyKeyTooLong = errors.New("idempotency key too long (max 128 chars)")
 	ErrStoreNotConfigured    = errors.New("post create store is not configured")
 	ErrRegistryNotConfigured = errors.New("post provider registry is not configured")
+	ErrCampaignArchived      = errors.New("campaign is archived")
 )
 
 const MaxThreadSegments = 500
 
 type Store interface {
 	GetAccount(ctx context.Context, id string) (domain.SocialAccount, error)
+	GetCampaign(ctx context.Context, id string) (domain.Campaign, error)
 	GetMediaByIDs(ctx context.Context, ids []string) ([]domain.Media, error)
 	GetPostByIdempotencyKey(ctx context.Context, idempotencyKey string) (domain.Post, error)
 	ListThreadPosts(ctx context.Context, rootPostID string) ([]domain.Post, error)
@@ -44,13 +46,17 @@ type CreateService struct {
 }
 
 type CreateInput struct {
-	AccountIDs     []string
-	Text           string
-	ScheduledAt    time.Time
-	MediaIDs       []string
-	Segments       []ThreadSegmentInput
-	MaxAttempts    int
-	IdempotencyKey string
+	AccountIDs       []string
+	Text             string
+	ScheduledAt      time.Time
+	MediaIDs         []string
+	Segments         []ThreadSegmentInput
+	MaxAttempts      int
+	IdempotencyKey   string
+	CampaignID       string
+	EditorialStatus  domain.EditorialStatus
+	RequiresApproval bool
+	Tags             []string
 }
 
 type ThreadSegmentInput struct {
@@ -139,6 +145,16 @@ func (s CreateService) Create(ctx context.Context, in CreateInput) (CreateOutput
 	if len(idempotencyKey) > 128 {
 		return CreateOutput{}, ValidationError{Err: ErrIdempotencyKeyTooLong}
 	}
+	campaignID := strings.TrimSpace(in.CampaignID)
+	if campaignID != "" {
+		campaign, err := s.Store.GetCampaign(ctx, campaignID)
+		if err != nil {
+			return CreateOutput{}, ValidationError{Err: err}
+		}
+		if campaign.Status == domain.CampaignStatusArchived {
+			return CreateOutput{}, ValidationError{Err: ErrCampaignArchived}
+		}
+	}
 
 	targetAccounts := make([]domain.SocialAccount, 0, len(accountIDs))
 	for _, accountID := range accountIDs {
@@ -207,8 +223,12 @@ func (s CreateService) Create(ctx context.Context, in CreateInput) (CreateOutput
 					ParentPostID:   previousPostID,
 					RootPostID:     ptrIfNotEmpty(rootPostID),
 				},
-				MediaIDs:       segment.MediaIDs,
-				IdempotencyKey: scopeIdempotencyKeyStep(idempotencyKey, account.ID, position),
+				MediaIDs:         segment.MediaIDs,
+				IdempotencyKey:   scopeIdempotencyKeyStep(idempotencyKey, account.ID, position),
+				CampaignID:       campaignID,
+				EditorialStatus:  in.EditorialStatus,
+				RequiresApproval: in.RequiresApproval,
+				PostTags:         in.Tags,
 			})
 			if err != nil {
 				if rollbackErr := s.rollbackCreatedPosts(ctx, createdIDs); rollbackErr != nil {

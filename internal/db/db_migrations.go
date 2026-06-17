@@ -55,6 +55,16 @@ var dbMigrations = []migration{
 		Name:    "local_auth",
 		Up:      migrationAddLocalAuth,
 	},
+	{
+		Version: 8,
+		Name:    "campaigns_editorial",
+		Up:      migrationAddCampaignsEditorial,
+	},
+	{
+		Version: 9,
+		Name:    "media_editorial_tags",
+		Up:      migrationAddMediaEditorialTags,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -446,6 +456,60 @@ func migrationAddPostsPublishedURL(ctx context.Context, tx *sql.Tx) error {
 		return nil
 	}
 	return err
+}
+
+func migrationAddCampaignsEditorial(ctx context.Context, tx *sql.Tx) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS campaigns (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			objective TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL,
+			starts_at TEXT NOT NULL DEFAULT '',
+			ends_at TEXT NOT NULL DEFAULT '',
+			notes TEXT NOT NULL DEFAULT '',
+			tags TEXT NOT NULL DEFAULT '[]',
+			timezone TEXT NOT NULL DEFAULT '',
+			audience TEXT NOT NULL DEFAULT '',
+			tone TEXT NOT NULL DEFAULT '',
+			cta TEXT NOT NULL DEFAULT '',
+			restrictions TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);`,
+		`CREATE TABLE IF NOT EXISTS campaign_posts (
+			post_id TEXT PRIMARY KEY,
+			campaign_id TEXT NOT NULL,
+			editorial_status TEXT NOT NULL DEFAULT 'drafting',
+			requires_approval INTEGER NOT NULL DEFAULT 0,
+			approved_at TEXT,
+			tags TEXT NOT NULL DEFAULT '[]',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+			FOREIGN KEY(campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);`,
+		`CREATE INDEX IF NOT EXISTS idx_campaign_posts_campaign ON campaign_posts(campaign_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_campaign_posts_editorial_status ON campaign_posts(editorial_status);`,
+	}
+	for _, query := range queries {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrationAddMediaEditorialTags(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `ALTER TABLE media ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';`)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func backupSQLiteDatabase(path string) error {

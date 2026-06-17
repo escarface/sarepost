@@ -45,8 +45,8 @@ func TestPlatformRulesParityInstagramRejectsEditRemovingMedia(t *testing.T) {
 	mediaID := createParityImageMedia(t, env, "ig_edit_media.jpg")
 
 	apiPostID := env.apiCreatePostForAccount(instagramAccountID, "caption api", time.Now().UTC().Add(30*time.Minute).Round(time.Second), []string{mediaID})
-	cliPostID := env.apiCreatePostForAccount(instagramAccountID, "caption cli", time.Now().UTC().Add(31*time.Minute).Round(time.Second), []string{mediaID})
-	mcpPostID := env.apiCreatePostForAccount(instagramAccountID, "caption mcp", time.Now().UTC().Add(32*time.Minute).Round(time.Second), []string{mediaID})
+	cliPostID := env.apiCreatePostForAccount(instagramAccountID, "caption cli", time.Now().UTC().Add(40*time.Minute).Round(time.Second), []string{mediaID})
+	mcpPostID := env.apiCreatePostForAccount(instagramAccountID, "caption mcp", time.Now().UTC().Add(50*time.Minute).Round(time.Second), []string{mediaID})
 
 	raw, status := env.apiJSON(http.MethodPost, "/posts/"+strings.TrimSpace(apiPostID)+"/edit", map[string]any{
 		"text":      "caption api edited",
@@ -113,11 +113,14 @@ func TestPlatformRulesParityLinkedInEditReplacesMediaAndKeepsSchedule(t *testing
 	})
 	initialMediaID := createParityImageMedia(t, env, "li_initial_media.png")
 	replacementMediaID := createParityImageMedia(t, env, "li_replacement_media.png")
-	scheduledAt := time.Now().UTC().Add(45 * time.Minute).Round(time.Second)
+	baseScheduledAt := time.Now().UTC().Add(45 * time.Minute).Round(time.Second)
 
-	apiPostID := env.apiCreatePostForAccount(linkedInAccountID, "linkedin api", scheduledAt, []string{initialMediaID})
-	cliPostID := env.apiCreatePostForAccount(linkedInAccountID, "linkedin cli", scheduledAt, []string{initialMediaID})
-	mcpPostID := env.apiCreatePostForAccount(linkedInAccountID, "linkedin mcp", scheduledAt, []string{initialMediaID})
+	apiScheduledAt := baseScheduledAt
+	cliScheduledAt := baseScheduledAt.Add(10 * time.Minute)
+	mcpScheduledAt := baseScheduledAt.Add(20 * time.Minute)
+	apiPostID := env.apiCreatePostForAccount(linkedInAccountID, "linkedin api", apiScheduledAt, []string{initialMediaID})
+	cliPostID := env.apiCreatePostForAccount(linkedInAccountID, "linkedin cli", cliScheduledAt, []string{initialMediaID})
+	mcpPostID := env.apiCreatePostForAccount(linkedInAccountID, "linkedin mcp", mcpScheduledAt, []string{initialMediaID})
 
 	raw, status := env.apiJSON(http.MethodPost, "/posts/"+strings.TrimSpace(apiPostID)+"/edit", map[string]any{
 		"text":      "linkedin api edited",
@@ -130,6 +133,11 @@ func TestPlatformRulesParityLinkedInEditReplacesMediaAndKeepsSchedule(t *testing
 	env.cliEditPostWithMedia(cliPostID, "linkedin cli edited", "", time.Time{}, true, []string{replacementMediaID})
 	env.mcpEditPostWithMedia(mcpPostID, "linkedin mcp edited", "", time.Time{}, []string{replacementMediaID}, true)
 
+	expectedSchedule := map[string]time.Time{
+		strings.TrimSpace(apiPostID): apiScheduledAt,
+		strings.TrimSpace(cliPostID): cliScheduledAt,
+		strings.TrimSpace(mcpPostID): mcpScheduledAt,
+	}
 	for _, id := range []string{apiPostID, cliPostID, mcpPostID} {
 		post, err := env.store.GetPost(t.Context(), strings.TrimSpace(id))
 		if err != nil {
@@ -138,8 +146,8 @@ func TestPlatformRulesParityLinkedInEditReplacesMediaAndKeepsSchedule(t *testing
 		if post.Status != "scheduled" {
 			t.Fatalf("expected scheduled status for %s after media edit, got %s", id, post.Status)
 		}
-		if !post.ScheduledAt.Equal(scheduledAt) {
-			t.Fatalf("expected scheduled_at %s for %s, got %s", scheduledAt, id, post.ScheduledAt)
+		if !post.ScheduledAt.Equal(expectedSchedule[strings.TrimSpace(id)]) {
+			t.Fatalf("expected scheduled_at %s for %s, got %s", expectedSchedule[strings.TrimSpace(id)], id, post.ScheduledAt)
 		}
 		if len(post.Media) != 1 || strings.TrimSpace(post.Media[0].ID) != replacementMediaID {
 			t.Fatalf("expected replacement media on %s, got %#v", id, post.Media)

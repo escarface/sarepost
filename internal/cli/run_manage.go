@@ -116,6 +116,39 @@ func runPostsSchedule(ctx context.Context, client *APIClient, cfg config, args [
 	return 0
 }
 
+func runPostsPreviewSchedule(ctx context.Context, client *APIClient, cfg config, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("posts preview-schedule", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	id := fs.String("id", "", "Draft post ID")
+	scheduledAt := fs.String("scheduled-at", "", "Scheduled datetime (RFC3339 or datetime-local)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	postID := strings.TrimSpace(*id)
+	if postID == "" {
+		fmt.Fprintln(stderr, "--id is required")
+		return 2
+	}
+	scheduled := strings.TrimSpace(*scheduledAt)
+	if scheduled == "" {
+		fmt.Fprintln(stderr, "--scheduled-at is required")
+		return 2
+	}
+	payload := map[string]any{"scheduled_at": scheduled}
+	var out map[string]any
+	if err := client.Post(ctx, "/posts/"+postID+"/preview-schedule", payload, &out); err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return 1
+	}
+	printOutput(stdout, cfg.asJSON, out, func() {
+		fmt.Fprintf(stdout, "preview post: %s\n", postID)
+		if warnings, ok := out["warnings"].([]any); ok && len(warnings) > 0 {
+			fmt.Fprintf(stdout, "warnings: %d\n", len(warnings))
+		}
+	})
+	return 0
+}
+
 func runPostsEdit(ctx context.Context, client *APIClient, cfg config, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("posts edit", flag.ContinueOnError)
 	fs.SetOutput(stderr)

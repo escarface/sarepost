@@ -173,6 +173,8 @@ type pageData struct {
 	DraftGroups                 []publicationGroupItem
 	FailedItems                 []failedQueueItem
 	FailedGroups                []publicationGroupItem
+	Campaigns                   []domain.Campaign
+	EditorialBacklog            []domain.EditorialBacklogItem
 	CurrentViewURL              string
 	CreateViewURL               string
 	ReturnTo                    string
@@ -183,6 +185,7 @@ type pageData struct {
 	CreateInitialSegments       []createThreadSegment
 	CreateAccountID             string
 	CreateAccountIDs            []string
+	CreateCampaignID            string
 	EditPostIDs                 []string
 	CreateText                  string
 	CreateScheduledLocal        string
@@ -213,6 +216,8 @@ type pageData struct {
 	PublicationsWindowDays      int
 	DraftCount                  int
 	FailedCount                 int
+	CampaignCount               int
+	BacklogCount                int
 	SettingsAccounts            []settingsAccountItem
 	MediaLibrary                []mediaListItem
 	CreateRecentMedia           []mediaListItem

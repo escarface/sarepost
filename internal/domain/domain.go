@@ -66,6 +66,63 @@ const (
 	PostStatusCanceled   PostStatus = "canceled"
 )
 
+type CampaignStatus string
+
+const (
+	CampaignStatusActive   CampaignStatus = "active"
+	CampaignStatusPaused   CampaignStatus = "paused"
+	CampaignStatusArchived CampaignStatus = "archived"
+)
+
+type EditorialStatus string
+
+const (
+	EditorialStatusIdea        EditorialStatus = "idea"
+	EditorialStatusDrafting    EditorialStatus = "drafting"
+	EditorialStatusNeedsReview EditorialStatus = "needs_review"
+	EditorialStatusApproved    EditorialStatus = "approved"
+	EditorialStatusScheduled   EditorialStatus = "scheduled"
+)
+
+type Campaign struct {
+	ID           string         `json:"id"`
+	Name         string         `json:"name"`
+	Objective    string         `json:"objective,omitempty"`
+	Status       CampaignStatus `json:"status"`
+	StartsAt     time.Time      `json:"starts_at,omitempty"`
+	EndsAt       time.Time      `json:"ends_at,omitempty"`
+	Notes        string         `json:"notes,omitempty"`
+	Tags         []string       `json:"tags,omitempty"`
+	Timezone     string         `json:"timezone,omitempty"`
+	Audience     string         `json:"audience,omitempty"`
+	Tone         string         `json:"tone,omitempty"`
+	CTA          string         `json:"cta,omitempty"`
+	Restrictions string         `json:"restrictions,omitempty"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+}
+
+type CampaignListFilter struct {
+	Status CampaignStatus
+	Tag    string
+	Limit  int
+}
+
+type EditorialBacklogFilter struct {
+	CampaignID      string
+	Platform        Platform
+	EditorialStatus EditorialStatus
+	Tag             string
+	From            time.Time
+	To              time.Time
+	Limit           int
+}
+
+type EditorialBacklogItem struct {
+	Post     Post     `json:"post"`
+	Campaign Campaign `json:"campaign,omitempty"`
+}
+
 type Media struct {
 	ID           string    `json:"id"`
 	Kind         string    `json:"kind"`
@@ -74,6 +131,12 @@ type Media struct {
 	MimeType     string    `json:"mime_type"`
 	SizeBytes    int64     `json:"size_bytes"`
 	CreatedAt    time.Time `json:"created_at"`
+	Tags         []string  `json:"tags,omitempty"`
+}
+
+type MediaListFilter struct {
+	Tag   string
+	Limit int
 }
 
 type SocialAccount struct {
@@ -100,27 +163,32 @@ type OauthState struct {
 }
 
 type Post struct {
-	ID             string     `json:"id"`
-	AccountID      string     `json:"account_id"`
-	Platform       Platform   `json:"platform"`
-	Text           string     `json:"text"`
-	Status         PostStatus `json:"status"`
-	ScheduledAt    time.Time  `json:"scheduled_at"`
-	ThreadGroupID  string     `json:"thread_group_id,omitempty"`
-	ThreadPosition int        `json:"thread_position,omitempty"`
-	ParentPostID   *string    `json:"parent_post_id,omitempty"`
-	RootPostID     *string    `json:"root_post_id,omitempty"`
-	NextRetryAt    *time.Time `json:"next_retry_at,omitempty"`
-	Attempts       int        `json:"attempts"`
-	MaxAttempts    int        `json:"max_attempts"`
-	IdempotencyKey *string    `json:"idempotency_key,omitempty"`
-	PublishedAt    *time.Time `json:"published_at,omitempty"`
-	ExternalID     *string    `json:"external_id,omitempty"`
-	PublishedURL   *string    `json:"published_url,omitempty"`
-	Error          *string    `json:"error,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	Media          []Media    `json:"media,omitempty"`
+	ID               string          `json:"id"`
+	AccountID        string          `json:"account_id"`
+	Platform         Platform        `json:"platform"`
+	Text             string          `json:"text"`
+	Status           PostStatus      `json:"status"`
+	ScheduledAt      time.Time       `json:"scheduled_at"`
+	ThreadGroupID    string          `json:"thread_group_id,omitempty"`
+	ThreadPosition   int             `json:"thread_position,omitempty"`
+	ParentPostID     *string         `json:"parent_post_id,omitempty"`
+	RootPostID       *string         `json:"root_post_id,omitempty"`
+	NextRetryAt      *time.Time      `json:"next_retry_at,omitempty"`
+	Attempts         int             `json:"attempts"`
+	MaxAttempts      int             `json:"max_attempts"`
+	IdempotencyKey   *string         `json:"idempotency_key,omitempty"`
+	PublishedAt      *time.Time      `json:"published_at,omitempty"`
+	ExternalID       *string         `json:"external_id,omitempty"`
+	PublishedURL     *string         `json:"published_url,omitempty"`
+	Error            *string         `json:"error,omitempty"`
+	CampaignID       string          `json:"campaign_id,omitempty"`
+	EditorialStatus  EditorialStatus `json:"editorial_status,omitempty"`
+	RequiresApproval bool            `json:"requires_approval,omitempty"`
+	ApprovedAt       *time.Time      `json:"approved_at,omitempty"`
+	Tags             []string        `json:"tags,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	Media            []Media         `json:"media,omitempty"`
 }
 
 type DeadLetter struct {

@@ -429,6 +429,83 @@ func TestScheduleDraftPost(t *testing.T) {
 	}
 }
 
+func TestPreviewSchedulePostReturnsWarningsWithoutScheduling(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	createPayload, _ := json.Marshal(map[string]any{
+		"account_id":         testAccountID(t, store),
+		"text":               "draft needing approval",
+		"editorial_status":   "needs_review",
+		"requires_approval":  true,
+		"idempotency_key":    "preview-schedule-test",
+		"idempotency_scope":  "api-test",
+		"idempotency_target": "preview",
+	})
+	createReq := httptest.NewRequest(http.MethodPost, "/posts", bytes.NewReader(createPayload))
+	createReq.Header.Set("content-type", "application/json")
+	createW := httptest.NewRecorder()
+	h.ServeHTTP(createW, createReq)
+	if createW.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", createW.Code, createW.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createW.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if strings.TrimSpace(created.ID) == "" {
+		t.Fatalf("missing post id")
+	}
+	campaign, err := store.CreateCampaign(t.Context(), domain.Campaign{Name: "Preview approval campaign"})
+	if err != nil {
+		t.Fatalf("create campaign: %v", err)
+	}
+	if err := store.AddPostToCampaign(t.Context(), created.ID, campaign.ID, domain.EditorialStatusNeedsReview, true, nil); err != nil {
+		t.Fatalf("add post to campaign: %v", err)
+	}
+
+	previewPayload, _ := json.Marshal(map[string]any{
+		"scheduled_at": time.Now().UTC().Add(2 * time.Hour).Format(time.RFC3339),
+	})
+	previewReq := httptest.NewRequest(http.MethodPost, "/posts/"+created.ID+"/preview-schedule", bytes.NewReader(previewPayload))
+	previewReq.Header.Set("content-type", "application/json")
+	previewW := httptest.NewRecorder()
+	h.ServeHTTP(previewW, previewReq)
+	if previewW.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", previewW.Code, previewW.Body.String())
+	}
+	var preview struct {
+		PostID   string   `json:"post_id"`
+		Text     string   `json:"text"`
+		Warnings []string `json:"warnings"`
+	}
+	if err := json.Unmarshal(previewW.Body.Bytes(), &preview); err != nil {
+		t.Fatalf("decode preview response: %v", err)
+	}
+	if preview.PostID != created.ID || preview.Text != "draft needing approval" {
+		t.Fatalf("unexpected preview payload: %+v", preview)
+	}
+	if !containsString(preview.Warnings, "post requires approval before scheduling") {
+		t.Fatalf("expected approval warning, got %+v", preview.Warnings)
+	}
+	post, err := store.GetPost(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("get post: %v", err)
+	}
+	if post.Status != domain.PostStatusDraft || !post.ScheduledAt.IsZero() {
+		t.Fatalf("preview should not schedule post, got status=%s scheduled_at=%s", post.Status, post.ScheduledAt)
+	}
+}
+
 func TestScheduleEndpointReturnsCreatedPost(t *testing.T) {
 	tempDir := t.TempDir()
 	store, err := db.Open(filepath.Join(tempDir, "test.db"))

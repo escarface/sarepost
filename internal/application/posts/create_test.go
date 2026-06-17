@@ -24,6 +24,7 @@ type fakeStore struct {
 	createCount        int
 	idempotencyPostIDs map[string]string
 	postsByID          map[string]domain.Post
+	campaigns          map[string]domain.Campaign
 }
 
 func (f *fakeStore) GetAccount(_ context.Context, id string) (domain.SocialAccount, error) {
@@ -47,6 +48,14 @@ func (f *fakeStore) GetMediaByIDs(_ context.Context, ids []string) ([]domain.Med
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+func (f *fakeStore) GetCampaign(_ context.Context, id string) (domain.Campaign, error) {
+	campaign, ok := f.campaigns[strings.TrimSpace(id)]
+	if !ok {
+		return domain.Campaign{}, sql.ErrNoRows
+	}
+	return campaign, nil
 }
 
 func (f *fakeStore) CreatePost(_ context.Context, params db.CreatePostParams) (db.CreatePostResult, error) {

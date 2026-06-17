@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SareDigital · {{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{t "header.new_post"}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else}}{{t "header.scheduled"}}{{end}}</title>
+  <title>SareDigital · {{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{t "header.new_post"}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "campaigns"}}Campaigns{{else if eq .View "backlog"}}Editorial backlog{{else}}{{t "header.scheduled"}}{{end}}</title>
   <meta name="theme-color" content="#1a1a1a" />
   <link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png" />
@@ -4162,6 +4162,20 @@
           </span>
           {{if gt .DraftCount 0}}<span class="nav-badge">{{.DraftCount}}</span>{{end}}
         </a>
+        <a class="nav-item {{if eq .ActiveNavView "campaigns"}}active{{end}}" href="/?view=campaigns">
+          <span class="nav-main">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18"/><path d="M7 3v4"/><path d="M17 3v4"/><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 12h4"/><path d="M8 16h8"/></svg>
+            <span>Campaigns</span>
+          </span>
+          {{if gt .CampaignCount 0}}<span class="nav-badge">{{.CampaignCount}}</span>{{end}}
+        </a>
+        <a class="nav-item {{if eq .ActiveNavView "backlog"}}active{{end}}" href="/?view=backlog">
+          <span class="nav-main">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            <span>Backlog</span>
+          </span>
+          {{if gt .BacklogCount 0}}<span class="nav-badge">{{.BacklogCount}}</span>{{end}}
+        </a>
         <a class="nav-item {{if eq .ActiveNavView "failed"}}active{{end}}" href="/?view=failed">
           <span class="nav-main">
             <svg class="nav-icon nav-icon-failed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -4188,7 +4202,7 @@
         <div class="title-row">
           {{if and (eq .View "create") .BackURL}}<a class="title-back" href="{{.BackURL}}" aria-label="{{t "common.back"}}">←</a>{{end}}
           <div class="title-copy">
-            <h1>{{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{if .EditingPost}}{{t "header.edit_post"}}{{else}}{{t "header.new_post"}}{{end}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "generate"}}{{t "header.generate"}}{{else}}{{t "header.scheduled"}}{{end}}</h1>
+            <h1>{{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{if .EditingPost}}{{t "header.edit_post"}}{{else}}{{t "header.new_post"}}{{end}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "generate"}}{{t "header.generate"}}{{else if eq .View "campaigns"}}CAMPAIGNS{{else if eq .View "backlog"}}EDITORIAL BACKLOG{{else}}{{t "header.scheduled"}}{{end}}</h1>
           </div>
           {{if eq .View "calendar"}}
           <div class="calendar-controls">
@@ -4638,6 +4652,120 @@
       </div>
       {{end}}
 
+      {{if eq .View "campaigns"}}
+      <section class="list publications-grid">
+        {{if .CreateError}}<div class="alert error">{{.CreateError}}</div>{{end}}
+        {{if .CreateSuccess}}<div class="alert success">{{.CreateSuccess}}</div>{{end}}
+        <article class="card scheduled publication-card">
+          <div class="publication-card-head">
+            <div>
+              <div class="day-group-title">Create campaign</div>
+              <div class="meta"><span>Brief, dates and editorial constraints</span></div>
+            </div>
+          </div>
+          <form class="settings-form" method="post" action="/campaigns">
+            <input type="hidden" name="return_to" value="/?view=campaigns" />
+            <div class="field">
+              <label for="campaign-name">Name</label>
+              <input id="campaign-name" name="name" type="text" required placeholder="Q3 launch" />
+            </div>
+            <div class="field">
+              <label for="campaign-objective">Objective</label>
+              <input id="campaign-objective" name="objective" type="text" placeholder="Generate qualified demand" />
+            </div>
+            <div class="field">
+              <label for="campaign-audience">Audience</label>
+              <input id="campaign-audience" name="audience" type="text" placeholder="Founders, operators, creators" />
+            </div>
+            <div class="field">
+              <label for="campaign-tone">Tone</label>
+              <input id="campaign-tone" name="tone" type="text" placeholder="direct, expert, practical" />
+            </div>
+            <div class="field">
+              <label for="campaign-cta">CTA</label>
+              <input id="campaign-cta" name="cta" type="text" placeholder="Book a demo" />
+            </div>
+            <div class="field">
+              <label for="campaign-tags">Tags</label>
+              <input id="campaign-tags" name="tags" type="text" placeholder="launch, product" />
+            </div>
+            <div class="editor-actions">
+              <button class="btn-primary" type="submit">Create campaign</button>
+            </div>
+          </form>
+        </article>
+        {{range .Campaigns}}
+        <article class="card scheduled publication-card">
+          <div class="publication-card-head">
+            <div>
+              <div class="publication-time-date">{{.Name}}</div>
+              <div class="meta">
+                <span>{{.Status}}</span>
+                {{if .Timezone}}<span>{{.Timezone}}</span>{{end}}
+                {{if gt (len .Tags) 0}}<span>{{join .Tags ", "}}</span>{{end}}
+              </div>
+            </div>
+            {{if ne .Status "archived"}}
+            <form method="post" action="/campaigns/{{.ID}}/archive" onsubmit="return confirm('Archive this campaign?');">
+              <input type="hidden" name="return_to" value="/?view=campaigns" />
+              <button type="submit" class="publication-delete-btn" title="Archive" aria-label="Archive">×</button>
+            </form>
+            {{end}}
+          </div>
+          {{if .Objective}}<div class="publication-text">{{.Objective}}</div>{{end}}
+          <div class="meta">
+            {{if .Audience}}<span>Audience: {{.Audience}}</span>{{end}}
+            {{if .Tone}}<span>Tone: {{.Tone}}</span>{{end}}
+            {{if .CTA}}<span>CTA: {{.CTA}}</span>{{end}}
+          </div>
+          <div class="editor-actions">
+            <a class="btn-secondary" href="/?view=create&campaign_id={{.ID}}&return_to=%2F%3Fview%3Dcampaigns">Create post</a>
+            <a class="btn-secondary" href="/?view=backlog&campaign_id={{.ID}}">Backlog</a>
+          </div>
+        </article>
+        {{else}}
+        <div class="empty">No campaigns yet.</div>
+        {{end}}
+      </section>
+      {{end}}
+
+      {{if eq .View "backlog"}}
+      <section class="list publications-grid">
+        {{if .CreateError}}<div class="alert error">{{.CreateError}}</div>{{end}}
+        {{if .CreateSuccess}}<div class="alert success">{{.CreateSuccess}}</div>{{end}}
+        {{range .EditorialBacklog}}
+        <article class="card scheduled publication-card">
+          <div class="publication-card-head">
+            <div>
+              <div class="publication-time-date">{{if .CampaignName}}{{.CampaignName}}{{else}}No campaign{{end}}</div>
+              <div class="meta">
+                <span>{{.EditorialStatus}}</span>
+                <span>{{.PostStatus}}</span>
+                <span>{{.Platform}}</span>
+                {{if .RequiresApproval}}<span>approval required</span>{{end}}
+                {{if gt (len .Tags) 0}}<span>{{join .Tags ", "}}</span>{{end}}
+              </div>
+            </div>
+            {{if and .RequiresApproval (not .ApprovedAt.IsZero)}}
+            <span class="nav-badge">approved</span>
+            {{else if .RequiresApproval}}
+            <form method="post" action="/posts/{{.PostID}}/approve">
+              <input type="hidden" name="return_to" value="/?view=backlog" />
+              <button type="submit" class="btn-primary">Approve</button>
+            </form>
+            {{end}}
+          </div>
+          <div class="publication-text">{{previewMarkdown .Text}}</div>
+          <div class="editor-actions">
+            <a class="btn-secondary" href="/?view=create&edit_id={{.PostID}}&return_to=%2F%3Fview%3Dbacklog">Edit</a>
+          </div>
+        </article>
+        {{else}}
+        <div class="empty">No editorial backlog items match the current filters.</div>
+        {{end}}
+      </section>
+      {{end}}
+
       {{if eq .View "publications"}}
       <section class="list publications-grid">
         {{if gt (len .PublicationPublishingGroups) 0}}
@@ -4988,6 +5116,36 @@
 	                </select>
 	                <input type="hidden" id="create-primary-account-id" name="account_id" value="{{.CreateAccountID}}" />
 	              </div>
+
+              <div class="field create-field">
+                <div class="composer-label">// editorial workflow</div>
+                <div class="schedule-block">
+                  <label class="schedule-label" for="create-campaign-id">campaign</label>
+                  <select id="create-campaign-id" name="campaign_id">
+                    <option value="">No campaign</option>
+                    {{range .Campaigns}}
+                    <option value="{{.ID}}" {{if campaignSelected .ID}}selected{{end}}>{{.Name}} · {{.Status}}</option>
+                    {{end}}
+                  </select>
+                </div>
+                <div class="schedule-block">
+                  <label class="schedule-label" for="create-editorial-status">editorial status</label>
+                  <select id="create-editorial-status" name="editorial_status">
+                    <option value="idea">idea</option>
+                    <option value="drafting" selected>drafting</option>
+                    <option value="needs_review">needs review</option>
+                    <option value="approved">approved</option>
+                  </select>
+                </div>
+                <div class="schedule-block">
+                  <label class="schedule-label" for="create-tags">tags</label>
+                  <input id="create-tags" type="text" name="tags" placeholder="launch, product, weekly" value="{{if .EditingPost}}{{join .EditingPost.Tags ", "}}{{end}}" />
+                </div>
+                <label class="schedule-label">
+                  <input type="checkbox" name="requires_approval" value="true" {{if and .EditingPost .EditingPost.RequiresApproval}}checked{{end}} />
+                  requires approval before scheduling
+                </label>
+              </div>
 
               <div class="field create-field create-field-content">
                 <div class="thread-composer">

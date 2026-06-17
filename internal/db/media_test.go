@@ -176,6 +176,43 @@ func TestListMediaIncludesUsageCount(t *testing.T) {
 	}
 }
 
+func TestListMediaFilteredByTag(t *testing.T) {
+	store := openTestStore(t)
+	ctx := t.Context()
+	launch, err := store.CreateMedia(ctx, domain.Media{
+		Kind:         "image",
+		OriginalName: "launch.png",
+		StoragePath:  "/tmp/launch.png",
+		MimeType:     "image/png",
+		SizeBytes:    10,
+		Tags:         []string{"launch", "hero"},
+	})
+	if err != nil {
+		t.Fatalf("create launch media: %v", err)
+	}
+	if _, err := store.CreateMedia(ctx, domain.Media{
+		Kind:         "image",
+		OriginalName: "evergreen.png",
+		StoragePath:  "/tmp/evergreen.png",
+		MimeType:     "image/png",
+		SizeBytes:    10,
+		Tags:         []string{"evergreen"},
+	}); err != nil {
+		t.Fatalf("create evergreen media: %v", err)
+	}
+
+	items, err := store.ListMediaFiltered(ctx, domain.MediaListFilter{Tag: "launch", Limit: 10})
+	if err != nil {
+		t.Fatalf("list media filtered: %v", err)
+	}
+	if len(items) != 1 || items[0].Media.ID != launch.ID {
+		t.Fatalf("expected only launch media, got %#v", items)
+	}
+	if len(items[0].Media.Tags) != 2 || items[0].Media.Tags[0] != "launch" {
+		t.Fatalf("expected tags to round-trip, got %#v", items[0].Media.Tags)
+	}
+}
+
 func TestDeleteMediaIfUnused(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

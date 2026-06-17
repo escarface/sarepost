@@ -9,28 +9,37 @@ const (
 )
 
 const (
-	CapabilityHealthCheck          = "health.check"
-	CapabilityScheduleList         = "schedule.list"
-	CapabilityDraftsList           = "drafts.list"
-	CapabilityPostsCreate          = "posts.create"
-	CapabilityPostsSchedule        = "posts.schedule"
-	CapabilityPostsEdit            = "posts.edit"
-	CapabilityPostsDelete          = "posts.delete"
-	CapabilityPostsCancel          = "posts.cancel"
-	CapabilityPostsValidate        = "posts.validate"
-	CapabilityAccountsList         = "accounts.list"
-	CapabilityAccountsCreateStatic = "accounts.create_static"
-	CapabilityAccountsConnect      = "accounts.connect"
-	CapabilityAccountsDisconnect   = "accounts.disconnect"
-	CapabilityAccountsDelete       = "accounts.delete"
-	CapabilityAccountsSetXPremium  = "accounts.set_x_premium"
-	CapabilityFailedList           = "failed.list"
-	CapabilityDLQRequeue           = "dlq.requeue"
-	CapabilityDLQDelete            = "dlq.delete"
-	CapabilityMediaUpload          = "media.upload"
-	CapabilityMediaList            = "media.list"
-	CapabilityMediaDelete          = "media.delete"
-	CapabilitySettingsTimezone     = "settings.timezone"
+	CapabilityHealthCheck           = "health.check"
+	CapabilityScheduleList          = "schedule.list"
+	CapabilityDraftsList            = "drafts.list"
+	CapabilityPostsCreate           = "posts.create"
+	CapabilityPostsSchedule         = "posts.schedule"
+	CapabilityPostsPreviewSchedule  = "posts.preview_schedule"
+	CapabilityPostsEdit             = "posts.edit"
+	CapabilityPostsDelete           = "posts.delete"
+	CapabilityPostsCancel           = "posts.cancel"
+	CapabilityPostsValidate         = "posts.validate"
+	CapabilityAccountsList          = "accounts.list"
+	CapabilityAccountsCreateStatic  = "accounts.create_static"
+	CapabilityAccountsConnect       = "accounts.connect"
+	CapabilityAccountsDisconnect    = "accounts.disconnect"
+	CapabilityAccountsDelete        = "accounts.delete"
+	CapabilityAccountsSetXPremium   = "accounts.set_x_premium"
+	CapabilityFailedList            = "failed.list"
+	CapabilityDLQRequeue            = "dlq.requeue"
+	CapabilityDLQDelete             = "dlq.delete"
+	CapabilityMediaUpload           = "media.upload"
+	CapabilityMediaList             = "media.list"
+	CapabilityMediaDelete           = "media.delete"
+	CapabilitySettingsTimezone      = "settings.timezone"
+	CapabilityCampaignsCreate       = "campaigns.create"
+	CapabilityCampaignsList         = "campaigns.list"
+	CapabilityCampaignsUpdate       = "campaigns.update"
+	CapabilityCampaignsArchive      = "campaigns.archive"
+	CapabilityCampaignsPostsAdd     = "campaigns.posts.add"
+	CapabilityCampaignsDraftsCreate = "campaigns.drafts.create"
+	CapabilityCampaignsBacklog      = "campaigns.backlog"
+	CapabilityPostsApprove          = "posts.approve"
 )
 
 type Capability struct {
@@ -45,6 +54,7 @@ func RequiredParityCapabilities() []Capability {
 		{ID: CapabilityDraftsList, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsCreate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsSchedule, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityPostsPreviewSchedule, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsEdit, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsDelete, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsCancel, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
@@ -62,5 +72,13 @@ func RequiredParityCapabilities() []Capability {
 		{ID: CapabilityMediaList, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityMediaDelete, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilitySettingsTimezone, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsCreate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsList, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsUpdate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsArchive, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsPostsAdd, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsDraftsCreate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsBacklog, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityPostsApprove, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 	}
 }

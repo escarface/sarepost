@@ -15,18 +15,20 @@ import (
 )
 
 type mcpUploadMediaInput struct {
-	Kind          string `json:"kind,omitempty" jsonschema:"Media kind. Defaults to video."`
-	OriginalName  string `json:"original_name,omitempty" jsonschema:"Original filename (recommended for extension/mime detection)."`
-	MimeType      string `json:"mime_type,omitempty" jsonschema:"Optional mime type override, e.g. image/png."`
-	ContentBase64 string `json:"content_base64,omitempty" jsonschema:"Base64-encoded file content."`
+	Kind          string   `json:"kind,omitempty" jsonschema:"Media kind. Defaults to video."`
+	OriginalName  string   `json:"original_name,omitempty" jsonschema:"Original filename (recommended for extension/mime detection)."`
+	MimeType      string   `json:"mime_type,omitempty" jsonschema:"Optional mime type override, e.g. image/png."`
+	ContentBase64 string   `json:"content_base64,omitempty" jsonschema:"Base64-encoded file content."`
+	Tags          []string `json:"tags,omitempty" jsonschema:"Optional editorial tags for library search."`
 }
 
 type mcpUploadMediaOutput struct {
-	MediaID      string `json:"media_id"`
-	Kind         string `json:"kind"`
-	OriginalName string `json:"original_name"`
-	MimeType     string `json:"mime_type"`
-	SizeBytes    int64  `json:"size_bytes"`
+	MediaID      string   `json:"media_id"`
+	Kind         string   `json:"kind"`
+	OriginalName string   `json:"original_name"`
+	MimeType     string   `json:"mime_type"`
+	SizeBytes    int64    `json:"size_bytes"`
+	Tags         []string `json:"tags,omitempty"`
 }
 
 func (s Server) mcpUploadMediaTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpUploadMediaInput) (*mcp.CallToolResult, mcpUploadMediaOutput, error) {
@@ -74,6 +76,7 @@ func (s Server) mcpUploadMediaTool(ctx context.Context, _ *mcp.CallToolRequest, 
 		StoragePath:  storagePath,
 		MimeType:     mimeType,
 		SizeBytes:    int64(len(content)),
+		Tags:         in.Tags,
 	})
 	if err != nil {
 		_ = removeFileQuiet(storagePath)
@@ -86,6 +89,7 @@ func (s Server) mcpUploadMediaTool(ctx context.Context, _ *mcp.CallToolRequest, 
 		OriginalName: created.OriginalName,
 		MimeType:     created.MimeType,
 		SizeBytes:    created.SizeBytes,
+		Tags:         created.Tags,
 	}, nil
 }
 
