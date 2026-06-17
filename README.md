@@ -300,12 +300,13 @@ postflow posts schedule --id pst_xxx --scheduled-at 2026-03-01T10:00:00Z
 postflow posts approve --id pst_xxx
 
 # Campaigns and backlog
-postflow campaigns create --name "Q3 launch" --objective "Drive qualified demand" --audience "SaaS founders" --tone "direct" --cta "Book a demo" --tags launch,q3
+postflow campaigns create --name "Q3 launch" --objective "Drive qualified demand" --audience "SaaS founders" --tone "direct" --brand-profile "Sare Digital" --cta "Book a demo" --tags launch,q3
 postflow campaigns list --status active
 postflow campaigns update --id cmp_xxx --status paused --name "Q3 launch revised"
 postflow campaigns archive --id cmp_xxx
 postflow campaigns add-post --campaign-id cmp_xxx --post-id pst_xxx --editorial-status needs_review --requires-approval
 postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --idea "Turn the launch proof point into a founder-facing LinkedIn post" --variants-per-post 3
+postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --brand-profile "Sare Digital" --idea "Override the campaign default brand for this batch"
 postflow campaigns backlog --campaign-id cmp_xxx --editorial-status needs_review
 
 # Edit

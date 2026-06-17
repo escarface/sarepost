@@ -302,3 +302,28 @@ func TestBrandProfiles_CRUD(t *testing.T) {
 		t.Fatalf("list after delete: len=%d err=%v", len(list), err)
 	}
 }
+
+func TestResolveBrandProfileIDByName(t *testing.T) {
+	store := newMemSettings()
+	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock}
+	created, err := svc.SaveBrandProfile(context.Background(), BrandProfileUpdate{Name: "Sare Digital", Tone: "direct"})
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+
+	resolved, err := svc.ResolveBrandProfileID(context.Background(), "", " sare digital ")
+	if err != nil {
+		t.Fatalf("resolve profile by name: %v", err)
+	}
+	if resolved != created.ID {
+		t.Fatalf("expected resolved id %q, got %q", created.ID, resolved)
+	}
+
+	explicit, err := svc.ResolveBrandProfileID(context.Background(), "brand_explicit", "Sare Digital")
+	if err != nil {
+		t.Fatalf("resolve explicit profile: %v", err)
+	}
+	if explicit != "brand_explicit" {
+		t.Fatalf("expected explicit id to win, got %q", explicit)
+	}
+}

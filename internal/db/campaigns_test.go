@@ -17,21 +17,25 @@ func TestCampaignPersistenceAndBacklog(t *testing.T) {
 
 	account := createTestAccount(t, store, domain.PlatformX)
 	campaign, err := store.CreateCampaign(t.Context(), domain.Campaign{
-		Name:         "Editorial Sprint",
-		Objective:    "Build product awareness",
-		Status:       domain.CampaignStatusActive,
-		StartsAt:     time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
-		EndsAt:       time.Date(2026, 7, 31, 23, 59, 0, 0, time.UTC),
-		Notes:        "Weekly cadence",
-		Tags:         []string{"editorial", "product"},
-		Timezone:     "Europe/Madrid",
-		Audience:     "Founders",
-		Tone:         "clear",
-		CTA:          "Start trial",
-		Restrictions: "Avoid hype",
+		Name:           "Editorial Sprint",
+		Objective:      "Build product awareness",
+		Status:         domain.CampaignStatusActive,
+		StartsAt:       time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+		EndsAt:         time.Date(2026, 7, 31, 23, 59, 0, 0, time.UTC),
+		Notes:          "Weekly cadence",
+		Tags:           []string{"editorial", "product"},
+		Timezone:       "Europe/Madrid",
+		Audience:       "Founders",
+		Tone:           "clear",
+		CTA:            "Start trial",
+		Restrictions:   "Avoid hype",
+		BrandProfileID: "brand_sare",
 	})
 	if err != nil {
 		t.Fatalf("create campaign: %v", err)
+	}
+	if campaign.BrandProfileID != "brand_sare" {
+		t.Fatalf("expected brand profile id to persist, got %q", campaign.BrandProfileID)
 	}
 
 	postResult, err := store.CreatePost(t.Context(), CreatePostParams{

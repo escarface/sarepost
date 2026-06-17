@@ -15,14 +15,15 @@ type campaignsListResponse struct {
 }
 
 type campaignDTO struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	Objective string   `json:"objective"`
-	Status    string   `json:"status"`
-	StartsAt  string   `json:"starts_at"`
-	EndsAt    string   `json:"ends_at"`
-	Tags      []string `json:"tags"`
-	Timezone  string   `json:"timezone"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	Objective      string   `json:"objective"`
+	Status         string   `json:"status"`
+	StartsAt       string   `json:"starts_at"`
+	EndsAt         string   `json:"ends_at"`
+	Tags           []string `json:"tags"`
+	Timezone       string   `json:"timezone"`
+	BrandProfileID string   `json:"brand_profile_id"`
 }
 
 type backlogResponse struct {
@@ -204,6 +205,7 @@ func runCampaignCreateDrafts(ctx context.Context, client *APIClient, cfg config,
 	idea := fs.String("idea", "", "Campaign idea or angle")
 	variants := fs.Int("variants-per-post", 1, "Variants per account")
 	brandProfileID := fs.String("brand-profile-id", "", "Optional brand profile ID")
+	brandProfileName := fs.String("brand-profile", "", "Optional brand profile name")
 	editorialStatus := fs.String("editorial-status", "needs_review", "Editorial status")
 	requiresApproval := fs.Bool("requires-approval", true, "Require approval before scheduling")
 	tags := fs.String("tags", "", "Comma-separated tags")
@@ -228,6 +230,7 @@ func runCampaignCreateDrafts(ctx context.Context, client *APIClient, cfg config,
 		"idea":               strings.TrimSpace(*idea),
 		"variants_per_post":  *variants,
 		"brand_profile_id":   strings.TrimSpace(*brandProfileID),
+		"brand_profile":      strings.TrimSpace(*brandProfileName),
 		"editorial_status":   strings.TrimSpace(*editorialStatus),
 		"requires_approval":  *requiresApproval,
 		"tags":               splitCLIList(*tags),
@@ -308,51 +311,57 @@ func runPostsApprove(ctx context.Context, client *APIClient, cfg config, args []
 }
 
 type campaignFlags struct {
-	name         *string
-	objective    *string
-	startsAt     *string
-	endsAt       *string
-	notes        *string
-	tags         *string
-	timezone     *string
-	audience     *string
-	tone         *string
-	cta          *string
-	restrictions *string
+	name             *string
+	objective        *string
+	startsAt         *string
+	endsAt           *string
+	notes            *string
+	tags             *string
+	timezone         *string
+	audience         *string
+	tone             *string
+	cta              *string
+	restrictions     *string
+	brandProfileID   *string
+	brandProfileName *string
 }
 
 func campaignFlagSet(name string, stderr io.Writer) (*flag.FlagSet, campaignFlags) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	flags := campaignFlags{
-		name:         fs.String("name", "", "Campaign name"),
-		objective:    fs.String("objective", "", "Campaign objective"),
-		startsAt:     fs.String("starts-at", "", "Start date RFC3339"),
-		endsAt:       fs.String("ends-at", "", "End date RFC3339"),
-		notes:        fs.String("notes", "", "Notes"),
-		tags:         fs.String("tags", "", "Comma-separated tags"),
-		timezone:     fs.String("timezone", "", "Campaign timezone"),
-		audience:     fs.String("audience", "", "Audience brief"),
-		tone:         fs.String("tone", "", "Tone brief"),
-		cta:          fs.String("cta", "", "Call to action"),
-		restrictions: fs.String("restrictions", "", "Restrictions"),
+		name:             fs.String("name", "", "Campaign name"),
+		objective:        fs.String("objective", "", "Campaign objective"),
+		startsAt:         fs.String("starts-at", "", "Start date RFC3339"),
+		endsAt:           fs.String("ends-at", "", "End date RFC3339"),
+		notes:            fs.String("notes", "", "Notes"),
+		tags:             fs.String("tags", "", "Comma-separated tags"),
+		timezone:         fs.String("timezone", "", "Campaign timezone"),
+		audience:         fs.String("audience", "", "Audience brief"),
+		tone:             fs.String("tone", "", "Tone brief"),
+		cta:              fs.String("cta", "", "Call to action"),
+		restrictions:     fs.String("restrictions", "", "Restrictions"),
+		brandProfileID:   fs.String("brand-profile-id", "", "Brand profile ID"),
+		brandProfileName: fs.String("brand-profile", "", "Brand profile name"),
 	}
 	return fs, flags
 }
 
 func (f campaignFlags) payload() map[string]any {
 	return map[string]any{
-		"name":         strings.TrimSpace(*f.name),
-		"objective":    strings.TrimSpace(*f.objective),
-		"starts_at":    strings.TrimSpace(*f.startsAt),
-		"ends_at":      strings.TrimSpace(*f.endsAt),
-		"notes":        strings.TrimSpace(*f.notes),
-		"tags":         splitCLIList(*f.tags),
-		"timezone":     strings.TrimSpace(*f.timezone),
-		"audience":     strings.TrimSpace(*f.audience),
-		"tone":         strings.TrimSpace(*f.tone),
-		"cta":          strings.TrimSpace(*f.cta),
-		"restrictions": strings.TrimSpace(*f.restrictions),
+		"name":             strings.TrimSpace(*f.name),
+		"objective":        strings.TrimSpace(*f.objective),
+		"starts_at":        strings.TrimSpace(*f.startsAt),
+		"ends_at":          strings.TrimSpace(*f.endsAt),
+		"notes":            strings.TrimSpace(*f.notes),
+		"tags":             splitCLIList(*f.tags),
+		"timezone":         strings.TrimSpace(*f.timezone),
+		"audience":         strings.TrimSpace(*f.audience),
+		"tone":             strings.TrimSpace(*f.tone),
+		"cta":              strings.TrimSpace(*f.cta),
+		"restrictions":     strings.TrimSpace(*f.restrictions),
+		"brand_profile_id": strings.TrimSpace(*f.brandProfileID),
+		"brand_profile":    strings.TrimSpace(*f.brandProfileName),
 	}
 }
 

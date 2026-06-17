@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,18 +15,20 @@ import (
 )
 
 type campaignRequest struct {
-	Name         string   `json:"name"`
-	Objective    string   `json:"objective"`
-	Status       string   `json:"status"`
-	StartsAt     string   `json:"starts_at"`
-	EndsAt       string   `json:"ends_at"`
-	Notes        string   `json:"notes"`
-	Tags         []string `json:"tags"`
-	Timezone     string   `json:"timezone"`
-	Audience     string   `json:"audience"`
-	Tone         string   `json:"tone"`
-	CTA          string   `json:"cta"`
-	Restrictions string   `json:"restrictions"`
+	Name             string   `json:"name"`
+	Objective        string   `json:"objective"`
+	Status           string   `json:"status"`
+	StartsAt         string   `json:"starts_at"`
+	EndsAt           string   `json:"ends_at"`
+	Notes            string   `json:"notes"`
+	Tags             []string `json:"tags"`
+	Timezone         string   `json:"timezone"`
+	Audience         string   `json:"audience"`
+	Tone             string   `json:"tone"`
+	CTA              string   `json:"cta"`
+	Restrictions     string   `json:"restrictions"`
+	BrandProfileID   string   `json:"brand_profile_id"`
+	BrandProfileName string   `json:"brand_profile"`
 }
 
 func (s Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
@@ -56,19 +59,29 @@ func (s Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	brandProfileID, err := s.resolveBrandProfileID(r.Context(), req.BrandProfileID, req.BrandProfileName)
+	if err != nil {
+		if fromForm {
+			redirectCampaignForm(w, r, "", err.Error())
+			return
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	svc := campaignsapp.Service{Store: s.Store}
 	campaign, err := svc.Create(r.Context(), campaignsapp.CreateInput{
-		Name:         req.Name,
-		Objective:    req.Objective,
-		StartsAt:     startsAt,
-		EndsAt:       endsAt,
-		Notes:        req.Notes,
-		Tags:         req.Tags,
-		Timezone:     req.Timezone,
-		Audience:     req.Audience,
-		Tone:         req.Tone,
-		CTA:          req.CTA,
-		Restrictions: req.Restrictions,
+		Name:           req.Name,
+		Objective:      req.Objective,
+		StartsAt:       startsAt,
+		EndsAt:         endsAt,
+		Notes:          req.Notes,
+		Tags:           req.Tags,
+		Timezone:       req.Timezone,
+		Audience:       req.Audience,
+		Tone:           req.Tone,
+		CTA:            req.CTA,
+		Restrictions:   req.Restrictions,
+		BrandProfileID: brandProfileID,
 	})
 	if err != nil {
 		if fromForm {
@@ -135,21 +148,27 @@ func (s Server) handleUpdateCampaign(w http.ResponseWriter, r *http.Request, id 
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	brandProfileID, err := s.resolveBrandProfileID(r.Context(), req.BrandProfileID, req.BrandProfileName)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	svc := campaignsapp.Service{Store: s.Store}
 	campaign, err := svc.Update(r.Context(), campaignsapp.UpdateInput{
-		ID:           id,
-		Name:         req.Name,
-		Objective:    req.Objective,
-		Status:       domain.CampaignStatus(strings.TrimSpace(req.Status)),
-		StartsAt:     startsAt,
-		EndsAt:       endsAt,
-		Notes:        req.Notes,
-		Tags:         req.Tags,
-		Timezone:     req.Timezone,
-		Audience:     req.Audience,
-		Tone:         req.Tone,
-		CTA:          req.CTA,
-		Restrictions: req.Restrictions,
+		ID:             id,
+		Name:           req.Name,
+		Objective:      req.Objective,
+		Status:         domain.CampaignStatus(strings.TrimSpace(req.Status)),
+		StartsAt:       startsAt,
+		EndsAt:         endsAt,
+		Notes:          req.Notes,
+		Tags:           req.Tags,
+		Timezone:       req.Timezone,
+		Audience:       req.Audience,
+		Tone:           req.Tone,
+		CTA:            req.CTA,
+		Restrictions:   req.Restrictions,
+		BrandProfileID: brandProfileID,
 	})
 	if err != nil {
 		writeCampaignError(w, err)
@@ -210,6 +229,7 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 		Idea              string   `json:"idea"`
 		VariantsPerPost   int      `json:"variants_per_post"`
 		BrandProfileID    string   `json:"brand_profile_id"`
+		BrandProfileName  string   `json:"brand_profile"`
 		EditorialStatus   string   `json:"editorial_status"`
 		RequiresApproval  *bool    `json:"requires_approval"`
 		Tags              []string `json:"tags"`
@@ -223,6 +243,11 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 	if strings.TrimSpace(req.AccountID) != "" {
 		accountIDs = append(accountIDs, strings.TrimSpace(req.AccountID))
 	}
+	brandProfileID, err := s.resolveBrandProfileID(r.Context(), req.BrandProfileID, req.BrandProfileName)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
 	out, err := campaignsapp.DraftService{
 		Store:             s.Store,
 		Generator:         s.generationService(),
@@ -233,7 +258,7 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 		AccountIDs:        accountIDs,
 		Idea:              req.Idea,
 		VariantsPerPost:   req.VariantsPerPost,
-		BrandProfileID:    req.BrandProfileID,
+		BrandProfileID:    brandProfileID,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(req.EditorialStatus)),
 		RequiresApproval:  req.RequiresApproval,
 		Tags:              req.Tags,
@@ -317,19 +342,25 @@ func parseCampaignRequest(r *http.Request) (campaignRequest, bool, error) {
 		return campaignRequest{}, true, err
 	}
 	return campaignRequest{
-		Name:         strings.TrimSpace(r.FormValue("name")),
-		Objective:    strings.TrimSpace(r.FormValue("objective")),
-		Status:       strings.TrimSpace(r.FormValue("status")),
-		StartsAt:     strings.TrimSpace(r.FormValue("starts_at")),
-		EndsAt:       strings.TrimSpace(r.FormValue("ends_at")),
-		Notes:        strings.TrimSpace(r.FormValue("notes")),
-		Tags:         splitCSV(r.FormValue("tags")),
-		Timezone:     strings.TrimSpace(r.FormValue("timezone")),
-		Audience:     strings.TrimSpace(r.FormValue("audience")),
-		Tone:         strings.TrimSpace(r.FormValue("tone")),
-		CTA:          strings.TrimSpace(r.FormValue("cta")),
-		Restrictions: strings.TrimSpace(r.FormValue("restrictions")),
+		Name:             strings.TrimSpace(r.FormValue("name")),
+		Objective:        strings.TrimSpace(r.FormValue("objective")),
+		Status:           strings.TrimSpace(r.FormValue("status")),
+		StartsAt:         strings.TrimSpace(r.FormValue("starts_at")),
+		EndsAt:           strings.TrimSpace(r.FormValue("ends_at")),
+		Notes:            strings.TrimSpace(r.FormValue("notes")),
+		Tags:             splitCSV(r.FormValue("tags")),
+		Timezone:         strings.TrimSpace(r.FormValue("timezone")),
+		Audience:         strings.TrimSpace(r.FormValue("audience")),
+		Tone:             strings.TrimSpace(r.FormValue("tone")),
+		CTA:              strings.TrimSpace(r.FormValue("cta")),
+		Restrictions:     strings.TrimSpace(r.FormValue("restrictions")),
+		BrandProfileID:   strings.TrimSpace(r.FormValue("brand_profile_id")),
+		BrandProfileName: strings.TrimSpace(r.FormValue("brand_profile")),
 	}, true, nil
+}
+
+func (s Server) resolveBrandProfileID(ctx context.Context, id string, name string) (string, error) {
+	return s.generationService().ResolveBrandProfileID(ctx, id, name)
 }
 
 func isFormRequest(r *http.Request) bool {

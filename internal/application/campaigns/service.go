@@ -30,51 +30,54 @@ type Service struct {
 }
 
 type CreateInput struct {
-	Name         string
-	Objective    string
-	StartsAt     time.Time
-	EndsAt       time.Time
-	Notes        string
-	Tags         []string
-	Timezone     string
-	Audience     string
-	Tone         string
-	CTA          string
-	Restrictions string
+	Name           string
+	Objective      string
+	StartsAt       time.Time
+	EndsAt         time.Time
+	Notes          string
+	Tags           []string
+	Timezone       string
+	Audience       string
+	Tone           string
+	CTA            string
+	Restrictions   string
+	BrandProfileID string
 }
 
 type UpdateInput struct {
-	ID           string
-	Name         string
-	Objective    string
-	Status       domain.CampaignStatus
-	StartsAt     time.Time
-	EndsAt       time.Time
-	Notes        string
-	Tags         []string
-	Timezone     string
-	Audience     string
-	Tone         string
-	CTA          string
-	Restrictions string
+	ID             string
+	Name           string
+	Objective      string
+	Status         domain.CampaignStatus
+	StartsAt       time.Time
+	EndsAt         time.Time
+	Notes          string
+	Tags           []string
+	Timezone       string
+	Audience       string
+	Tone           string
+	CTA            string
+	Restrictions   string
+	BrandProfileID string
 }
 
 type ListFilter = domain.CampaignListFilter
 
 func (s Service) Create(ctx context.Context, in CreateInput) (domain.Campaign, error) {
 	campaign := domain.Campaign{
-		Name:         strings.TrimSpace(in.Name),
-		Objective:    strings.TrimSpace(in.Objective),
-		Status:       domain.CampaignStatusActive,
-		StartsAt:     in.StartsAt.UTC(),
-		EndsAt:       in.EndsAt.UTC(),
-		Notes:        strings.TrimSpace(in.Notes),
-		Tags:         normalizeTags(in.Tags),
-		Timezone:     strings.TrimSpace(in.Timezone),
-		Audience:     strings.TrimSpace(in.Audience),
-		Tone:         strings.TrimSpace(in.Tone),
-		CTA:          strings.TrimSpace(in.CTA),
-		Restrictions: strings.TrimSpace(in.Restrictions),
+		Name:           strings.TrimSpace(in.Name),
+		Objective:      strings.TrimSpace(in.Objective),
+		Status:         domain.CampaignStatusActive,
+		StartsAt:       in.StartsAt.UTC(),
+		EndsAt:         in.EndsAt.UTC(),
+		Notes:          strings.TrimSpace(in.Notes),
+		Tags:           normalizeTags(in.Tags),
+		Timezone:       strings.TrimSpace(in.Timezone),
+		Audience:       strings.TrimSpace(in.Audience),
+		Tone:           strings.TrimSpace(in.Tone),
+		CTA:            strings.TrimSpace(in.CTA),
+		Restrictions:   strings.TrimSpace(in.Restrictions),
+		BrandProfileID: strings.TrimSpace(in.BrandProfileID),
 	}
 	if campaign.Name == "" {
 		return domain.Campaign{}, ErrNameRequired
@@ -128,6 +131,9 @@ func (s Service) Update(ctx context.Context, in UpdateInput) (domain.Campaign, e
 	current.Tone = strings.TrimSpace(in.Tone)
 	current.CTA = strings.TrimSpace(in.CTA)
 	current.Restrictions = strings.TrimSpace(in.Restrictions)
+	if strings.TrimSpace(in.BrandProfileID) != "" {
+		current.BrandProfileID = strings.TrimSpace(in.BrandProfileID)
+	}
 	if current.Name == "" {
 		return domain.Campaign{}, ErrNameRequired
 	}

@@ -11,18 +11,20 @@ import (
 )
 
 type mcpCampaignInput struct {
-	Name         string   `json:"name,omitempty" jsonschema:"Campaign name."`
-	Objective    string   `json:"objective,omitempty" jsonschema:"Campaign objective."`
-	Status       string   `json:"status,omitempty" jsonschema:"Status: active|paused|archived."`
-	StartsAt     string   `json:"starts_at,omitempty" jsonschema:"RFC3339 start date."`
-	EndsAt       string   `json:"ends_at,omitempty" jsonschema:"RFC3339 end date."`
-	Notes        string   `json:"notes,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	Timezone     string   `json:"timezone,omitempty" jsonschema:"IANA timezone."`
-	Audience     string   `json:"audience,omitempty"`
-	Tone         string   `json:"tone,omitempty"`
-	CTA          string   `json:"cta,omitempty"`
-	Restrictions string   `json:"restrictions,omitempty"`
+	Name             string   `json:"name,omitempty" jsonschema:"Campaign name."`
+	Objective        string   `json:"objective,omitempty" jsonschema:"Campaign objective."`
+	Status           string   `json:"status,omitempty" jsonschema:"Status: active|paused|archived."`
+	StartsAt         string   `json:"starts_at,omitempty" jsonschema:"RFC3339 start date."`
+	EndsAt           string   `json:"ends_at,omitempty" jsonschema:"RFC3339 end date."`
+	Notes            string   `json:"notes,omitempty"`
+	Tags             []string `json:"tags,omitempty"`
+	Timezone         string   `json:"timezone,omitempty" jsonschema:"IANA timezone."`
+	Audience         string   `json:"audience,omitempty"`
+	Tone             string   `json:"tone,omitempty"`
+	CTA              string   `json:"cta,omitempty"`
+	Restrictions     string   `json:"restrictions,omitempty"`
+	BrandProfileID   string   `json:"brand_profile_id,omitempty"`
+	BrandProfileName string   `json:"brand_profile,omitempty"`
 }
 
 type mcpCampaignMutationInput struct {
@@ -61,6 +63,7 @@ type mcpCreateCampaignDraftsInput struct {
 	Idea              string   `json:"idea,omitempty"`
 	VariantsPerPost   int      `json:"variants_per_post,omitempty"`
 	BrandProfileID    string   `json:"brand_profile_id,omitempty"`
+	BrandProfileName  string   `json:"brand_profile,omitempty"`
 	EditorialStatus   string   `json:"editorial_status,omitempty"`
 	RequiresApproval  *bool    `json:"requires_approval,omitempty"`
 	Tags              []string `json:"tags,omitempty"`
@@ -108,18 +111,23 @@ func (s Server) mcpCreateCampaignTool(ctx context.Context, _ *mcp.CallToolReques
 	if err != nil {
 		return nil, mcpCampaignOutput{}, err
 	}
+	brandProfileID, err := s.resolveBrandProfileID(ctx, in.BrandProfileID, in.BrandProfileName)
+	if err != nil {
+		return nil, mcpCampaignOutput{}, err
+	}
 	campaign, err := campaignsapp.Service{Store: s.Store}.Create(ctx, campaignsapp.CreateInput{
-		Name:         in.Name,
-		Objective:    in.Objective,
-		StartsAt:     startsAt,
-		EndsAt:       endsAt,
-		Notes:        in.Notes,
-		Tags:         in.Tags,
-		Timezone:     in.Timezone,
-		Audience:     in.Audience,
-		Tone:         in.Tone,
-		CTA:          in.CTA,
-		Restrictions: in.Restrictions,
+		Name:           in.Name,
+		Objective:      in.Objective,
+		StartsAt:       startsAt,
+		EndsAt:         endsAt,
+		Notes:          in.Notes,
+		Tags:           in.Tags,
+		Timezone:       in.Timezone,
+		Audience:       in.Audience,
+		Tone:           in.Tone,
+		CTA:            in.CTA,
+		Restrictions:   in.Restrictions,
+		BrandProfileID: brandProfileID,
 	})
 	if err != nil {
 		return nil, mcpCampaignOutput{}, err
@@ -148,20 +156,25 @@ func (s Server) mcpUpdateCampaignTool(ctx context.Context, _ *mcp.CallToolReques
 	if err != nil {
 		return nil, mcpCampaignOutput{}, err
 	}
+	brandProfileID, err := s.resolveBrandProfileID(ctx, in.BrandProfileID, in.BrandProfileName)
+	if err != nil {
+		return nil, mcpCampaignOutput{}, err
+	}
 	campaign, err := campaignsapp.Service{Store: s.Store}.Update(ctx, campaignsapp.UpdateInput{
-		ID:           in.CampaignID,
-		Name:         in.Name,
-		Objective:    in.Objective,
-		Status:       domain.CampaignStatus(strings.TrimSpace(in.Status)),
-		StartsAt:     startsAt,
-		EndsAt:       endsAt,
-		Notes:        in.Notes,
-		Tags:         in.Tags,
-		Timezone:     in.Timezone,
-		Audience:     in.Audience,
-		Tone:         in.Tone,
-		CTA:          in.CTA,
-		Restrictions: in.Restrictions,
+		ID:             in.CampaignID,
+		Name:           in.Name,
+		Objective:      in.Objective,
+		Status:         domain.CampaignStatus(strings.TrimSpace(in.Status)),
+		StartsAt:       startsAt,
+		EndsAt:         endsAt,
+		Notes:          in.Notes,
+		Tags:           in.Tags,
+		Timezone:       in.Timezone,
+		Audience:       in.Audience,
+		Tone:           in.Tone,
+		CTA:            in.CTA,
+		Restrictions:   in.Restrictions,
+		BrandProfileID: brandProfileID,
 	})
 	if err != nil {
 		return nil, mcpCampaignOutput{}, err
@@ -224,6 +237,10 @@ func (s Server) mcpCreateCampaignDraftsTool(ctx context.Context, _ *mcp.CallTool
 	if strings.TrimSpace(in.AccountID) != "" {
 		accountIDs = append(accountIDs, strings.TrimSpace(in.AccountID))
 	}
+	brandProfileID, err := s.resolveBrandProfileID(ctx, in.BrandProfileID, in.BrandProfileName)
+	if err != nil {
+		return nil, mcpCreateCampaignDraftsOutput{}, err
+	}
 	out, err := campaignsapp.DraftService{
 		Store:             s.Store,
 		Generator:         s.generationService(),
@@ -234,7 +251,7 @@ func (s Server) mcpCreateCampaignDraftsTool(ctx context.Context, _ *mcp.CallTool
 		AccountIDs:        accountIDs,
 		Idea:              in.Idea,
 		VariantsPerPost:   in.VariantsPerPost,
-		BrandProfileID:    in.BrandProfileID,
+		BrandProfileID:    brandProfileID,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(in.EditorialStatus)),
 		RequiresApproval:  in.RequiresApproval,
 		Tags:              in.Tags,

@@ -85,21 +85,22 @@ const (
 )
 
 type Campaign struct {
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Objective    string         `json:"objective,omitempty"`
-	Status       CampaignStatus `json:"status"`
-	StartsAt     time.Time      `json:"starts_at,omitempty"`
-	EndsAt       time.Time      `json:"ends_at,omitempty"`
-	Notes        string         `json:"notes,omitempty"`
-	Tags         []string       `json:"tags,omitempty"`
-	Timezone     string         `json:"timezone,omitempty"`
-	Audience     string         `json:"audience,omitempty"`
-	Tone         string         `json:"tone,omitempty"`
-	CTA          string         `json:"cta,omitempty"`
-	Restrictions string         `json:"restrictions,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	Objective      string         `json:"objective,omitempty"`
+	Status         CampaignStatus `json:"status"`
+	StartsAt       time.Time      `json:"starts_at,omitempty"`
+	EndsAt         time.Time      `json:"ends_at,omitempty"`
+	Notes          string         `json:"notes,omitempty"`
+	Tags           []string       `json:"tags,omitempty"`
+	Timezone       string         `json:"timezone,omitempty"`
+	Audience       string         `json:"audience,omitempty"`
+	Tone           string         `json:"tone,omitempty"`
+	CTA            string         `json:"cta,omitempty"`
+	Restrictions   string         `json:"restrictions,omitempty"`
+	BrandProfileID string         `json:"brand_profile_id,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 type CampaignListFilter struct {

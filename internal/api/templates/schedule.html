@@ -4682,6 +4682,13 @@
               <input id="campaign-tone" name="tone" type="text" placeholder="direct, expert, practical" />
             </div>
             <div class="field">
+              <label for="campaign-brand-profile">Brand profile</label>
+              <select id="campaign-brand-profile" name="brand_profile">
+                <option value="">No brand profile</option>
+                {{range .BrandProfiles}}<option value="{{.Name}}">{{.Name}}</option>{{end}}
+              </select>
+            </div>
+            <div class="field">
               <label for="campaign-cta">CTA</label>
               <input id="campaign-cta" name="cta" type="text" placeholder="Book a demo" />
             </div>
@@ -4702,6 +4709,7 @@
               <div class="meta">
                 <span>{{.Status}}</span>
                 {{if .Timezone}}<span>{{.Timezone}}</span>{{end}}
+                {{if .BrandProfileID}}<span>brand {{.BrandProfileID}}</span>{{end}}
                 {{if gt (len .Tags) 0}}<span>{{join .Tags ", "}}</span>{{end}}
               </div>
             </div>

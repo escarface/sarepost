@@ -62,6 +62,36 @@ func (s Service) GetBrandProfile(ctx context.Context, id string) (BrandProfile, 
 	return BrandProfile{}, false, nil
 }
 
+// ResolveBrandProfileID returns an explicit profile ID or resolves a profile by name.
+func (s Service) ResolveBrandProfileID(ctx context.Context, id string, name string) (string, error) {
+	id = strings.TrimSpace(id)
+	if id != "" {
+		return id, nil
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", nil
+	}
+	profiles, err := s.loadBrandProfiles(ctx)
+	if err != nil {
+		return "", err
+	}
+	var matches []BrandProfile
+	for _, profile := range profiles {
+		if strings.EqualFold(strings.TrimSpace(profile.Name), name) {
+			matches = append(matches, profile)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("brand profile %q not found", name)
+	case 1:
+		return matches[0].ID, nil
+	default:
+		return "", fmt.Errorf("brand profile %q is ambiguous", name)
+	}
+}
+
 // SaveBrandProfile creates or updates a profile and returns it.
 func (s Service) SaveBrandProfile(ctx context.Context, update BrandProfileUpdate) (BrandProfile, error) {
 	if s.Store == nil {

@@ -94,6 +94,10 @@ func (s DraftService) CreateDrafts(ctx context.Context, in CreateDraftsInput) (C
 		requiresApproval = *in.RequiresApproval
 	}
 	tags := mergeTags(campaign.Tags, in.Tags)
+	brandProfileID := strings.TrimSpace(in.BrandProfileID)
+	if brandProfileID == "" {
+		brandProfileID = strings.TrimSpace(campaign.BrandProfileID)
+	}
 	createSvc := postsapp.CreateService{
 		Store:             s.Store,
 		Registry:          s.Registry,
@@ -110,7 +114,7 @@ func (s DraftService) CreateDrafts(ctx context.Context, in CreateDraftsInput) (C
 			generated, err := s.Generator.GenerateText(ctx, generationapp.GenerateTextInput{
 				Prompt:         buildCampaignDraftPrompt(campaign, account.Platform, strings.TrimSpace(in.Idea), variant, variants),
 				Platform:       account.Platform,
-				BrandProfileID: strings.TrimSpace(in.BrandProfileID),
+				BrandProfileID: brandProfileID,
 				MaxTokens:      500,
 			})
 			if err != nil {

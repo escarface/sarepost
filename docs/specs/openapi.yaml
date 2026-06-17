@@ -621,6 +621,9 @@ paths:
                   default: 1
                 brand_profile_id:
                   type: string
+                brand_profile:
+                  type: string
+                  description: Optional brand profile name. Ignored when brand_profile_id is provided.
                 editorial_status:
                   $ref: '#/components/schemas/EditorialStatus'
                 requires_approval:
@@ -1552,6 +1555,12 @@ components:
           type: string
         restrictions:
           type: string
+        brand_profile_id:
+          type: string
+          description: Stored brand profile ID used as the campaign default for draft generation.
+        brand_profile:
+          type: string
+          description: Optional brand profile name accepted on create/update. The server resolves and stores brand_profile_id.
 
     Campaign:
       allOf:

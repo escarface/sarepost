@@ -168,6 +168,40 @@ func TestDraftServiceCreatesGeneratedCampaignDrafts(t *testing.T) {
 	}
 }
 
+func TestDraftServiceUsesCampaignDefaultBrandProfile(t *testing.T) {
+	store := &draftStore{
+		campaigns: map[string]domain.Campaign{
+			"cmp_1": {
+				ID:             "cmp_1",
+				Name:           "Launch",
+				Status:         domain.CampaignStatusActive,
+				BrandProfileID: "brand_campaign",
+			},
+		},
+		accounts: map[string]domain.SocialAccount{
+			"acc_x": {ID: "acc_x", Platform: domain.PlatformX, Status: domain.AccountStatusConnected},
+		},
+	}
+	generator := &draftGenerator{}
+	svc := DraftService{
+		Store:     store,
+		Generator: generator,
+		Registry: draftProviderRegistry{providers: map[domain.Platform]postflow.Provider{
+			domain.PlatformX: draftProvider{platform: domain.PlatformX},
+		}},
+	}
+
+	if _, err := svc.CreateDrafts(t.Context(), CreateDraftsInput{CampaignID: "cmp_1", AccountIDs: []string{"acc_x"}}); err != nil {
+		t.Fatalf("create campaign drafts: %v", err)
+	}
+	if len(generator.prompts) != 1 {
+		t.Fatalf("expected one prompt, got %d", len(generator.prompts))
+	}
+	if generator.prompts[0].BrandProfileID != "brand_campaign" {
+		t.Fatalf("expected campaign default brand profile, got %q", generator.prompts[0].BrandProfileID)
+	}
+}
+
 func TestDraftServiceRejectsArchivedCampaign(t *testing.T) {
 	store := &draftStore{
 		campaigns: map[string]domain.Campaign{

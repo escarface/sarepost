@@ -30,9 +30,9 @@ func (s *Store) CreateCampaign(ctx context.Context, campaign domain.Campaign) (d
 		return domain.Campaign{}, err
 	}
 	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO campaigns (id, name, objective, status, starts_at, ends_at, notes, tags, timezone, audience, tone, cta, restrictions, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, campaign.ID, strings.TrimSpace(campaign.Name), strings.TrimSpace(campaign.Objective), campaign.Status, formatOptionalTime(campaign.StartsAt), formatOptionalTime(campaign.EndsAt), strings.TrimSpace(campaign.Notes), string(tags), strings.TrimSpace(campaign.Timezone), strings.TrimSpace(campaign.Audience), strings.TrimSpace(campaign.Tone), strings.TrimSpace(campaign.CTA), strings.TrimSpace(campaign.Restrictions), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
+		INSERT INTO campaigns (id, name, objective, status, starts_at, ends_at, notes, tags, timezone, audience, tone, cta, restrictions, brand_profile_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, campaign.ID, strings.TrimSpace(campaign.Name), strings.TrimSpace(campaign.Objective), campaign.Status, formatOptionalTime(campaign.StartsAt), formatOptionalTime(campaign.EndsAt), strings.TrimSpace(campaign.Notes), string(tags), strings.TrimSpace(campaign.Timezone), strings.TrimSpace(campaign.Audience), strings.TrimSpace(campaign.Tone), strings.TrimSpace(campaign.CTA), strings.TrimSpace(campaign.Restrictions), strings.TrimSpace(campaign.BrandProfileID), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		return domain.Campaign{}, err
 	}
@@ -43,10 +43,10 @@ func (s *Store) GetCampaign(ctx context.Context, id string) (domain.Campaign, er
 	var c domain.Campaign
 	var startsAt, endsAt, tags, createdAt, updatedAt string
 	err := s.db.QueryRowContext(ctx, `
-		SELECT id, name, objective, status, starts_at, ends_at, notes, tags, timezone, audience, tone, cta, restrictions, created_at, updated_at
+		SELECT id, name, objective, status, starts_at, ends_at, notes, tags, timezone, audience, tone, cta, restrictions, brand_profile_id, created_at, updated_at
 		FROM campaigns
 		WHERE id = ?
-	`, strings.TrimSpace(id)).Scan(&c.ID, &c.Name, &c.Objective, &c.Status, &startsAt, &endsAt, &c.Notes, &tags, &c.Timezone, &c.Audience, &c.Tone, &c.CTA, &c.Restrictions, &createdAt, &updatedAt)
+	`, strings.TrimSpace(id)).Scan(&c.ID, &c.Name, &c.Objective, &c.Status, &startsAt, &endsAt, &c.Notes, &tags, &c.Timezone, &c.Audience, &c.Tone, &c.CTA, &c.Restrictions, &c.BrandProfileID, &createdAt, &updatedAt)
 	if err != nil {
 		return domain.Campaign{}, err
 	}
@@ -113,9 +113,9 @@ func (s *Store) UpdateCampaign(ctx context.Context, campaign domain.Campaign) (d
 	now := time.Now().UTC()
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE campaigns
-		SET name = ?, objective = ?, status = ?, starts_at = ?, ends_at = ?, notes = ?, tags = ?, timezone = ?, audience = ?, tone = ?, cta = ?, restrictions = ?, updated_at = ?
+		SET name = ?, objective = ?, status = ?, starts_at = ?, ends_at = ?, notes = ?, tags = ?, timezone = ?, audience = ?, tone = ?, cta = ?, restrictions = ?, brand_profile_id = ?, updated_at = ?
 		WHERE id = ?
-	`, strings.TrimSpace(campaign.Name), strings.TrimSpace(campaign.Objective), campaign.Status, formatOptionalTime(campaign.StartsAt), formatOptionalTime(campaign.EndsAt), strings.TrimSpace(campaign.Notes), string(tags), strings.TrimSpace(campaign.Timezone), strings.TrimSpace(campaign.Audience), strings.TrimSpace(campaign.Tone), strings.TrimSpace(campaign.CTA), strings.TrimSpace(campaign.Restrictions), now.Format(time.RFC3339Nano), strings.TrimSpace(campaign.ID))
+	`, strings.TrimSpace(campaign.Name), strings.TrimSpace(campaign.Objective), campaign.Status, formatOptionalTime(campaign.StartsAt), formatOptionalTime(campaign.EndsAt), strings.TrimSpace(campaign.Notes), string(tags), strings.TrimSpace(campaign.Timezone), strings.TrimSpace(campaign.Audience), strings.TrimSpace(campaign.Tone), strings.TrimSpace(campaign.CTA), strings.TrimSpace(campaign.Restrictions), strings.TrimSpace(campaign.BrandProfileID), now.Format(time.RFC3339Nano), strings.TrimSpace(campaign.ID))
 	if err != nil {
 		return domain.Campaign{}, err
 	}

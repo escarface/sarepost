@@ -16,17 +16,18 @@ func TestServiceCreatesListsUpdatesAndArchivesCampaign(t *testing.T) {
 	start := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2026, 7, 31, 23, 59, 0, 0, time.UTC)
 	created, err := svc.Create(t.Context(), CreateInput{
-		Name:         "Launch July",
-		Objective:    "Promote the summer offer",
-		StartsAt:     start,
-		EndsAt:       end,
-		Notes:        "Focus on LinkedIn and Instagram",
-		Tags:         []string{"launch", "summer"},
-		Timezone:     "Europe/Madrid",
-		Audience:     "Spanish founders",
-		Tone:         "direct",
-		CTA:          "Book a call",
-		Restrictions: "No discounts language",
+		Name:           "Launch July",
+		Objective:      "Promote the summer offer",
+		StartsAt:       start,
+		EndsAt:         end,
+		Notes:          "Focus on LinkedIn and Instagram",
+		Tags:           []string{"launch", "summer"},
+		Timezone:       "Europe/Madrid",
+		Audience:       "Spanish founders",
+		Tone:           "direct",
+		CTA:            "Book a call",
+		Restrictions:   "No discounts language",
+		BrandProfileID: "brand_sare",
 	})
 	if err != nil {
 		t.Fatalf("create campaign: %v", err)
@@ -61,6 +62,9 @@ func TestServiceCreatesListsUpdatesAndArchivesCampaign(t *testing.T) {
 	}
 	if updated.Name != "Launch July Updated" || updated.Status != domain.CampaignStatusPaused {
 		t.Fatalf("unexpected updated campaign: %#v", updated)
+	}
+	if updated.BrandProfileID != "brand_sare" {
+		t.Fatalf("expected update to preserve brand profile id, got %q", updated.BrandProfileID)
 	}
 
 	archived, err := svc.Archive(t.Context(), created.ID)

@@ -65,6 +65,11 @@ var dbMigrations = []migration{
 		Name:    "media_editorial_tags",
 		Up:      migrationAddMediaEditorialTags,
 	},
+	{
+		Version: 10,
+		Name:    "campaigns_brand_profile",
+		Up:      migrationAddCampaignsBrandProfile,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -474,6 +479,7 @@ func migrationAddCampaignsEditorial(ctx context.Context, tx *sql.Tx) error {
 			tone TEXT NOT NULL DEFAULT '',
 			cta TEXT NOT NULL DEFAULT '',
 			restrictions TEXT NOT NULL DEFAULT '',
+			brand_profile_id TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		);`,
@@ -503,6 +509,17 @@ func migrationAddCampaignsEditorial(ctx context.Context, tx *sql.Tx) error {
 
 func migrationAddMediaEditorialTags(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `ALTER TABLE media ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';`)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func migrationAddCampaignsBrandProfile(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `ALTER TABLE campaigns ADD COLUMN brand_profile_id TEXT NOT NULL DEFAULT '';`)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
 			return nil
