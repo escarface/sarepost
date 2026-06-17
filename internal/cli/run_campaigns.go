@@ -38,7 +38,7 @@ type backlogItemDTO struct {
 
 func runCampaigns(ctx context.Context, client *APIClient, cfg config, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: postflow campaigns <create|list|update|archive|add-post|create-drafts|backlog> [flags]")
+		fmt.Fprintln(stderr, "usage: postflow campaigns <create|list|update|archive|add-post|create-drafts|generate-calendar|backlog> [flags]")
 		return 2
 	}
 	switch args[0] {
@@ -54,6 +54,8 @@ func runCampaigns(ctx context.Context, client *APIClient, cfg config, args []str
 		return runCampaignAddPost(ctx, client, cfg, args[1:], stdout, stderr)
 	case "create-drafts":
 		return runCampaignCreateDrafts(ctx, client, cfg, args[1:], stdout, stderr)
+	case "generate-calendar":
+		return runCampaignGenerateCalendar(ctx, client, cfg, args[1:], stdout, stderr)
 	case "backlog":
 		return runCampaignBacklog(ctx, client, cfg, args[1:], stdout, stderr)
 	default:
@@ -284,6 +286,63 @@ func runCampaignBacklog(ctx context.Context, client *APIClient, cfg config, args
 		for _, item := range out.Items {
 			fmt.Fprintf(stdout, "- [%s] %s · %s\n", item.Post.Status, item.Post.ID, oneLine(item.Post.Text, 90))
 		}
+	})
+	return 0
+}
+
+func runCampaignGenerateCalendar(ctx context.Context, client *APIClient, cfg config, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("campaigns generate-calendar", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	id := fs.String("id", "", "Campaign ID")
+	accountID := fs.String("account-id", "", "Primary account ID")
+	accountIDs := fs.String("account-ids", "", "Comma-separated account IDs")
+	idea := fs.String("idea", "", "Campaign idea or angle")
+	from := fs.String("from", "", "Start datetime RFC3339")
+	days := fs.Int("days", 7, "Number of days")
+	postsPerDay := fs.Int("posts-per-day", 0, "Posts per day. Defaults to number of slots")
+	slots := fs.String("slots", "", "Comma-separated HH:MM slots")
+	brandProfileID := fs.String("brand-profile-id", "", "Optional brand profile ID")
+	brandProfileName := fs.String("brand-profile", "", "Optional brand profile name")
+	editorialStatus := fs.String("editorial-status", "needs_review", "Editorial status")
+	requiresApproval := fs.Bool("requires-approval", true, "Require approval before scheduling")
+	tags := fs.String("tags", "", "Comma-separated tags")
+	idempotencyPrefix := fs.String("idempotency-prefix", "", "Optional idempotency prefix")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if strings.TrimSpace(*id) == "" {
+		fmt.Fprintln(stderr, "--id is required")
+		return 2
+	}
+	ids := splitCLIList(*accountIDs)
+	if strings.TrimSpace(*accountID) != "" {
+		ids = append(ids, strings.TrimSpace(*accountID))
+	}
+	if len(ids) == 0 {
+		fmt.Fprintln(stderr, "--account-id or --account-ids is required")
+		return 2
+	}
+	payload := map[string]any{
+		"account_ids":        ids,
+		"idea":               strings.TrimSpace(*idea),
+		"from":               strings.TrimSpace(*from),
+		"days":               *days,
+		"posts_per_day":      *postsPerDay,
+		"slots":              splitCLIList(*slots),
+		"brand_profile_id":   strings.TrimSpace(*brandProfileID),
+		"brand_profile":      strings.TrimSpace(*brandProfileName),
+		"editorial_status":   strings.TrimSpace(*editorialStatus),
+		"requires_approval":  *requiresApproval,
+		"tags":               splitCLIList(*tags),
+		"idempotency_prefix": strings.TrimSpace(*idempotencyPrefix),
+	}
+	var out map[string]any
+	if err := client.Post(ctx, "/campaigns/"+strings.TrimSpace(*id)+"/calendar-drafts", payload, &out); err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		return 1
+	}
+	printOutput(stdout, cfg.asJSON, out, func() {
+		fmt.Fprintf(stdout, "campaign calendar drafts generated\n")
 	})
 	return 0
 }

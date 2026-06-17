@@ -658,6 +658,88 @@ paths:
         '409':
           $ref: '#/components/responses/Error'
 
+  /campaigns/{id}/calendar-drafts:
+    post:
+      summary: Generate a campaign editorial calendar
+      description: Generates reviewable draft posts for multiple days and returns planned_at slots without scheduling the posts for publication.
+      parameters:
+        - $ref: '#/components/parameters/CampaignID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                account_id:
+                  type: string
+                account_ids:
+                  type: array
+                  items:
+                    type: string
+                idea:
+                  type: string
+                from:
+                  type: string
+                  format: date-time
+                days:
+                  type: integer
+                  minimum: 1
+                  maximum: 31
+                  default: 7
+                posts_per_day:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                slots:
+                  type: array
+                  description: HH:MM local slots such as ["09:00", "17:00"].
+                  items:
+                    type: string
+                brand_profile_id:
+                  type: string
+                brand_profile:
+                  type: string
+                editorial_status:
+                  $ref: '#/components/schemas/EditorialStatus'
+                requires_approval:
+                  type: boolean
+                  default: true
+                tags:
+                  type: array
+                  items:
+                    type: string
+                idempotency_prefix:
+                  type: string
+      responses:
+        '201':
+          description: Calendar draft plan created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  campaign:
+                    $ref: '#/components/schemas/Campaign'
+                  created_count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        planned_at:
+                          type: string
+                          format: date-time
+                        post:
+                          $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+
   /editorial/backlog:
     get:
       summary: List editorial backlog items

@@ -125,6 +125,8 @@ func (s Server) handleCampaignActions(w http.ResponseWriter, r *http.Request) {
 		s.handleArchiveCampaign(w, r, strings.TrimSuffix(path, "/archive"))
 	case strings.HasSuffix(path, "/drafts"):
 		s.handleCreateCampaignDrafts(w, r, strings.TrimSuffix(path, "/drafts"))
+	case strings.HasSuffix(path, "/calendar-drafts"):
+		s.handleCreateCampaignCalendarDrafts(w, r, strings.TrimSuffix(path, "/calendar-drafts"))
 	case strings.HasSuffix(path, "/posts"):
 		s.handleAddCampaignPost(w, r, strings.TrimSuffix(path, "/posts"))
 	default:
@@ -258,6 +260,66 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 		AccountIDs:        accountIDs,
 		Idea:              req.Idea,
 		VariantsPerPost:   req.VariantsPerPost,
+		BrandProfileID:    brandProfileID,
+		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(req.EditorialStatus)),
+		RequiresApproval:  req.RequiresApproval,
+		Tags:              req.Tags,
+		IdempotencyPrefix: req.IdempotencyPrefix,
+	})
+	if err != nil {
+		writeCampaignDraftError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, out)
+}
+
+func (s Server) handleCreateCampaignCalendarDrafts(w http.ResponseWriter, r *http.Request, campaignID string) {
+	var req struct {
+		AccountID         string   `json:"account_id"`
+		AccountIDs        []string `json:"account_ids"`
+		Idea              string   `json:"idea"`
+		From              string   `json:"from"`
+		Days              int      `json:"days"`
+		PostsPerDay       int      `json:"posts_per_day"`
+		Slots             []string `json:"slots"`
+		BrandProfileID    string   `json:"brand_profile_id"`
+		BrandProfileName  string   `json:"brand_profile"`
+		EditorialStatus   string   `json:"editorial_status"`
+		RequiresApproval  *bool    `json:"requires_approval"`
+		Tags              []string `json:"tags"`
+		IdempotencyPrefix string   `json:"idempotency_prefix"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
+		return
+	}
+	from, err := parseOptionalRFC3339PreserveLocation(req.From, "from")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	accountIDs := append([]string(nil), req.AccountIDs...)
+	if strings.TrimSpace(req.AccountID) != "" {
+		accountIDs = append(accountIDs, strings.TrimSpace(req.AccountID))
+	}
+	brandProfileID, err := s.resolveBrandProfileID(r.Context(), req.BrandProfileID, req.BrandProfileName)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	out, err := campaignsapp.DraftService{
+		Store:             s.Store,
+		Generator:         s.generationService(),
+		Registry:          s.providerRegistry(),
+		DefaultMaxRetries: s.DefaultMaxRetries,
+	}.CreateCalendarDrafts(r.Context(), campaignsapp.CreateCalendarDraftsInput{
+		CampaignID:        campaignID,
+		AccountIDs:        accountIDs,
+		Idea:              req.Idea,
+		From:              from,
+		Days:              req.Days,
+		PostsPerDay:       req.PostsPerDay,
+		Slots:             req.Slots,
 		BrandProfileID:    brandProfileID,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(req.EditorialStatus)),
 		RequiresApproval:  req.RequiresApproval,
@@ -426,6 +488,18 @@ func parseOptionalRFC3339(raw, field string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("%s must be RFC3339: %w", field, err)
 	}
 	return parsed.UTC(), nil
+}
+
+func parseOptionalRFC3339PreserveLocation(raw, field string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s must be RFC3339: %w", field, err)
+	}
+	return parsed, nil
 }
 
 func parsePositiveLimit(raw string, fallback int) (int, error) {

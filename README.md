@@ -237,6 +237,7 @@ Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls req
 | `postflow_archive_campaign` | Archive an editorial campaign |
 | `postflow_add_post_to_campaign` | Attach an existing post to a campaign |
 | `postflow_create_campaign_drafts` | Generate draft variants from a campaign brief |
+| `postflow_generate_campaign_calendar` | Generate multi-day campaign draft plans with `planned_at` slots |
 | `postflow_list_editorial_backlog` | List content pending editorial action |
 | `postflow_upload_media` | Upload image or video |
 | `postflow_list_media` | List uploaded media |
@@ -307,6 +308,7 @@ postflow campaigns archive --id cmp_xxx
 postflow campaigns add-post --campaign-id cmp_xxx --post-id pst_xxx --editorial-status needs_review --requires-approval
 postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --idea "Turn the launch proof point into a founder-facing LinkedIn post" --variants-per-post 3
 postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --brand-profile "Sare Digital" --idea "Override the campaign default brand for this batch"
+postflow campaigns generate-calendar --id cmp_xxx --account-id acc_xxx --from 2026-07-06T09:00:00+02:00 --days 7 --slots 09:00,17:00 --idea "One week of launch education posts"
 postflow campaigns backlog --campaign-id cmp_xxx --editorial-status needs_review
 
 # Edit

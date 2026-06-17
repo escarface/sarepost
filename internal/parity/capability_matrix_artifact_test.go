@@ -867,6 +867,43 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 				return nil
 			},
 		},
+		capabilities.CapabilityCampaignsCalendarGenerate: {
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				campaignID, err := apiCreateCampaign(env, "matrix campaign calendar api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPost, "/campaigns/"+campaignID+"/calendar-drafts", map[string]any{"account_id": env.account.ID, "idea": "matrix calendar api", "from": time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339), "days": 1, "slots": []string{"09:00"}}, "application/json")
+				if status != http.StatusCreated {
+					return fmt.Errorf("expected status 201, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				campaignID, err := apiCreateCampaign(env, "matrix campaign calendar cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("campaigns", "generate-calendar", "--id", campaignID, "--account-id", env.account.ID, "--idea", "matrix calendar cli", "--from", time.Now().UTC().Add(24*time.Hour).Format(time.RFC3339), "--days", "1", "--slots", "09:00")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				campaignID, err := apiCreateCampaign(env, "matrix campaign calendar mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_generate_campaign_calendar", map[string]any{"campaign_id": campaignID, "account_id": env.account.ID, "idea": "matrix calendar mcp", "from": time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339), "days": 1, "slots": []string{"09:00"}}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		},
 		capabilities.CapabilityCampaignsBacklog: {
 			capabilities.SurfaceAPI: func(env *parityEnv) error {
 				_, status := env.apiJSON(http.MethodGet, "/editorial/backlog?limit=10", nil, "")

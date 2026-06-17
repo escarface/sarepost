@@ -103,6 +103,14 @@ func (s Server) newMCPHandler() http.Handler {
 	}, s.mcpCreateCampaignDraftsTool)
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_generate_campaign_calendar",
+		Description: "Generate a reviewable weekly or multi-day calendar of campaign draft posts with planned_at slots.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpGenerateCampaignCalendarTool)
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_list_editorial_backlog",
 		Description: "List campaign-linked draft/scheduled/failed posts by campaign, platform, editorial status, or tag.",
 		Annotations: &mcp.ToolAnnotations{

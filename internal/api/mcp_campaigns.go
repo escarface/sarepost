@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	campaignsapp "github.com/escarface/sarepost/internal/application/campaigns"
 	"github.com/escarface/sarepost/internal/domain"
@@ -70,6 +71,23 @@ type mcpCreateCampaignDraftsInput struct {
 	IdempotencyPrefix string   `json:"idempotency_prefix,omitempty"`
 }
 
+type mcpGenerateCampaignCalendarInput struct {
+	CampaignID        string   `json:"campaign_id"`
+	AccountID         string   `json:"account_id,omitempty"`
+	AccountIDs        []string `json:"account_ids,omitempty"`
+	Idea              string   `json:"idea,omitempty"`
+	From              string   `json:"from,omitempty"`
+	Days              int      `json:"days,omitempty"`
+	PostsPerDay       int      `json:"posts_per_day,omitempty"`
+	Slots             []string `json:"slots,omitempty"`
+	BrandProfileID    string   `json:"brand_profile_id,omitempty"`
+	BrandProfileName  string   `json:"brand_profile,omitempty"`
+	EditorialStatus   string   `json:"editorial_status,omitempty"`
+	RequiresApproval  *bool    `json:"requires_approval,omitempty"`
+	Tags              []string `json:"tags,omitempty"`
+	IdempotencyPrefix string   `json:"idempotency_prefix,omitempty"`
+}
+
 type mcpApprovePostInput struct {
 	PostID string `json:"post_id"`
 }
@@ -96,6 +114,17 @@ type mcpCreateCampaignDraftsOutput struct {
 	Campaign     domain.Campaign  `json:"campaign"`
 	CreatedCount int              `json:"created_count"`
 	Posts        []mcpPostSummary `json:"posts"`
+}
+
+type mcpGenerateCampaignCalendarOutput struct {
+	Campaign     domain.Campaign        `json:"campaign"`
+	CreatedCount int                    `json:"created_count"`
+	Items        []mcpCalendarDraftItem `json:"items"`
+}
+
+type mcpCalendarDraftItem struct {
+	PlannedAt string         `json:"planned_at"`
+	Post      mcpPostSummary `json:"post"`
 }
 
 type mcpApprovePostOutput struct {
@@ -209,7 +238,7 @@ func (s Server) mcpAddPostToCampaignTool(ctx context.Context, _ *mcp.CallToolReq
 }
 
 func (s Server) mcpListEditorialBacklogTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpEditorialBacklogInput) (*mcp.CallToolResult, mcpBacklogOutput, error) {
-	from, err := parseOptionalRFC3339(in.From, "from")
+	from, err := parseOptionalRFC3339PreserveLocation(in.From, "from")
 	if err != nil {
 		return nil, mcpBacklogOutput{}, err
 	}
@@ -265,6 +294,51 @@ func (s Server) mcpCreateCampaignDraftsTool(ctx context.Context, _ *mcp.CallTool
 		posts = append(posts, toMCPPostSummary(post))
 	}
 	return nil, mcpCreateCampaignDraftsOutput{Campaign: out.Campaign, CreatedCount: out.CreatedCount, Posts: posts}, nil
+}
+
+func (s Server) mcpGenerateCampaignCalendarTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpGenerateCampaignCalendarInput) (*mcp.CallToolResult, mcpGenerateCampaignCalendarOutput, error) {
+	from, err := parseOptionalRFC3339(in.From, "from")
+	if err != nil {
+		return nil, mcpGenerateCampaignCalendarOutput{}, err
+	}
+	accountIDs := append([]string(nil), in.AccountIDs...)
+	if strings.TrimSpace(in.AccountID) != "" {
+		accountIDs = append(accountIDs, strings.TrimSpace(in.AccountID))
+	}
+	brandProfileID, err := s.resolveBrandProfileID(ctx, in.BrandProfileID, in.BrandProfileName)
+	if err != nil {
+		return nil, mcpGenerateCampaignCalendarOutput{}, err
+	}
+	out, err := campaignsapp.DraftService{
+		Store:             s.Store,
+		Generator:         s.generationService(),
+		Registry:          s.providerRegistry(),
+		DefaultMaxRetries: s.DefaultMaxRetries,
+	}.CreateCalendarDrafts(ctx, campaignsapp.CreateCalendarDraftsInput{
+		CampaignID:        in.CampaignID,
+		AccountIDs:        accountIDs,
+		Idea:              in.Idea,
+		From:              from,
+		Days:              in.Days,
+		PostsPerDay:       in.PostsPerDay,
+		Slots:             in.Slots,
+		BrandProfileID:    brandProfileID,
+		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(in.EditorialStatus)),
+		RequiresApproval:  in.RequiresApproval,
+		Tags:              in.Tags,
+		IdempotencyPrefix: in.IdempotencyPrefix,
+	})
+	if err != nil {
+		return nil, mcpGenerateCampaignCalendarOutput{}, err
+	}
+	items := make([]mcpCalendarDraftItem, 0, len(out.Items))
+	for _, item := range out.Items {
+		items = append(items, mcpCalendarDraftItem{
+			PlannedAt: item.PlannedAt.Format(time.RFC3339),
+			Post:      toMCPPostSummary(item.Post),
+		})
+	}
+	return nil, mcpGenerateCampaignCalendarOutput{Campaign: out.Campaign, CreatedCount: out.CreatedCount, Items: items}, nil
 }
 
 func (s Server) mcpApprovePostTool(ctx context.Context, _ *mcp.CallToolRequest, in mcpApprovePostInput) (*mcp.CallToolResult, mcpApprovePostOutput, error) {

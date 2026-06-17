@@ -9,37 +9,38 @@ const (
 )
 
 const (
-	CapabilityHealthCheck           = "health.check"
-	CapabilityScheduleList          = "schedule.list"
-	CapabilityDraftsList            = "drafts.list"
-	CapabilityPostsCreate           = "posts.create"
-	CapabilityPostsSchedule         = "posts.schedule"
-	CapabilityPostsPreviewSchedule  = "posts.preview_schedule"
-	CapabilityPostsEdit             = "posts.edit"
-	CapabilityPostsDelete           = "posts.delete"
-	CapabilityPostsCancel           = "posts.cancel"
-	CapabilityPostsValidate         = "posts.validate"
-	CapabilityAccountsList          = "accounts.list"
-	CapabilityAccountsCreateStatic  = "accounts.create_static"
-	CapabilityAccountsConnect       = "accounts.connect"
-	CapabilityAccountsDisconnect    = "accounts.disconnect"
-	CapabilityAccountsDelete        = "accounts.delete"
-	CapabilityAccountsSetXPremium   = "accounts.set_x_premium"
-	CapabilityFailedList            = "failed.list"
-	CapabilityDLQRequeue            = "dlq.requeue"
-	CapabilityDLQDelete             = "dlq.delete"
-	CapabilityMediaUpload           = "media.upload"
-	CapabilityMediaList             = "media.list"
-	CapabilityMediaDelete           = "media.delete"
-	CapabilitySettingsTimezone      = "settings.timezone"
-	CapabilityCampaignsCreate       = "campaigns.create"
-	CapabilityCampaignsList         = "campaigns.list"
-	CapabilityCampaignsUpdate       = "campaigns.update"
-	CapabilityCampaignsArchive      = "campaigns.archive"
-	CapabilityCampaignsPostsAdd     = "campaigns.posts.add"
-	CapabilityCampaignsDraftsCreate = "campaigns.drafts.create"
-	CapabilityCampaignsBacklog      = "campaigns.backlog"
-	CapabilityPostsApprove          = "posts.approve"
+	CapabilityHealthCheck               = "health.check"
+	CapabilityScheduleList              = "schedule.list"
+	CapabilityDraftsList                = "drafts.list"
+	CapabilityPostsCreate               = "posts.create"
+	CapabilityPostsSchedule             = "posts.schedule"
+	CapabilityPostsPreviewSchedule      = "posts.preview_schedule"
+	CapabilityPostsEdit                 = "posts.edit"
+	CapabilityPostsDelete               = "posts.delete"
+	CapabilityPostsCancel               = "posts.cancel"
+	CapabilityPostsValidate             = "posts.validate"
+	CapabilityAccountsList              = "accounts.list"
+	CapabilityAccountsCreateStatic      = "accounts.create_static"
+	CapabilityAccountsConnect           = "accounts.connect"
+	CapabilityAccountsDisconnect        = "accounts.disconnect"
+	CapabilityAccountsDelete            = "accounts.delete"
+	CapabilityAccountsSetXPremium       = "accounts.set_x_premium"
+	CapabilityFailedList                = "failed.list"
+	CapabilityDLQRequeue                = "dlq.requeue"
+	CapabilityDLQDelete                 = "dlq.delete"
+	CapabilityMediaUpload               = "media.upload"
+	CapabilityMediaList                 = "media.list"
+	CapabilityMediaDelete               = "media.delete"
+	CapabilitySettingsTimezone          = "settings.timezone"
+	CapabilityCampaignsCreate           = "campaigns.create"
+	CapabilityCampaignsList             = "campaigns.list"
+	CapabilityCampaignsUpdate           = "campaigns.update"
+	CapabilityCampaignsArchive          = "campaigns.archive"
+	CapabilityCampaignsPostsAdd         = "campaigns.posts.add"
+	CapabilityCampaignsDraftsCreate     = "campaigns.drafts.create"
+	CapabilityCampaignsCalendarGenerate = "campaigns.calendar.generate"
+	CapabilityCampaignsBacklog          = "campaigns.backlog"
+	CapabilityPostsApprove              = "posts.approve"
 )
 
 type Capability struct {
@@ -78,6 +79,7 @@ func RequiredParityCapabilities() []Capability {
 		{ID: CapabilityCampaignsArchive, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityCampaignsPostsAdd, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityCampaignsDraftsCreate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityCampaignsCalendarGenerate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityCampaignsBacklog, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsApprove, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 	}

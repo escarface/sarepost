@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	generationapp "github.com/escarface/sarepost/internal/application/generation"
 	"github.com/escarface/sarepost/internal/db"
@@ -199,6 +200,68 @@ func TestDraftServiceUsesCampaignDefaultBrandProfile(t *testing.T) {
 	}
 	if generator.prompts[0].BrandProfileID != "brand_campaign" {
 		t.Fatalf("expected campaign default brand profile, got %q", generator.prompts[0].BrandProfileID)
+	}
+}
+
+func TestDraftServiceCreatesWeeklyCalendarDrafts(t *testing.T) {
+	store := &draftStore{
+		campaigns: map[string]domain.Campaign{
+			"cmp_1": {
+				ID:             "cmp_1",
+				Name:           "Weekly campaign",
+				Status:         domain.CampaignStatusActive,
+				BrandProfileID: "brand_campaign",
+				Tags:           []string{"weekly"},
+			},
+		},
+		accounts: map[string]domain.SocialAccount{
+			"acc_x": {ID: "acc_x", Platform: domain.PlatformX, Status: domain.AccountStatusConnected},
+		},
+	}
+	generator := &draftGenerator{}
+	svc := DraftService{
+		Store:     store,
+		Generator: generator,
+		Registry: draftProviderRegistry{providers: map[domain.Platform]postflow.Provider{
+			domain.PlatformX: draftProvider{platform: domain.PlatformX},
+		}},
+	}
+	from := time.Date(2026, 7, 6, 9, 0, 0, 0, time.FixedZone("CEST", 2*60*60))
+
+	out, err := svc.CreateCalendarDrafts(t.Context(), CreateCalendarDraftsInput{
+		CampaignID:        "cmp_1",
+		AccountIDs:        []string{"acc_x"},
+		From:              from,
+		Days:              2,
+		Slots:             []string{"09:00", "17:00"},
+		Idea:              "educate the market",
+		IdempotencyPrefix: "week-1",
+	})
+	if err != nil {
+		t.Fatalf("create calendar drafts: %v", err)
+	}
+	if out.CreatedCount != 4 || len(out.Items) != 4 || len(generator.prompts) != 4 {
+		t.Fatalf("expected four planned drafts, got created=%d items=%d prompts=%d", out.CreatedCount, len(out.Items), len(generator.prompts))
+	}
+	if got := out.Items[0].PlannedAt.Format(time.RFC3339); got != "2026-07-06T09:00:00+02:00" {
+		t.Fatalf("unexpected first planned time: %s", got)
+	}
+	if got := out.Items[3].PlannedAt.Format(time.RFC3339); got != "2026-07-07T17:00:00+02:00" {
+		t.Fatalf("unexpected last planned time: %s", got)
+	}
+	if generator.prompts[0].BrandProfileID != "brand_campaign" {
+		t.Fatalf("expected campaign default brand profile, got %q", generator.prompts[0].BrandProfileID)
+	}
+	if !strings.Contains(generator.prompts[0].Prompt, "Planned local time: 2026-07-06 09:00") {
+		t.Fatalf("prompt missing planned time: %s", generator.prompts[0].Prompt)
+	}
+	for _, call := range store.createCalls {
+		if !call.Post.ScheduledAt.IsZero() || call.Post.Status != domain.PostStatusDraft {
+			t.Fatalf("calendar generation must create unscheduled drafts, got status=%s scheduled=%s", call.Post.Status, call.Post.ScheduledAt)
+		}
+		if call.EditorialStatus != domain.EditorialStatusNeedsReview || !call.RequiresApproval {
+			t.Fatalf("expected review-gated draft, got status=%s requires=%v", call.EditorialStatus, call.RequiresApproval)
+		}
 	}
 }
 
