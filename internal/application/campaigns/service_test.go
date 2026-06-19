@@ -28,6 +28,9 @@ func TestServiceCreatesListsUpdatesAndArchivesCampaign(t *testing.T) {
 		CTA:            "Book a call",
 		Restrictions:   "No discounts language",
 		BrandProfileID: "brand_sare",
+		VisualStyle:    "technical-minimal",
+		ImagePrompt:    "Warm white background, technical process map",
+		ImageSize:      "1024x1024",
 	})
 	if err != nil {
 		t.Fatalf("create campaign: %v", err)
@@ -65,6 +68,9 @@ func TestServiceCreatesListsUpdatesAndArchivesCampaign(t *testing.T) {
 	}
 	if updated.BrandProfileID != "brand_sare" {
 		t.Fatalf("expected update to preserve brand profile id, got %q", updated.BrandProfileID)
+	}
+	if updated.VisualStyle != "technical-minimal" || updated.ImagePrompt != "Warm white background, technical process map" || updated.ImageSize != "1024x1024" {
+		t.Fatalf("expected visual config preserved, got %#v", updated)
 	}
 
 	archived, err := svc.Archive(t.Context(), created.ID)

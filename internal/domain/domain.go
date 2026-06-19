@@ -99,6 +99,9 @@ type Campaign struct {
 	CTA            string         `json:"cta,omitempty"`
 	Restrictions   string         `json:"restrictions,omitempty"`
 	BrandProfileID string         `json:"brand_profile_id,omitempty"`
+	VisualStyle    string         `json:"visual_style,omitempty"`
+	ImagePrompt    string         `json:"image_prompt,omitempty"`
+	ImageSize      string         `json:"image_size,omitempty"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 }

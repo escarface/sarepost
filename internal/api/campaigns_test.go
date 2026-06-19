@@ -31,6 +31,9 @@ func TestCreateCampaignResolvesBrandProfileName(t *testing.T) {
 	payload, _ := json.Marshal(map[string]any{
 		"name":          "Q3 launch",
 		"brand_profile": "sare digital",
+		"visual_style":  "technical-minimal",
+		"image_prompt":  "Warm white background, process blueprint",
+		"image_size":    "1024x1024",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/campaigns", bytes.NewReader(payload))
 	req.Header.Set("content-type", "application/json")
@@ -42,12 +45,18 @@ func TestCreateCampaignResolvesBrandProfileName(t *testing.T) {
 	var out struct {
 		ID             string `json:"id"`
 		BrandProfileID string `json:"brand_profile_id"`
+		VisualStyle    string `json:"visual_style"`
+		ImagePrompt    string `json:"image_prompt"`
+		ImageSize      string `json:"image_size"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 		t.Fatalf("decode campaign: %v", err)
 	}
 	if out.BrandProfileID != profile.ID {
 		t.Fatalf("expected brand profile id %q, got %q", profile.ID, out.BrandProfileID)
+	}
+	if out.VisualStyle != "technical-minimal" || out.ImagePrompt != "Warm white background, process blueprint" || out.ImageSize != "1024x1024" {
+		t.Fatalf("expected visual campaign fields to roundtrip, got %#v", out)
 	}
 }
 

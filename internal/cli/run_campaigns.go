@@ -395,6 +395,9 @@ type campaignFlags struct {
 	restrictions     *string
 	brandProfileID   *string
 	brandProfileName *string
+	visualStyle      *string
+	imagePrompt      *string
+	imageSize        *string
 }
 
 func campaignFlagSet(name string, stderr io.Writer) (*flag.FlagSet, campaignFlags) {
@@ -414,6 +417,9 @@ func campaignFlagSet(name string, stderr io.Writer) (*flag.FlagSet, campaignFlag
 		restrictions:     fs.String("restrictions", "", "Restrictions"),
 		brandProfileID:   fs.String("brand-profile-id", "", "Brand profile ID"),
 		brandProfileName: fs.String("brand-profile", "", "Brand profile name"),
+		visualStyle:      fs.String("visual-style", "", "Campaign visual style label"),
+		imagePrompt:      fs.String("image-prompt", "", "Default campaign image prompt"),
+		imageSize:        fs.String("image-size", "", "Default campaign image size"),
 	}
 	return fs, flags
 }
@@ -433,6 +439,9 @@ func (f campaignFlags) payload() map[string]any {
 		"restrictions":     strings.TrimSpace(*f.restrictions),
 		"brand_profile_id": strings.TrimSpace(*f.brandProfileID),
 		"brand_profile":    strings.TrimSpace(*f.brandProfileName),
+		"visual_style":     strings.TrimSpace(*f.visualStyle),
+		"image_prompt":     strings.TrimSpace(*f.imagePrompt),
+		"image_size":       strings.TrimSpace(*f.imageSize),
 	}
 }
 

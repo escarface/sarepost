@@ -252,6 +252,9 @@ func TestDraftServiceCreatesWeeklyCalendarDrafts(t *testing.T) {
 				Name:           "Weekly campaign",
 				Status:         domain.CampaignStatusActive,
 				BrandProfileID: "brand_campaign",
+				VisualStyle:    "technical-minimal",
+				ImagePrompt:    "Stored campaign visual prompt",
+				ImageSize:      "1080x1350",
 				Tags:           []string{"weekly"},
 			},
 		},
@@ -314,6 +317,9 @@ func TestDraftServiceCreatesCalendarDraftsWithGeneratedImages(t *testing.T) {
 				Name:           "Weekly campaign",
 				Status:         domain.CampaignStatusActive,
 				BrandProfileID: "brand_campaign",
+				VisualStyle:    "technical-minimal",
+				ImagePrompt:    "Stored campaign visual prompt",
+				ImageSize:      "1080x1350",
 				Tags:           []string{"weekly"},
 			},
 		},
@@ -354,10 +360,10 @@ func TestDraftServiceCreatesCalendarDraftsWithGeneratedImages(t *testing.T) {
 	if generator.images[0].BrandProfileID != "brand_campaign" {
 		t.Fatalf("expected campaign brand profile for image generation, got %q", generator.images[0].BrandProfileID)
 	}
-	if generator.images[0].Size != "1024x1024" {
-		t.Fatalf("expected instagram square image size, got %q", generator.images[0].Size)
+	if generator.images[0].Size != "1080x1350" {
+		t.Fatalf("expected campaign image size override, got %q", generator.images[0].Size)
 	}
-	if !strings.Contains(generator.images[0].Prompt, "Instagram") {
+	if !strings.Contains(generator.images[0].Prompt, "Instagram") || !strings.Contains(generator.images[0].Prompt, "Stored campaign visual prompt") || !strings.Contains(generator.images[0].Prompt, "technical-minimal") {
 		t.Fatalf("expected platform-specific image prompt, got %q", generator.images[0].Prompt)
 	}
 	if len(store.createCalls) != 1 || len(store.createCalls[0].MediaIDs) != 1 {

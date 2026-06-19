@@ -70,6 +70,11 @@ var dbMigrations = []migration{
 		Name:    "campaigns_brand_profile",
 		Up:      migrationAddCampaignsBrandProfile,
 	},
+	{
+		Version: 11,
+		Name:    "campaigns_visual_fields",
+		Up:      migrationAddCampaignsVisualFields,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -480,6 +485,9 @@ func migrationAddCampaignsEditorial(ctx context.Context, tx *sql.Tx) error {
 			cta TEXT NOT NULL DEFAULT '',
 			restrictions TEXT NOT NULL DEFAULT '',
 			brand_profile_id TEXT NOT NULL DEFAULT '',
+			visual_style TEXT NOT NULL DEFAULT '',
+			image_prompt TEXT NOT NULL DEFAULT '',
+			image_size TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		);`,
@@ -525,6 +533,23 @@ func migrationAddCampaignsBrandProfile(ctx context.Context, tx *sql.Tx) error {
 			return nil
 		}
 		return err
+	}
+	return nil
+}
+
+func migrationAddCampaignsVisualFields(ctx context.Context, tx *sql.Tx) error {
+	queries := []string{
+		`ALTER TABLE campaigns ADD COLUMN visual_style TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE campaigns ADD COLUMN image_prompt TEXT NOT NULL DEFAULT '';`,
+		`ALTER TABLE campaigns ADD COLUMN image_size TEXT NOT NULL DEFAULT '';`,
+	}
+	for _, query := range queries {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+				continue
+			}
+			return err
+		}
 	}
 	return nil
 }

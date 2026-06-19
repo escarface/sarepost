@@ -301,7 +301,7 @@ postflow posts schedule --id pst_xxx --scheduled-at 2026-03-01T10:00:00Z
 postflow posts approve --id pst_xxx
 
 # Campaigns and backlog
-postflow campaigns create --name "Q3 launch" --objective "Drive qualified demand" --audience "SaaS founders" --tone "direct" --brand-profile "Sare Digital" --cta "Book a demo" --tags launch,q3
+postflow campaigns create --name "Q3 launch" --objective "Drive qualified demand" --audience "SaaS founders" --tone "direct" --brand-profile "Sare Digital" --visual-style "technical-minimal" --image-prompt "Warm white process blueprint, restrained golden nodes, readable Spanish headline" --image-size 1080x1350 --cta "Book a demo" --tags launch,q3
 postflow campaigns list --status active
 postflow campaigns update --id cmp_xxx --status paused --name "Q3 launch revised"
 postflow campaigns archive --id cmp_xxx

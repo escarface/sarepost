@@ -42,6 +42,9 @@ type CreateInput struct {
 	CTA            string
 	Restrictions   string
 	BrandProfileID string
+	VisualStyle    string
+	ImagePrompt    string
+	ImageSize      string
 }
 
 type UpdateInput struct {
@@ -59,6 +62,9 @@ type UpdateInput struct {
 	CTA            string
 	Restrictions   string
 	BrandProfileID string
+	VisualStyle    string
+	ImagePrompt    string
+	ImageSize      string
 }
 
 type ListFilter = domain.CampaignListFilter
@@ -78,6 +84,9 @@ func (s Service) Create(ctx context.Context, in CreateInput) (domain.Campaign, e
 		CTA:            strings.TrimSpace(in.CTA),
 		Restrictions:   strings.TrimSpace(in.Restrictions),
 		BrandProfileID: strings.TrimSpace(in.BrandProfileID),
+		VisualStyle:    strings.TrimSpace(in.VisualStyle),
+		ImagePrompt:    strings.TrimSpace(in.ImagePrompt),
+		ImageSize:      strings.TrimSpace(in.ImageSize),
 	}
 	if campaign.Name == "" {
 		return domain.Campaign{}, ErrNameRequired
@@ -133,6 +142,15 @@ func (s Service) Update(ctx context.Context, in UpdateInput) (domain.Campaign, e
 	current.Restrictions = strings.TrimSpace(in.Restrictions)
 	if strings.TrimSpace(in.BrandProfileID) != "" {
 		current.BrandProfileID = strings.TrimSpace(in.BrandProfileID)
+	}
+	if strings.TrimSpace(in.VisualStyle) != "" {
+		current.VisualStyle = strings.TrimSpace(in.VisualStyle)
+	}
+	if strings.TrimSpace(in.ImagePrompt) != "" {
+		current.ImagePrompt = strings.TrimSpace(in.ImagePrompt)
+	}
+	if strings.TrimSpace(in.ImageSize) != "" {
+		current.ImageSize = strings.TrimSpace(in.ImageSize)
 	}
 	if current.Name == "" {
 		return domain.Campaign{}, ErrNameRequired

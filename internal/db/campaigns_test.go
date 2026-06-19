@@ -30,12 +30,18 @@ func TestCampaignPersistenceAndBacklog(t *testing.T) {
 		CTA:            "Start trial",
 		Restrictions:   "Avoid hype",
 		BrandProfileID: "brand_sare",
+		VisualStyle:    "technical-minimal",
+		ImagePrompt:    "Warm white process blueprint",
+		ImageSize:      "1024x1024",
 	})
 	if err != nil {
 		t.Fatalf("create campaign: %v", err)
 	}
 	if campaign.BrandProfileID != "brand_sare" {
 		t.Fatalf("expected brand profile id to persist, got %q", campaign.BrandProfileID)
+	}
+	if campaign.VisualStyle != "technical-minimal" || campaign.ImagePrompt != "Warm white process blueprint" || campaign.ImageSize != "1024x1024" {
+		t.Fatalf("expected visual campaign fields to persist, got %#v", campaign)
 	}
 
 	postResult, err := store.CreatePost(t.Context(), CreatePostParams{

@@ -141,6 +141,14 @@ func (s DraftService) CreateDrafts(ctx context.Context, in CreateDraftsInput) (C
 	if brandProfileID == "" {
 		brandProfileID = strings.TrimSpace(campaign.BrandProfileID)
 	}
+	imagePrompt := strings.TrimSpace(in.ImagePrompt)
+	if imagePrompt == "" {
+		imagePrompt = strings.TrimSpace(campaign.ImagePrompt)
+	}
+	imageSize := strings.TrimSpace(in.ImageSize)
+	if imageSize == "" {
+		imageSize = strings.TrimSpace(campaign.ImageSize)
+	}
 	createSvc := postsapp.CreateService{
 		Store:             s.Store,
 		Registry:          s.Registry,
@@ -167,7 +175,7 @@ func (s DraftService) CreateDrafts(ctx context.Context, in CreateDraftsInput) (C
 			if idempotencyKey != "" {
 				idempotencyKey = fmt.Sprintf("%s:%s:%d", idempotencyKey, account.ID, variant)
 			}
-			mediaIDs, err := s.generateDraftMedia(ctx, campaign, account.Platform, generated.Text, brandProfileID, in.GenerateImages, in.ImagePrompt, in.ImageSize, tags)
+			mediaIDs, err := s.generateDraftMedia(ctx, campaign, account.Platform, generated.Text, brandProfileID, in.GenerateImages, imagePrompt, imageSize, tags)
 			if err != nil {
 				return CreateDraftsOutput{}, err
 			}
@@ -235,6 +243,14 @@ func (s DraftService) CreateCalendarDrafts(ctx context.Context, in CreateCalenda
 	if brandProfileID == "" {
 		brandProfileID = strings.TrimSpace(campaign.BrandProfileID)
 	}
+	imagePrompt := strings.TrimSpace(in.ImagePrompt)
+	if imagePrompt == "" {
+		imagePrompt = strings.TrimSpace(campaign.ImagePrompt)
+	}
+	imageSize := strings.TrimSpace(in.ImageSize)
+	if imageSize == "" {
+		imageSize = strings.TrimSpace(campaign.ImageSize)
+	}
 	createSvc := postsapp.CreateService{
 		Store:             s.Store,
 		Registry:          s.Registry,
@@ -261,7 +277,7 @@ func (s DraftService) CreateCalendarDrafts(ctx context.Context, in CreateCalenda
 			if idempotencyKey != "" {
 				idempotencyKey = fmt.Sprintf("%s:%s:%s", idempotencyKey, account.ID, plannedAt.Format("20060102T1504"))
 			}
-			mediaIDs, err := s.generateDraftMedia(ctx, campaign, account.Platform, generated.Text, brandProfileID, in.GenerateImages, in.ImagePrompt, in.ImageSize, tags)
+			mediaIDs, err := s.generateDraftMedia(ctx, campaign, account.Platform, generated.Text, brandProfileID, in.GenerateImages, imagePrompt, imageSize, tags)
 			if err != nil {
 				return CreateCalendarDraftsOutput{}, err
 			}
@@ -376,6 +392,10 @@ func buildCampaignImagePrompt(campaign domain.Campaign, platform domain.Platform
 		b.WriteString(custom)
 	} else {
 		b.WriteString("Create a related social campaign image.")
+	}
+	if visualStyle := strings.TrimSpace(campaign.VisualStyle); visualStyle != "" {
+		b.WriteString("\nVisual style: ")
+		b.WriteString(visualStyle)
 	}
 	b.WriteString("\nCampaign: ")
 	b.WriteString(strings.TrimSpace(campaign.Name))

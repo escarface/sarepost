@@ -29,6 +29,9 @@ type campaignRequest struct {
 	Restrictions     string   `json:"restrictions"`
 	BrandProfileID   string   `json:"brand_profile_id"`
 	BrandProfileName string   `json:"brand_profile"`
+	VisualStyle      string   `json:"visual_style"`
+	ImagePrompt      string   `json:"image_prompt"`
+	ImageSize        string   `json:"image_size"`
 }
 
 func (s Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
@@ -82,6 +85,9 @@ func (s Server) handleCreateCampaign(w http.ResponseWriter, r *http.Request) {
 		CTA:            req.CTA,
 		Restrictions:   req.Restrictions,
 		BrandProfileID: brandProfileID,
+		VisualStyle:    req.VisualStyle,
+		ImagePrompt:    req.ImagePrompt,
+		ImageSize:      req.ImageSize,
 	})
 	if err != nil {
 		if fromForm {
@@ -171,6 +177,9 @@ func (s Server) handleUpdateCampaign(w http.ResponseWriter, r *http.Request, id 
 		CTA:            req.CTA,
 		Restrictions:   req.Restrictions,
 		BrandProfileID: brandProfileID,
+		VisualStyle:    req.VisualStyle,
+		ImagePrompt:    req.ImagePrompt,
+		ImageSize:      req.ImageSize,
 	})
 	if err != nil {
 		writeCampaignError(w, err)
@@ -434,6 +443,9 @@ func parseCampaignRequest(r *http.Request) (campaignRequest, bool, error) {
 		Restrictions:     strings.TrimSpace(r.FormValue("restrictions")),
 		BrandProfileID:   strings.TrimSpace(r.FormValue("brand_profile_id")),
 		BrandProfileName: strings.TrimSpace(r.FormValue("brand_profile")),
+		VisualStyle:      strings.TrimSpace(r.FormValue("visual_style")),
+		ImagePrompt:      strings.TrimSpace(r.FormValue("image_prompt")),
+		ImageSize:        strings.TrimSpace(r.FormValue("image_size")),
 	}, true, nil
 }
 

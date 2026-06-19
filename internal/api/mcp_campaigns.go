@@ -26,6 +26,9 @@ type mcpCampaignInput struct {
 	Restrictions     string   `json:"restrictions,omitempty"`
 	BrandProfileID   string   `json:"brand_profile_id,omitempty"`
 	BrandProfileName string   `json:"brand_profile,omitempty"`
+	VisualStyle      string   `json:"visual_style,omitempty"`
+	ImagePrompt      string   `json:"image_prompt,omitempty"`
+	ImageSize        string   `json:"image_size,omitempty"`
 }
 
 type mcpCampaignMutationInput struct {
@@ -163,6 +166,9 @@ func (s Server) mcpCreateCampaignTool(ctx context.Context, _ *mcp.CallToolReques
 		CTA:            in.CTA,
 		Restrictions:   in.Restrictions,
 		BrandProfileID: brandProfileID,
+		VisualStyle:    in.VisualStyle,
+		ImagePrompt:    in.ImagePrompt,
+		ImageSize:      in.ImageSize,
 	})
 	if err != nil {
 		return nil, mcpCampaignOutput{}, err
@@ -210,6 +216,9 @@ func (s Server) mcpUpdateCampaignTool(ctx context.Context, _ *mcp.CallToolReques
 		CTA:            in.CTA,
 		Restrictions:   in.Restrictions,
 		BrandProfileID: brandProfileID,
+		VisualStyle:    in.VisualStyle,
+		ImagePrompt:    in.ImagePrompt,
+		ImageSize:      in.ImageSize,
 	})
 	if err != nil {
 		return nil, mcpCampaignOutput{}, err
