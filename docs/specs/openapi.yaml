@@ -624,6 +624,15 @@ paths:
                 brand_profile:
                   type: string
                   description: Optional brand profile name. Ignored when brand_profile_id is provided.
+                generate_images:
+                  type: boolean
+                  description: When true, generate and attach a related campaign image for each draft.
+                image_prompt:
+                  type: string
+                  description: Optional visual prompt override for generated campaign images.
+                image_size:
+                  type: string
+                  description: Optional image size override, for example 1024x1024.
                 editorial_status:
                   $ref: '#/components/schemas/EditorialStatus'
                 requires_approval:
@@ -700,6 +709,15 @@ paths:
                   type: string
                 brand_profile:
                   type: string
+                generate_images:
+                  type: boolean
+                  description: When true, generate and attach a related campaign image for each draft.
+                image_prompt:
+                  type: string
+                  description: Optional visual prompt override for generated campaign images.
+                image_size:
+                  type: string
+                  description: Optional image size override, for example 1024x1024.
                 editorial_status:
                   $ref: '#/components/schemas/EditorialStatus'
                 requires_approval:

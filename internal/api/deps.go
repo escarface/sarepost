@@ -60,6 +60,17 @@ func (s Server) generationService() generationapp.Service {
 	}
 }
 
+func (s Server) PersistGeneratedMedia(ctx context.Context, data []byte, mimeType string, tags []string) (domain.Media, error) {
+	media, err := s.persistGeneratedImage(ctx, data, mimeType)
+	if err != nil {
+		return domain.Media{}, err
+	}
+	if len(tags) > 0 {
+		media.Tags = append([]string(nil), tags...)
+	}
+	return media, nil
+}
+
 // storeMediaReader adapts the media store + disk to generationapp.MediaReader.
 type storeMediaReader struct {
 	store *db.Store

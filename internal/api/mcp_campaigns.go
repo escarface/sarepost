@@ -65,6 +65,9 @@ type mcpCreateCampaignDraftsInput struct {
 	VariantsPerPost   int      `json:"variants_per_post,omitempty"`
 	BrandProfileID    string   `json:"brand_profile_id,omitempty"`
 	BrandProfileName  string   `json:"brand_profile,omitempty"`
+	GenerateImages    bool     `json:"generate_images,omitempty"`
+	ImagePrompt       string   `json:"image_prompt,omitempty"`
+	ImageSize         string   `json:"image_size,omitempty"`
 	EditorialStatus   string   `json:"editorial_status,omitempty"`
 	RequiresApproval  *bool    `json:"requires_approval,omitempty"`
 	Tags              []string `json:"tags,omitempty"`
@@ -82,6 +85,9 @@ type mcpGenerateCampaignCalendarInput struct {
 	Slots             []string `json:"slots,omitempty"`
 	BrandProfileID    string   `json:"brand_profile_id,omitempty"`
 	BrandProfileName  string   `json:"brand_profile,omitempty"`
+	GenerateImages    bool     `json:"generate_images,omitempty"`
+	ImagePrompt       string   `json:"image_prompt,omitempty"`
+	ImageSize         string   `json:"image_size,omitempty"`
 	EditorialStatus   string   `json:"editorial_status,omitempty"`
 	RequiresApproval  *bool    `json:"requires_approval,omitempty"`
 	Tags              []string `json:"tags,omitempty"`
@@ -273,6 +279,8 @@ func (s Server) mcpCreateCampaignDraftsTool(ctx context.Context, _ *mcp.CallTool
 	out, err := campaignsapp.DraftService{
 		Store:             s.Store,
 		Generator:         s.generationService(),
+		ImageGenerator:    s.generationService(),
+		MediaStore:        s,
 		Registry:          s.providerRegistry(),
 		DefaultMaxRetries: s.DefaultMaxRetries,
 	}.CreateDrafts(ctx, campaignsapp.CreateDraftsInput{
@@ -281,6 +289,9 @@ func (s Server) mcpCreateCampaignDraftsTool(ctx context.Context, _ *mcp.CallTool
 		Idea:              in.Idea,
 		VariantsPerPost:   in.VariantsPerPost,
 		BrandProfileID:    brandProfileID,
+		GenerateImages:    in.GenerateImages,
+		ImagePrompt:       in.ImagePrompt,
+		ImageSize:         in.ImageSize,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(in.EditorialStatus)),
 		RequiresApproval:  in.RequiresApproval,
 		Tags:              in.Tags,
@@ -312,6 +323,8 @@ func (s Server) mcpGenerateCampaignCalendarTool(ctx context.Context, _ *mcp.Call
 	out, err := campaignsapp.DraftService{
 		Store:             s.Store,
 		Generator:         s.generationService(),
+		ImageGenerator:    s.generationService(),
+		MediaStore:        s,
 		Registry:          s.providerRegistry(),
 		DefaultMaxRetries: s.DefaultMaxRetries,
 	}.CreateCalendarDrafts(ctx, campaignsapp.CreateCalendarDraftsInput{
@@ -323,6 +336,9 @@ func (s Server) mcpGenerateCampaignCalendarTool(ctx context.Context, _ *mcp.Call
 		PostsPerDay:       in.PostsPerDay,
 		Slots:             in.Slots,
 		BrandProfileID:    brandProfileID,
+		GenerateImages:    in.GenerateImages,
+		ImagePrompt:       in.ImagePrompt,
+		ImageSize:         in.ImageSize,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(in.EditorialStatus)),
 		RequiresApproval:  in.RequiresApproval,
 		Tags:              in.Tags,

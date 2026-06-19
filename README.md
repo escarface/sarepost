@@ -308,7 +308,9 @@ postflow campaigns archive --id cmp_xxx
 postflow campaigns add-post --campaign-id cmp_xxx --post-id pst_xxx --editorial-status needs_review --requires-approval
 postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --idea "Turn the launch proof point into a founder-facing LinkedIn post" --variants-per-post 3
 postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --brand-profile "Sare Digital" --idea "Override the campaign default brand for this batch"
+postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --brand-profile "Sare Digital" --generate-images --image-prompt "Minimal technical visual with process map, warm white background, charcoal lines, restrained golden nodes" --idea "Create an Instagram-ready campaign draft with matching creative"
 postflow campaigns generate-calendar --id cmp_xxx --account-id acc_xxx --from 2026-07-06T09:00:00+02:00 --days 7 --slots 09:00,17:00 --idea "One week of launch education posts"
+postflow campaigns generate-calendar --id cmp_xxx --account-id acc_xxx --from 2026-07-06T09:00:00+02:00 --days 7 --slots 09:00,17:00 --generate-images --image-prompt "Premium Sare Digital visual system, readable Spanish headline, process blueprint layout" --idea "One week of launch education posts with attached creatives"
 postflow campaigns backlog --campaign-id cmp_xxx --editorial-status needs_review
 
 # Edit

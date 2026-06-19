@@ -232,6 +232,9 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 		VariantsPerPost   int      `json:"variants_per_post"`
 		BrandProfileID    string   `json:"brand_profile_id"`
 		BrandProfileName  string   `json:"brand_profile"`
+		GenerateImages    bool     `json:"generate_images"`
+		ImagePrompt       string   `json:"image_prompt"`
+		ImageSize         string   `json:"image_size"`
 		EditorialStatus   string   `json:"editorial_status"`
 		RequiresApproval  *bool    `json:"requires_approval"`
 		Tags              []string `json:"tags"`
@@ -253,6 +256,8 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 	out, err := campaignsapp.DraftService{
 		Store:             s.Store,
 		Generator:         s.generationService(),
+		ImageGenerator:    s.generationService(),
+		MediaStore:        s,
 		Registry:          s.providerRegistry(),
 		DefaultMaxRetries: s.DefaultMaxRetries,
 	}.CreateDrafts(r.Context(), campaignsapp.CreateDraftsInput{
@@ -261,6 +266,9 @@ func (s Server) handleCreateCampaignDrafts(w http.ResponseWriter, r *http.Reques
 		Idea:              req.Idea,
 		VariantsPerPost:   req.VariantsPerPost,
 		BrandProfileID:    brandProfileID,
+		GenerateImages:    req.GenerateImages,
+		ImagePrompt:       req.ImagePrompt,
+		ImageSize:         req.ImageSize,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(req.EditorialStatus)),
 		RequiresApproval:  req.RequiresApproval,
 		Tags:              req.Tags,
@@ -284,6 +292,9 @@ func (s Server) handleCreateCampaignCalendarDrafts(w http.ResponseWriter, r *htt
 		Slots             []string `json:"slots"`
 		BrandProfileID    string   `json:"brand_profile_id"`
 		BrandProfileName  string   `json:"brand_profile"`
+		GenerateImages    bool     `json:"generate_images"`
+		ImagePrompt       string   `json:"image_prompt"`
+		ImageSize         string   `json:"image_size"`
 		EditorialStatus   string   `json:"editorial_status"`
 		RequiresApproval  *bool    `json:"requires_approval"`
 		Tags              []string `json:"tags"`
@@ -310,6 +321,8 @@ func (s Server) handleCreateCampaignCalendarDrafts(w http.ResponseWriter, r *htt
 	out, err := campaignsapp.DraftService{
 		Store:             s.Store,
 		Generator:         s.generationService(),
+		ImageGenerator:    s.generationService(),
+		MediaStore:        s,
 		Registry:          s.providerRegistry(),
 		DefaultMaxRetries: s.DefaultMaxRetries,
 	}.CreateCalendarDrafts(r.Context(), campaignsapp.CreateCalendarDraftsInput{
@@ -321,6 +334,9 @@ func (s Server) handleCreateCampaignCalendarDrafts(w http.ResponseWriter, r *htt
 		PostsPerDay:       req.PostsPerDay,
 		Slots:             req.Slots,
 		BrandProfileID:    brandProfileID,
+		GenerateImages:    req.GenerateImages,
+		ImagePrompt:       req.ImagePrompt,
+		ImageSize:         req.ImageSize,
 		EditorialStatus:   domain.EditorialStatus(strings.TrimSpace(req.EditorialStatus)),
 		RequiresApproval:  req.RequiresApproval,
 		Tags:              req.Tags,

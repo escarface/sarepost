@@ -29,9 +29,19 @@ type TextGenerator interface {
 	GenerateText(ctx context.Context, in generationapp.GenerateTextInput) (generationapp.GenerateTextOutput, error)
 }
 
+type ImageGenerator interface {
+	GenerateImage(ctx context.Context, in generationapp.GenerateImageInput) (generationapp.GenerateImageOutput, error)
+}
+
+type GeneratedMediaStore interface {
+	PersistGeneratedMedia(ctx context.Context, data []byte, mimeType string, tags []string) (domain.Media, error)
+}
+
 type DraftService struct {
 	Store             DraftStore
 	Generator         TextGenerator
+	ImageGenerator    ImageGenerator
+	MediaStore        GeneratedMediaStore
 	Registry          ports.ProviderRegistry
 	DefaultMaxRetries int
 }
@@ -42,6 +52,9 @@ type CreateDraftsInput struct {
 	Idea              string
 	VariantsPerPost   int
 	BrandProfileID    string
+	GenerateImages    bool
+	ImagePrompt       string
+	ImageSize         string
 	EditorialStatus   domain.EditorialStatus
 	RequiresApproval  *bool
 	Tags              []string
@@ -63,6 +76,9 @@ type CreateCalendarDraftsInput struct {
 	PostsPerDay       int
 	Slots             []string
 	BrandProfileID    string
+	GenerateImages    bool
+	ImagePrompt       string
+	ImageSize         string
 	EditorialStatus   domain.EditorialStatus
 	RequiresApproval  *bool
 	Tags              []string
@@ -151,9 +167,14 @@ func (s DraftService) CreateDrafts(ctx context.Context, in CreateDraftsInput) (C
 			if idempotencyKey != "" {
 				idempotencyKey = fmt.Sprintf("%s:%s:%d", idempotencyKey, account.ID, variant)
 			}
+			mediaIDs, err := s.generateDraftMedia(ctx, campaign, account.Platform, generated.Text, brandProfileID, in.GenerateImages, in.ImagePrompt, in.ImageSize, tags)
+			if err != nil {
+				return CreateDraftsOutput{}, err
+			}
 			created, err := createSvc.Create(ctx, postsapp.CreateInput{
 				AccountIDs:       []string{account.ID},
 				Text:             generated.Text,
+				MediaIDs:         mediaIDs,
 				CampaignID:       campaign.ID,
 				EditorialStatus:  editorialStatus,
 				RequiresApproval: requiresApproval,
@@ -240,9 +261,14 @@ func (s DraftService) CreateCalendarDrafts(ctx context.Context, in CreateCalenda
 			if idempotencyKey != "" {
 				idempotencyKey = fmt.Sprintf("%s:%s:%s", idempotencyKey, account.ID, plannedAt.Format("20060102T1504"))
 			}
+			mediaIDs, err := s.generateDraftMedia(ctx, campaign, account.Platform, generated.Text, brandProfileID, in.GenerateImages, in.ImagePrompt, in.ImageSize, tags)
+			if err != nil {
+				return CreateCalendarDraftsOutput{}, err
+			}
 			created, err := createSvc.Create(ctx, postsapp.CreateInput{
 				AccountIDs:       []string{account.ID},
 				Text:             generated.Text,
+				MediaIDs:         mediaIDs,
 				CampaignID:       campaign.ID,
 				EditorialStatus:  editorialStatus,
 				RequiresApproval: requiresApproval,
@@ -291,7 +317,7 @@ func buildCampaignDraftPrompt(campaign domain.Campaign, platform domain.Platform
 		b.WriteString(idea)
 	}
 	b.WriteString("\nPlatform: ")
-	b.WriteString(string(platform))
+	b.WriteString(displayPlatformName(platform))
 	if total > 1 {
 		b.WriteString(fmt.Sprintf("\nVariant: %d of %d. Make this variant meaningfully different from the others.", variant, total))
 	}
@@ -299,9 +325,87 @@ func buildCampaignDraftPrompt(campaign domain.Campaign, platform domain.Platform
 	return b.String()
 }
 
+func displayPlatformName(platform domain.Platform) string {
+	switch platform {
+	case domain.PlatformInstagram:
+		return "Instagram"
+	case domain.PlatformFacebook:
+		return "Facebook"
+	case domain.PlatformLinkedIn:
+		return "LinkedIn"
+	case domain.PlatformX:
+		return "X"
+	default:
+		return string(platform)
+	}
+}
+
 func buildCampaignCalendarPrompt(campaign domain.Campaign, platform domain.Platform, idea string, plannedAt time.Time, index, total int) string {
 	prompt := buildCampaignDraftPrompt(campaign, platform, idea, index, total)
 	return prompt + fmt.Sprintf("\nPlanned local time: %s\nUse this slot to vary the angle and cadence across the calendar.", plannedAt.Format("2006-01-02 15:04"))
+}
+
+func (s DraftService) generateDraftMedia(ctx context.Context, campaign domain.Campaign, platform domain.Platform, postText, brandProfileID string, generateImages bool, imagePrompt, imageSize string, tags []string) ([]string, error) {
+	if !generateImages {
+		return nil, nil
+	}
+	if s.ImageGenerator == nil {
+		return nil, ErrDraftGeneratorNotConfigured
+	}
+	if s.MediaStore == nil {
+		return nil, ErrDraftStoreNotConfigured
+	}
+	out, err := s.ImageGenerator.GenerateImage(ctx, generationapp.GenerateImageInput{
+		Prompt:         buildCampaignImagePrompt(campaign, platform, postText, imagePrompt),
+		BrandProfileID: brandProfileID,
+		Size:           defaultCampaignImageSize(platform, imageSize),
+	})
+	if err != nil {
+		return nil, err
+	}
+	media, err := s.MediaStore.PersistGeneratedMedia(ctx, out.Data, out.MimeType, tags)
+	if err != nil {
+		return nil, err
+	}
+	return []string{media.ID}, nil
+}
+
+func buildCampaignImagePrompt(campaign domain.Campaign, platform domain.Platform, postText, imagePrompt string) string {
+	var b strings.Builder
+	if custom := strings.TrimSpace(imagePrompt); custom != "" {
+		b.WriteString(custom)
+	} else {
+		b.WriteString("Create a related social campaign image.")
+	}
+	b.WriteString("\nCampaign: ")
+	b.WriteString(strings.TrimSpace(campaign.Name))
+	if objective := strings.TrimSpace(campaign.Objective); objective != "" {
+		b.WriteString("\nObjective: ")
+		b.WriteString(objective)
+	}
+	b.WriteString("\nPlatform: ")
+	b.WriteString(displayPlatformName(platform))
+	b.WriteString("\nUse the post copy as context for the visual angle:")
+	b.WriteString("\n")
+	b.WriteString(strings.TrimSpace(postText))
+	b.WriteString("\nKeep the image legible, brand-consistent, and directly related to the copy.")
+	return b.String()
+}
+
+func defaultCampaignImageSize(platform domain.Platform, requested string) string {
+	if requested = strings.TrimSpace(requested); requested != "" {
+		return requested
+	}
+	switch platform {
+	case domain.PlatformInstagram:
+		return "1024x1024"
+	case domain.PlatformFacebook:
+		return "1536x1024"
+	case domain.PlatformLinkedIn:
+		return "1536x1024"
+	default:
+		return "1024x1024"
+	}
 }
 
 func buildPlannedTimes(from time.Time, days int, postsPerDay int, slots []string) ([]time.Time, error) {

@@ -18,8 +18,10 @@ import (
 type draftStore struct {
 	campaigns   map[string]domain.Campaign
 	accounts    map[string]domain.SocialAccount
+	mediaByID   map[string]domain.Media
 	createCalls []db.CreatePostParams
 	createSeq   int
+	mediaSeq    int
 }
 
 func (s *draftStore) GetCampaign(_ context.Context, id string) (domain.Campaign, error) {
@@ -38,8 +40,16 @@ func (s *draftStore) GetAccount(_ context.Context, id string) (domain.SocialAcco
 	return account, nil
 }
 
-func (s *draftStore) GetMediaByIDs(context.Context, []string) ([]domain.Media, error) {
-	return nil, nil
+func (s *draftStore) GetMediaByIDs(_ context.Context, ids []string) ([]domain.Media, error) {
+	out := make([]domain.Media, 0)
+	for _, id := range ids {
+		media, ok := s.mediaByID[strings.TrimSpace(id)]
+		if !ok {
+			continue
+		}
+		out = append(out, media)
+	}
+	return out, nil
 }
 func (s *draftStore) GetPostByIdempotencyKey(context.Context, string) (domain.Post, error) {
 	return domain.Post{}, sql.ErrNoRows
@@ -61,6 +71,7 @@ func (s *draftStore) CreatePost(_ context.Context, params db.CreatePostParams) (
 
 type draftGenerator struct {
 	prompts []generationapp.GenerateTextInput
+	images  []generationapp.GenerateImageInput
 	err     error
 }
 
@@ -74,6 +85,36 @@ func (g *draftGenerator) GenerateText(_ context.Context, in generationapp.Genera
 		Model:    "mock-text",
 		Provider: "mock",
 	}, nil
+}
+
+func (g *draftGenerator) GenerateImage(_ context.Context, in generationapp.GenerateImageInput) (generationapp.GenerateImageOutput, error) {
+	g.images = append(g.images, in)
+	if g.err != nil {
+		return generationapp.GenerateImageOutput{}, g.err
+	}
+	return generationapp.GenerateImageOutput{
+		Data:     []byte("fake-image"),
+		MimeType: "image/png",
+		Model:    "mock-image",
+		Provider: "mock",
+	}, nil
+}
+
+func (s *draftStore) PersistGeneratedMedia(_ context.Context, data []byte, mimeType string, tags []string) (domain.Media, error) {
+	s.mediaSeq++
+	if s.mediaByID == nil {
+		s.mediaByID = make(map[string]domain.Media)
+	}
+	item := domain.Media{
+		ID:           fmt.Sprintf("med_%d", s.mediaSeq),
+		Kind:         "image",
+		OriginalName: fmt.Sprintf("generated-%d.png", s.mediaSeq),
+		MimeType:     mimeType,
+		SizeBytes:    int64(len(data)),
+		Tags:         append([]string(nil), tags...),
+	}
+	s.mediaByID[item.ID] = item
+	return item, nil
 }
 
 type draftProviderRegistry struct {
@@ -262,6 +303,68 @@ func TestDraftServiceCreatesWeeklyCalendarDrafts(t *testing.T) {
 		if call.EditorialStatus != domain.EditorialStatusNeedsReview || !call.RequiresApproval {
 			t.Fatalf("expected review-gated draft, got status=%s requires=%v", call.EditorialStatus, call.RequiresApproval)
 		}
+	}
+}
+
+func TestDraftServiceCreatesCalendarDraftsWithGeneratedImages(t *testing.T) {
+	store := &draftStore{
+		campaigns: map[string]domain.Campaign{
+			"cmp_1": {
+				ID:             "cmp_1",
+				Name:           "Weekly campaign",
+				Status:         domain.CampaignStatusActive,
+				BrandProfileID: "brand_campaign",
+				Tags:           []string{"weekly"},
+			},
+		},
+		accounts: map[string]domain.SocialAccount{
+			"acc_ig": {ID: "acc_ig", Platform: domain.PlatformInstagram, Status: domain.AccountStatusConnected},
+		},
+	}
+	generator := &draftGenerator{}
+	svc := DraftService{
+		Store:          store,
+		Generator:      generator,
+		ImageGenerator: generator,
+		MediaStore:     store,
+		Registry: draftProviderRegistry{providers: map[domain.Platform]postflow.Provider{
+			domain.PlatformInstagram: draftProvider{platform: domain.PlatformInstagram},
+		}},
+	}
+	from := time.Date(2026, 7, 6, 9, 0, 0, 0, time.FixedZone("CEST", 2*60*60))
+
+	out, err := svc.CreateCalendarDrafts(t.Context(), CreateCalendarDraftsInput{
+		CampaignID:     "cmp_1",
+		AccountIDs:     []string{"acc_ig"},
+		From:           from,
+		Days:           1,
+		Slots:          []string{"09:00"},
+		Idea:           "educate the market",
+		GenerateImages: true,
+	})
+	if err != nil {
+		t.Fatalf("create calendar drafts with images: %v", err)
+	}
+	if out.CreatedCount != 1 || len(out.Items) != 1 {
+		t.Fatalf("expected one planned draft, got created=%d items=%d", out.CreatedCount, len(out.Items))
+	}
+	if len(generator.images) != 1 {
+		t.Fatalf("expected one generated image prompt, got %d", len(generator.images))
+	}
+	if generator.images[0].BrandProfileID != "brand_campaign" {
+		t.Fatalf("expected campaign brand profile for image generation, got %q", generator.images[0].BrandProfileID)
+	}
+	if generator.images[0].Size != "1024x1024" {
+		t.Fatalf("expected instagram square image size, got %q", generator.images[0].Size)
+	}
+	if !strings.Contains(generator.images[0].Prompt, "Instagram") {
+		t.Fatalf("expected platform-specific image prompt, got %q", generator.images[0].Prompt)
+	}
+	if len(store.createCalls) != 1 || len(store.createCalls[0].MediaIDs) != 1 {
+		t.Fatalf("expected one draft with one media attachment, got %#v", store.createCalls)
+	}
+	if got := store.createCalls[0].MediaIDs[0]; got != "med_1" {
+		t.Fatalf("expected persisted generated media med_1, got %q", got)
 	}
 }
 

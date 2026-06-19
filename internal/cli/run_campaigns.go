@@ -208,6 +208,9 @@ func runCampaignCreateDrafts(ctx context.Context, client *APIClient, cfg config,
 	variants := fs.Int("variants-per-post", 1, "Variants per account")
 	brandProfileID := fs.String("brand-profile-id", "", "Optional brand profile ID")
 	brandProfileName := fs.String("brand-profile", "", "Optional brand profile name")
+	generateImages := fs.Bool("generate-images", false, "Generate and attach campaign images")
+	imagePrompt := fs.String("image-prompt", "", "Optional visual prompt override")
+	imageSize := fs.String("image-size", "", "Optional image size override, e.g. 1024x1024")
 	editorialStatus := fs.String("editorial-status", "needs_review", "Editorial status")
 	requiresApproval := fs.Bool("requires-approval", true, "Require approval before scheduling")
 	tags := fs.String("tags", "", "Comma-separated tags")
@@ -233,6 +236,9 @@ func runCampaignCreateDrafts(ctx context.Context, client *APIClient, cfg config,
 		"variants_per_post":  *variants,
 		"brand_profile_id":   strings.TrimSpace(*brandProfileID),
 		"brand_profile":      strings.TrimSpace(*brandProfileName),
+		"generate_images":    *generateImages,
+		"image_prompt":       strings.TrimSpace(*imagePrompt),
+		"image_size":         strings.TrimSpace(*imageSize),
 		"editorial_status":   strings.TrimSpace(*editorialStatus),
 		"requires_approval":  *requiresApproval,
 		"tags":               splitCLIList(*tags),
@@ -303,6 +309,9 @@ func runCampaignGenerateCalendar(ctx context.Context, client *APIClient, cfg con
 	slots := fs.String("slots", "", "Comma-separated HH:MM slots")
 	brandProfileID := fs.String("brand-profile-id", "", "Optional brand profile ID")
 	brandProfileName := fs.String("brand-profile", "", "Optional brand profile name")
+	generateImages := fs.Bool("generate-images", false, "Generate and attach campaign images")
+	imagePrompt := fs.String("image-prompt", "", "Optional visual prompt override")
+	imageSize := fs.String("image-size", "", "Optional image size override, e.g. 1024x1024")
 	editorialStatus := fs.String("editorial-status", "needs_review", "Editorial status")
 	requiresApproval := fs.Bool("requires-approval", true, "Require approval before scheduling")
 	tags := fs.String("tags", "", "Comma-separated tags")
@@ -331,6 +340,9 @@ func runCampaignGenerateCalendar(ctx context.Context, client *APIClient, cfg con
 		"slots":              splitCLIList(*slots),
 		"brand_profile_id":   strings.TrimSpace(*brandProfileID),
 		"brand_profile":      strings.TrimSpace(*brandProfileName),
+		"generate_images":    *generateImages,
+		"image_prompt":       strings.TrimSpace(*imagePrompt),
+		"image_size":         strings.TrimSpace(*imageSize),
 		"editorial_status":   strings.TrimSpace(*editorialStatus),
 		"requires_approval":  *requiresApproval,
 		"tags":               splitCLIList(*tags),
