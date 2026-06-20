@@ -30,7 +30,7 @@ type LinkedInProvider struct {
 	allowUnsafeArticleFetches bool
 }
 
-const linkedInPersonalOAuthScope = "openid profile w_member_social"
+const linkedInPersonalOAuthScope = "r_liteprofile w_member_social"
 const linkedInOrganizationOAuthScope = linkedInPersonalOAuthScope + " rw_organization_admin w_organization_social"
 const linkedInRESTVersion = "202601"
 
@@ -596,7 +596,7 @@ func (p *LinkedInProvider) HandleOAuthCallback(ctx context.Context, in OAuthCall
 		return nil, fmt.Errorf("linkedin token exchange returned empty access token")
 	}
 
-	memberID, displayName, err := p.fetchMemberProfile(ctx, tokenResp.AccessToken)
+	memberID, displayName, err := p.fetchMemberProfile(ctx, tokenResp.AccessToken, tokenResp.Scope)
 	if err != nil {
 		return nil, err
 	}
@@ -639,18 +639,35 @@ func (p *LinkedInProvider) HandleOAuthCallback(ctx context.Context, in OAuthCall
 	return accounts, nil
 }
 
-func (p *LinkedInProvider) fetchMemberProfile(ctx context.Context, accessToken string) (memberID, displayName string, err error) {
-	memberID, displayName, err = p.fetchMemberProfileFromUserInfo(ctx, accessToken)
-	if err == nil {
-		return memberID, displayName, nil
+func (p *LinkedInProvider) fetchMemberProfile(ctx context.Context, accessToken, scope string) (memberID, displayName string, err error) {
+	if linkedInScopeIncludesOpenIDProfile(scope) {
+		memberID, displayName, err = p.fetchMemberProfileFromUserInfo(ctx, accessToken)
+		if err == nil {
+			return memberID, displayName, nil
+		}
+
+		legacyID, legacyName, legacyErr := p.fetchMemberProfileFromMe(ctx, accessToken)
+		if legacyErr == nil {
+			return legacyID, legacyName, nil
+		}
+
+		return "", "", fmt.Errorf("linkedin profile fetch failed (userinfo and me): userinfo_error=%v me_error=%v", err, legacyErr)
 	}
 
-	legacyID, legacyName, legacyErr := p.fetchMemberProfileFromMe(ctx, accessToken)
-	if legacyErr == nil {
-		return legacyID, legacyName, nil
-	}
+	return p.fetchMemberProfileFromMe(ctx, accessToken)
+}
 
-	return "", "", fmt.Errorf("linkedin profile fetch failed (userinfo and me): userinfo_error=%v me_error=%v", err, legacyErr)
+func linkedInScopeIncludesOpenIDProfile(scope string) bool {
+	var hasOpenID, hasProfile bool
+	for _, item := range linkedInScopeValues(scope) {
+		switch strings.TrimSpace(item) {
+		case "openid":
+			hasOpenID = true
+		case "profile":
+			hasProfile = true
+		}
+	}
+	return hasOpenID && hasProfile
 }
 
 func (p *LinkedInProvider) fetchMemberProfileFromUserInfo(ctx context.Context, accessToken string) (memberID, displayName string, err error) {

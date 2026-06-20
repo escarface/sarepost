@@ -347,7 +347,7 @@ func TestLinkedInRefreshOAuthAndCallbackFlows(t *testing.T) {
 		}
 	})
 
-	t.Run("start oauth defaults to personal scopes", func(t *testing.T) {
+	t.Run("start oauth defaults to personal scopes without openid", func(t *testing.T) {
 		provider := NewLinkedInProvider(LinkedInProviderConfig{})
 		if _, err := provider.StartOAuth(context.Background(), OAuthStartInput{State: "s", RedirectURL: "https://app/callback"}); err == nil {
 			t.Fatalf("expected oauth start to fail without credentials")
@@ -377,16 +377,16 @@ func TestLinkedInRefreshOAuthAndCallbackFlows(t *testing.T) {
 			t.Fatalf("unexpected query in auth url: %s", parsed.RawQuery)
 		}
 		scope := strings.Fields(query.Get("scope"))
-		expectedScopes := []string{"openid", "profile", "w_member_social"}
+		expectedScopes := []string{"r_liteprofile", "w_member_social"}
 		for _, expected := range expectedScopes {
 			if !slices.Contains(scope, expected) {
 				t.Fatalf("expected oauth scope %q in auth url, got %q", expected, query.Get("scope"))
 			}
 		}
-		rejectedScopes := []string{"rw_organization_admin", "w_organization_social"}
+		rejectedScopes := []string{"openid", "profile", "rw_organization_admin", "w_organization_social"}
 		for _, rejected := range rejectedScopes {
 			if slices.Contains(scope, rejected) {
-				t.Fatalf("did not expect organization oauth scope %q in personal auth url, got %q", rejected, query.Get("scope"))
+				t.Fatalf("did not expect oauth scope %q in personal auth url, got %q", rejected, query.Get("scope"))
 			}
 		}
 	})
@@ -410,10 +410,16 @@ func TestLinkedInRefreshOAuthAndCallbackFlows(t *testing.T) {
 			t.Fatalf("parse auth url: %v", err)
 		}
 		scope := strings.Fields(parsed.Query().Get("scope"))
-		expectedScopes := []string{"openid", "profile", "w_member_social", "rw_organization_admin", "w_organization_social"}
+		expectedScopes := []string{"r_liteprofile", "w_member_social", "rw_organization_admin", "w_organization_social"}
 		for _, expected := range expectedScopes {
 			if !slices.Contains(scope, expected) {
 				t.Fatalf("expected oauth scope %q in auth url, got %q", expected, parsed.Query().Get("scope"))
+			}
+		}
+		rejectedScopes := []string{"openid", "profile"}
+		for _, rejected := range rejectedScopes {
+			if slices.Contains(scope, rejected) {
+				t.Fatalf("did not expect oauth scope %q in organization auth url, got %q", rejected, parsed.Query().Get("scope"))
 			}
 		}
 	})
@@ -579,7 +585,7 @@ func TestLinkedInOAuthCallbackFailsWhenProfileEndpointsFail(t *testing.T) {
 		t.Fatalf("expected oauth callback to fail when both profile endpoints fail")
 	}
 	msg := strings.ToLower(err.Error())
-	if !strings.Contains(msg, "profile fetch failed") || !strings.Contains(msg, "userinfo_error") || !strings.Contains(msg, "me_error") {
-		t.Fatalf("expected composed profile failure details, got %q", err.Error())
+	if !strings.Contains(msg, "me status=500") || !strings.Contains(msg, "profile lookup error") {
+		t.Fatalf("expected /v2/me profile failure details, got %q", err.Error())
 	}
 }
