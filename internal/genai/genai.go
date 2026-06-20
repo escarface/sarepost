@@ -35,9 +35,10 @@ var ErrProviderNotSupported = errors.New("generation provider not supported")
 
 // TextRequest is a single text-generation call.
 type TextRequest struct {
-	System    string
-	Prompt    string
-	MaxTokens int
+	System            string
+	Prompt            string
+	MaxTokens         int
+	WebSearchRequired bool
 }
 
 // TextResult is the generated text.

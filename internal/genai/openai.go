@@ -54,6 +54,9 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 	if strings.TrimSpace(req.Prompt) == "" {
 		return TextResult{}, fmt.Errorf("prompt is required")
 	}
+	if req.WebSearchRequired {
+		return p.generateTextWithWebSearch(ctx, req)
+	}
 	messages := make([]map[string]string, 0, 2)
 	if system := strings.TrimSpace(req.System); system != "" {
 		messages = append(messages, map[string]string{"role": "system", "content": system})
@@ -79,6 +82,42 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 		return TextResult{}, fmt.Errorf("openai returned no choices")
 	}
 	out := strings.TrimSpace(parsed.Choices[0].Message.Content)
+	if out == "" {
+		return TextResult{}, fmt.Errorf("openai returned empty response")
+	}
+	return TextResult{Text: out, Model: p.model}, nil
+}
+
+func (p openAITextProvider) generateTextWithWebSearch(ctx context.Context, req TextRequest) (TextResult, error) {
+	input := make([]map[string]any, 0, 2)
+	if system := strings.TrimSpace(req.System); system != "" {
+		input = append(input, map[string]any{
+			"role":    "system",
+			"content": []map[string]string{{"type": "input_text", "text": system}},
+		})
+	}
+	input = append(input, map[string]any{
+		"role":    "user",
+		"content": []map[string]string{{"type": "input_text", "text": req.Prompt}},
+	})
+
+	body := map[string]any{
+		"model":       p.model,
+		"input":       input,
+		"tools":       []map[string]any{{"type": "web_search"}},
+		"tool_choice": "required",
+	}
+	if req.MaxTokens > 0 {
+		body["max_output_tokens"] = req.MaxTokens
+	}
+
+	var parsed struct {
+		OutputText string `json:"output_text"`
+	}
+	if err := p.postJSON(ctx, "/responses", body, &parsed); err != nil {
+		return TextResult{}, err
+	}
+	out := strings.TrimSpace(parsed.OutputText)
 	if out == "" {
 		return TextResult{}, fmt.Errorf("openai returned empty response")
 	}

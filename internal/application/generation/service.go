@@ -113,9 +113,10 @@ func (s Service) GenerateText(ctx context.Context, in GenerateTextInput) (Genera
 		return GenerateTextOutput{}, err
 	}
 	result, err := provider.GenerateText(ctx, genai.TextRequest{
-		System:    buildTextSystemPrompt(profile, in.Platform),
-		Prompt:    prompt,
-		MaxTokens: in.MaxTokens,
+		System:            buildTextSystemPrompt(profile, in.Platform),
+		Prompt:            prompt,
+		MaxTokens:         in.MaxTokens,
+		WebSearchRequired: promptNeedsRealTimeResearch(prompt),
 	})
 	if err != nil {
 		return GenerateTextOutput{}, err

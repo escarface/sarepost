@@ -48,14 +48,16 @@ func testCipher(t *testing.T) *secure.Cipher {
 }
 
 type capturingText struct {
-	gotSystem string
-	gotPrompt string
+	gotSystem    string
+	gotPrompt    string
+	gotWebSearch bool
 }
 
 func (c *capturingText) Name() string { return "stub" }
 func (c *capturingText) GenerateText(_ context.Context, req genai.TextRequest) (genai.TextResult, error) {
 	c.gotSystem = req.System
 	c.gotPrompt = req.Prompt
+	c.gotWebSearch = req.WebSearchRequired
 	return genai.TextResult{Text: "generated copy", Model: "stub-model"}, nil
 }
 
@@ -148,6 +150,32 @@ func TestGenerateText_UnknownBrandProfile(t *testing.T) {
 	_, err := svc.GenerateText(context.Background(), GenerateTextInput{Prompt: "hi", BrandProfileID: "brand_missing"})
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected not found error, got %v", err)
+	}
+}
+
+func TestGenerateText_EnablesWebSearchForRealTimeNewsPrompts(t *testing.T) {
+	store := newMemSettings()
+	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock}
+	if _, err := svc.SaveTextProviderConfig(context.Background(), ProviderConfigUpdate{
+		Provider: genai.ProviderOpenAI, Model: "gpt-4.1-mini", APIKey: "sk-test",
+	}); err != nil {
+		t.Fatalf("save provider: %v", err)
+	}
+
+	capt := &capturingText{}
+	svc.TextFactory = func(_ genai.Driver, _ genai.ProviderConfig) (genai.TextProvider, error) {
+		return capt, nil
+	}
+
+	_, err := svc.GenerateText(context.Background(), GenerateTextInput{
+		Prompt:   "Haz un post sobre las ultimas noticias de la semana pasada sobre IA",
+		Platform: domain.PlatformLinkedIn,
+	})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if !capt.gotWebSearch {
+		t.Fatalf("expected web search to be required for prompt %q", capt.gotPrompt)
 	}
 }
 
