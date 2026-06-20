@@ -30,6 +30,7 @@ type MutationsStore interface {
 	DeletePostEditable(ctx context.Context, id string) error
 	ScheduleDraftPost(ctx context.Context, id string, scheduledAt time.Time) error
 	UpdatePostEditable(ctx context.Context, id, text string, scheduledAt time.Time, mediaIDs []string, replaceMedia bool) error
+	UpdatePostEditorialMetadata(ctx context.Context, id string, editorialStatus domain.EditorialStatus, requiresApproval *bool, tags []string, approvedAt *time.Time) error
 	UpdateThreadEditable(ctx context.Context, rootPostID string, steps []db.ThreadStepUpdate) error
 	GetPost(ctx context.Context, id string) (domain.Post, error)
 	GetAccount(ctx context.Context, id string) (domain.SocialAccount, error)
@@ -44,14 +45,17 @@ type MutationsService struct {
 }
 
 type EditInput struct {
-	PostID       string
-	PostIDs      []string
-	Text         string
-	Intent       string
-	ScheduledAt  time.Time
-	MediaIDs     []string
-	ReplaceMedia bool
-	Segments     []ThreadSegmentInput
+	PostID           string
+	PostIDs          []string
+	Text             string
+	Intent           string
+	ScheduledAt      time.Time
+	MediaIDs         []string
+	ReplaceMedia     bool
+	Segments         []ThreadSegmentInput
+	EditorialStatus  domain.EditorialStatus
+	RequiresApproval *bool
+	Tags             []string
 }
 
 type SchedulePreview struct {
@@ -70,13 +74,17 @@ type SchedulePreview struct {
 }
 
 type preparedEdit struct {
-	postID       string
-	resultPostID string
-	text         string
-	scheduledAt  time.Time
-	mediaIDs     []string
-	replaceMedia bool
-	steps        []db.ThreadStepUpdate
+	postID           string
+	resultPostID     string
+	text             string
+	scheduledAt      time.Time
+	mediaIDs         []string
+	replaceMedia     bool
+	steps            []db.ThreadStepUpdate
+	editorialStatus  domain.EditorialStatus
+	requiresApproval *bool
+	tags             []string
+	approvedAt       *time.Time
 }
 
 func ResolveScheduledAtForEdit(intent string, scheduledAt time.Time, currentScheduledAt time.Time, now func() time.Time) (time.Time, error) {
@@ -254,6 +262,11 @@ func (s MutationsService) UpdateEditableMany(ctx context.Context, in EditInput, 
 		if err := s.Store.UpdatePostEditable(ctx, item.postID, item.text, item.scheduledAt, item.mediaIDs, item.replaceMedia); err != nil {
 			return nil, err
 		}
+		if item.editorialStatus != "" || item.requiresApproval != nil || item.tags != nil || item.approvedAt != nil {
+			if err := s.Store.UpdatePostEditorialMetadata(ctx, item.postID, item.editorialStatus, item.requiresApproval, item.tags, item.approvedAt); err != nil {
+				return nil, err
+			}
+		}
 		post, err := s.Store.GetPost(ctx, item.resultPostID)
 		if err != nil {
 			return nil, err
@@ -272,6 +285,26 @@ func (s MutationsService) prepareEditableUpdate(ctx context.Context, postID stri
 	current, err := s.Store.GetPost(ctx, postID)
 	if err != nil {
 		return preparedEdit{}, err
+	}
+	if in.EditorialStatus != "" {
+		current.EditorialStatus = in.EditorialStatus
+	}
+	var approvedAt *time.Time
+	if in.EditorialStatus == domain.EditorialStatusApproved {
+		approved := false
+		in.RequiresApproval = &approved
+		if current.ApprovedAt == nil {
+			nowValue := now().UTC()
+			current.ApprovedAt = &nowValue
+		}
+		current.RequiresApproval = false
+		approvedAt = current.ApprovedAt
+	}
+	if in.RequiresApproval != nil {
+		current.RequiresApproval = *in.RequiresApproval
+		if !*in.RequiresApproval {
+			approvedAt = current.ApprovedAt
+		}
 	}
 	scheduledAt, err := ResolveScheduledAtForEdit(in.Intent, in.ScheduledAt, current.ScheduledAt, now)
 	if err != nil {
@@ -319,10 +352,14 @@ func (s MutationsService) prepareEditableUpdate(ctx context.Context, postID stri
 			}
 		}
 		return preparedEdit{
-			postID:       postID,
-			resultPostID: rootID,
-			scheduledAt:  scheduledAt,
-			steps:        steps,
+			postID:           postID,
+			resultPostID:     rootID,
+			scheduledAt:      scheduledAt,
+			steps:            steps,
+			editorialStatus:  in.EditorialStatus,
+			requiresApproval: in.RequiresApproval,
+			tags:             normalizeTags(in.Tags),
+			approvedAt:       approvedAt,
 		}, nil
 	}
 
@@ -345,13 +382,37 @@ func (s MutationsService) prepareEditableUpdate(ctx context.Context, postID stri
 	}
 
 	return preparedEdit{
-		postID:       postID,
-		resultPostID: postID,
-		text:         text,
-		scheduledAt:  scheduledAt,
-		mediaIDs:     mediaIDs,
-		replaceMedia: in.ReplaceMedia,
+		postID:           postID,
+		resultPostID:     postID,
+		text:             text,
+		scheduledAt:      scheduledAt,
+		mediaIDs:         mediaIDs,
+		replaceMedia:     in.ReplaceMedia,
+		editorialStatus:  in.EditorialStatus,
+		requiresApproval: in.RequiresApproval,
+		tags:             normalizeTags(in.Tags),
+		approvedAt:       approvedAt,
 	}, nil
+}
+
+func normalizeTags(tags []string) []string {
+	if tags == nil {
+		return nil
+	}
+	out := make([]string, 0, len(tags))
+	seen := map[string]struct{}{}
+	for _, raw := range tags {
+		tag := strings.TrimSpace(raw)
+		if tag == "" {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		out = append(out, tag)
+	}
+	return out
 }
 
 func (s MutationsService) ensureCampaignCanSchedule(ctx context.Context, post domain.Post) error {

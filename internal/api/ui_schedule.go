@@ -88,6 +88,13 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	visibleCampaigns := make([]domain.Campaign, 0, len(campaigns))
+	for _, campaign := range campaigns {
+		if campaign.Status == domain.CampaignStatusArchived {
+			continue
+		}
+		visibleCampaigns = append(visibleCampaigns, campaign)
+	}
 	editorialBacklog, err := s.Store.ListEditorialBacklog(r.Context(), domain.EditorialBacklogFilter{
 		CampaignID:      strings.TrimSpace(r.URL.Query().Get("campaign_id")),
 		Platform:        domain.Platform(strings.TrimSpace(r.URL.Query().Get("platform"))),
@@ -705,7 +712,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		DraftGroups:                 draftGroups,
 		FailedItems:                 failedItems,
 		FailedGroups:                failedGroups,
-		Campaigns:                   campaigns,
+		Campaigns:                   visibleCampaigns,
 		EditorialBacklog:            editorialBacklog,
 		CurrentViewURL:              currentViewURL,
 		CreateViewURL:               createViewURL,
@@ -748,7 +755,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		PublicationsWindowDays:      publicationsWindowDays,
 		DraftCount:                  len(draftGroups),
 		FailedCount:                 len(failedGroups),
-		CampaignCount:               len(campaigns),
+		CampaignCount:               len(visibleCampaigns),
 		BacklogCount:                len(editorialBacklog),
 		SettingsAccounts:            settingsAccounts,
 		MediaLibrary:                mediaLibrary,

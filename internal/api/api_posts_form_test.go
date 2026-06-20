@@ -268,6 +268,68 @@ func TestEditPostFromFormPublishNowIgnoresScheduledAt(t *testing.T) {
 	}
 }
 
+func TestEditPostFromFormCanApproveAndScheduleCampaignPost(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	accountID := testAccountID(t, store)
+	campaign, err := store.CreateCampaign(t.Context(), domain.Campaign{Name: "Approval flow"})
+	if err != nil {
+		t.Fatalf("create campaign: %v", err)
+	}
+	created, err := store.CreatePost(t.Context(), db.CreatePostParams{
+		Post: domain.Post{
+			AccountID: accountID,
+			Text:      "needs approval first",
+			Status:    domain.PostStatusDraft,
+		},
+		CampaignID:       campaign.ID,
+		EditorialStatus:  domain.EditorialStatusNeedsReview,
+		RequiresApproval: true,
+	})
+	if err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+
+	editForm := url.Values{}
+	editForm.Set("text", "approved from edit form")
+	editForm.Set("intent", "schedule")
+	editForm.Set("scheduled_at_local", "2026-07-01T10:00")
+	editForm.Set("editorial_status", "approved")
+	editForm.Set("requires_approval", "true")
+	editReq := httptest.NewRequest(http.MethodPost, "/posts/"+created.Post.ID+"/edit", bytes.NewBufferString(editForm.Encode()))
+	editReq.Header.Set("content-type", "application/x-www-form-urlencoded")
+	editW := httptest.NewRecorder()
+	h.ServeHTTP(editW, editReq)
+	if editW.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d body=%s", editW.Code, editW.Body.String())
+	}
+
+	post, err := store.GetPost(t.Context(), created.Post.ID)
+	if err != nil {
+		t.Fatalf("get post: %v", err)
+	}
+	if post.Status != domain.PostStatusScheduled {
+		t.Fatalf("expected scheduled status, got %s", post.Status)
+	}
+	if post.EditorialStatus != domain.EditorialStatusApproved {
+		t.Fatalf("expected approved editorial status, got %s", post.EditorialStatus)
+	}
+	if post.RequiresApproval {
+		t.Fatalf("expected requires approval to be cleared after approving in edit form")
+	}
+	if post.ApprovedAt == nil {
+		t.Fatalf("expected approved_at to be set")
+	}
+}
+
 func TestEditPostFromFormRejectsInvalidThreadSegmentsForPlatform(t *testing.T) {
 	tempDir := t.TempDir()
 	store, err := db.Open(filepath.Join(tempDir, "test.db"))

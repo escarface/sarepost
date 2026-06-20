@@ -533,6 +533,52 @@ func (s *Store) UpdatePostEditable(ctx context.Context, id, text string, schedul
 	return tx.Commit()
 }
 
+func (s *Store) UpdatePostEditorialMetadata(ctx context.Context, id string, editorialStatus domain.EditorialStatus, requiresApproval *bool, tags []string, approvedAt *time.Time) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("post not editable")
+	}
+	setClauses := make([]string, 0, 4)
+	args := make([]any, 0, 6)
+	if editorialStatus != "" {
+		setClauses = append(setClauses, "editorial_status = ?")
+		args = append(args, editorialStatus)
+	}
+	if requiresApproval != nil {
+		setClauses = append(setClauses, "requires_approval = ?")
+		args = append(args, boolInt(*requiresApproval))
+	}
+	if tags != nil {
+		tagJSON, err := json.Marshal(normalizeStringList(tags))
+		if err != nil {
+			return err
+		}
+		setClauses = append(setClauses, "tags = ?")
+		args = append(args, string(tagJSON))
+	}
+	if approvedAt != nil {
+		setClauses = append(setClauses, "approved_at = ?")
+		args = append(args, approvedAt.UTC().Format(time.RFC3339Nano))
+	}
+	if len(setClauses) == 0 {
+		return nil
+	}
+	setClauses = append(setClauses, "updated_at = ?")
+	args = append(args, time.Now().UTC().Format(time.RFC3339Nano), id)
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE campaign_posts
+		SET `+strings.Join(setClauses, ", ")+`
+		WHERE post_id = ?
+	`, args...)
+	if err != nil {
+		return err
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return nil
+	}
+	return nil
+}
+
 func (s *Store) UpdateThreadEditable(ctx context.Context, rootPostID string, steps []ThreadStepUpdate) error {
 	rootPostID = strings.TrimSpace(rootPostID)
 	if rootPostID == "" {

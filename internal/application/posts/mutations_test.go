@@ -13,23 +13,27 @@ import (
 )
 
 type fakeMutationsStore struct {
-	cancelID           string
-	deleteID           string
-	scheduleID         string
-	scheduleAt         time.Time
-	updateID           string
-	updateText         string
-	updateScheduledAt  time.Time
-	updateMediaIDs     []string
-	updateReplaceMedia bool
-	updateThreadRoot   string
-	updateThreadSteps  []db.ThreadStepUpdate
-	post               domain.Post
-	account            domain.SocialAccount
-	campaign           domain.Campaign
-	mediaByID          map[string]domain.Media
-	schedule           []domain.Post
-	err                error
+	cancelID               string
+	deleteID               string
+	scheduleID             string
+	scheduleAt             time.Time
+	updateID               string
+	updateText             string
+	updateScheduledAt      time.Time
+	updateMediaIDs         []string
+	updateReplaceMedia     bool
+	updateEditorialStatus  domain.EditorialStatus
+	updateRequiresApproval *bool
+	updateTags             []string
+	updateApprovedAt       *time.Time
+	updateThreadRoot       string
+	updateThreadSteps      []db.ThreadStepUpdate
+	post                   domain.Post
+	account                domain.SocialAccount
+	campaign               domain.Campaign
+	mediaByID              map[string]domain.Media
+	schedule               []domain.Post
+	err                    error
 }
 
 func (f *fakeMutationsStore) CancelPost(_ context.Context, id string) error {
@@ -54,6 +58,24 @@ func (f *fakeMutationsStore) UpdatePostEditable(_ context.Context, id, text stri
 	f.updateScheduledAt = scheduledAt
 	f.updateReplaceMedia = replaceMedia
 	f.updateMediaIDs = append([]string(nil), mediaIDs...)
+	return f.err
+}
+
+func (f *fakeMutationsStore) UpdatePostEditorialMetadata(_ context.Context, _ string, editorialStatus domain.EditorialStatus, requiresApproval *bool, tags []string, approvedAt *time.Time) error {
+	f.updateEditorialStatus = editorialStatus
+	if requiresApproval != nil {
+		v := *requiresApproval
+		f.updateRequiresApproval = &v
+	} else {
+		f.updateRequiresApproval = nil
+	}
+	f.updateTags = append([]string(nil), tags...)
+	if approvedAt != nil {
+		v := *approvedAt
+		f.updateApprovedAt = &v
+	} else {
+		f.updateApprovedAt = nil
+	}
 	return f.err
 }
 
@@ -207,6 +229,9 @@ func (s *scheduleApprovalStore) ScheduleDraftPost(_ context.Context, _ string, s
 	return nil
 }
 func (s *scheduleApprovalStore) UpdatePostEditable(context.Context, string, string, time.Time, []string, bool) error {
+	return nil
+}
+func (s *scheduleApprovalStore) UpdatePostEditorialMetadata(context.Context, string, domain.EditorialStatus, *bool, []string, *time.Time) error {
 	return nil
 }
 func (s *scheduleApprovalStore) UpdateThreadEditable(context.Context, string, []db.ThreadStepUpdate) error {

@@ -4745,27 +4745,27 @@
         <article class="card scheduled publication-card">
           <div class="publication-card-head">
             <div>
-              <div class="publication-time-date">{{if .CampaignName}}{{.CampaignName}}{{else}}No campaign{{end}}</div>
+              <div class="publication-time-date">{{if .Campaign.Name}}{{.Campaign.Name}}{{else}}No campaign{{end}}</div>
               <div class="meta">
-                <span>{{.EditorialStatus}}</span>
-                <span>{{.PostStatus}}</span>
-                <span>{{.Platform}}</span>
-                {{if .RequiresApproval}}<span>approval required</span>{{end}}
-                {{if gt (len .Tags) 0}}<span>{{join .Tags ", "}}</span>{{end}}
+                <span>{{.Post.EditorialStatus}}</span>
+                <span>{{.Post.Status}}</span>
+                <span>{{.Post.Platform}}</span>
+                {{if .Post.RequiresApproval}}<span>approval required</span>{{end}}
+                {{if gt (len .Post.Tags) 0}}<span>{{join .Post.Tags ", "}}</span>{{end}}
               </div>
             </div>
-            {{if and .RequiresApproval (not .ApprovedAt.IsZero)}}
+            {{if and .Post.RequiresApproval (not .Post.ApprovedAt.IsZero)}}
             <span class="nav-badge">approved</span>
-            {{else if .RequiresApproval}}
-            <form method="post" action="/posts/{{.PostID}}/approve">
+            {{else if .Post.RequiresApproval}}
+            <form method="post" action="/posts/{{.Post.ID}}/approve">
               <input type="hidden" name="return_to" value="/?view=backlog" />
               <button type="submit" class="btn-primary">Approve</button>
             </form>
             {{end}}
           </div>
-          <div class="publication-text">{{previewMarkdown .Text}}</div>
+          <div class="publication-text">{{previewMarkdown .Post.Text}}</div>
           <div class="editor-actions">
-            <a class="btn-secondary" href="/?view=create&edit_id={{.PostID}}&return_to=%2F%3Fview%3Dbacklog">Edit</a>
+            <a class="btn-secondary" href="/?view=create&edit_id={{.Post.ID}}&return_to=%2F%3Fview%3Dbacklog">Edit</a>
           </div>
         </article>
         {{else}}
@@ -5139,10 +5139,10 @@
                 <div class="schedule-block">
                   <label class="schedule-label" for="create-editorial-status">editorial status</label>
                   <select id="create-editorial-status" name="editorial_status">
-                    <option value="idea">idea</option>
-                    <option value="drafting" selected>drafting</option>
-                    <option value="needs_review">needs review</option>
-                    <option value="approved">approved</option>
+                    <option value="idea" {{if and .EditingPost (eq .EditingPost.EditorialStatus "idea")}}selected{{end}}>idea</option>
+                    <option value="drafting" {{if .EditingPost}}{{if eq .EditingPost.EditorialStatus "drafting"}}selected{{end}}{{else}}selected{{end}}>drafting</option>
+                    <option value="needs_review" {{if and .EditingPost (eq .EditingPost.EditorialStatus "needs_review")}}selected{{end}}>needs review</option>
+                    <option value="approved" {{if and .EditingPost (eq .EditingPost.EditorialStatus "approved")}}selected{{end}}>approved</option>
                   </select>
                 </div>
                 <div class="schedule-block">

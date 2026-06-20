@@ -553,6 +553,13 @@ func (s Server) handleEditPost(w http.ResponseWriter, r *http.Request) {
 	}
 	text := strings.TrimSpace(r.FormValue("text"))
 	intent := strings.ToLower(strings.TrimSpace(r.FormValue("intent")))
+	editorialStatus := domain.EditorialStatus(strings.TrimSpace(r.FormValue("editorial_status")))
+	var requiresApproval *bool
+	if raw := strings.TrimSpace(r.FormValue("requires_approval")); raw != "" {
+		value := raw == "true" || raw == "on"
+		requiresApproval = &value
+	}
+	tags := splitCSV(r.FormValue("tags"))
 	scheduledAtRaw := strings.TrimSpace(r.FormValue("scheduled_at"))
 	var reqSegments []createPostSegment
 	var mediaIDs []string
@@ -604,6 +611,9 @@ func (s Server) handleEditPost(w http.ResponseWriter, r *http.Request) {
 			ScheduledAtLocal string              `json:"scheduled_at_local"`
 			MediaIDs         []string            `json:"media_ids"`
 			Segments         []createPostSegment `json:"segments"`
+			EditorialStatus  string              `json:"editorial_status"`
+			RequiresApproval *bool               `json:"requires_approval"`
+			Tags             []string            `json:"tags"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
 			if text == "" {
@@ -637,6 +647,15 @@ func (s Server) handleEditPost(w http.ResponseWriter, r *http.Request) {
 			}
 			if len(reqSegments) == 0 {
 				reqSegments = normalizeRequestSegments(body.Segments)
+			}
+			if editorialStatus == "" {
+				editorialStatus = domain.EditorialStatus(strings.TrimSpace(body.EditorialStatus))
+			}
+			if requiresApproval == nil {
+				requiresApproval = body.RequiresApproval
+			}
+			if tags == nil {
+				tags = body.Tags
 			}
 		}
 	}
@@ -672,14 +691,17 @@ func (s Server) handleEditPost(w http.ResponseWriter, r *http.Request) {
 		Registry: s.providerRegistry(),
 	}
 	posts, err := svc.UpdateEditableMany(r.Context(), postsapp.EditInput{
-		PostID:       postID,
-		PostIDs:      postIDs,
-		Text:         text,
-		Intent:       intent,
-		ScheduledAt:  scheduledAt,
-		MediaIDs:     mediaIDs,
-		ReplaceMedia: replaceMedia,
-		Segments:     segments,
+		PostID:           postID,
+		PostIDs:          postIDs,
+		Text:             text,
+		Intent:           intent,
+		ScheduledAt:      scheduledAt,
+		MediaIDs:         mediaIDs,
+		ReplaceMedia:     replaceMedia,
+		Segments:         segments,
+		EditorialStatus:  editorialStatus,
+		RequiresApproval: requiresApproval,
+		Tags:             tags,
 	}, time.Now)
 	if errors.Is(err, postsapp.ErrScheduledAtNeeded) {
 		if fromForm {
