@@ -343,14 +343,15 @@ func (s *Store) CreateOAuthState(ctx context.Context, state domain.OauthState) (
 	if strings.TrimSpace(string(state.Platform)) == "" {
 		return domain.OauthState{}, fmt.Errorf("platform is required")
 	}
+	state.AccountKind = domain.NormalizeAccountKind(state.Platform, state.AccountKind)
 	if state.ExpiresAt.IsZero() {
 		state.ExpiresAt = time.Now().UTC().Add(10 * time.Minute)
 	}
 	state.CreatedAt = time.Now().UTC()
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO oauth_states (id, platform, state, code_verifier, expires_at, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, state.ID, strings.TrimSpace(string(state.Platform)), strings.TrimSpace(state.State), strings.TrimSpace(state.CodeVerifier), state.ExpiresAt.Format(time.RFC3339Nano), state.CreatedAt.Format(time.RFC3339Nano))
+		INSERT INTO oauth_states (id, platform, account_kind, state, code_verifier, expires_at, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, state.ID, strings.TrimSpace(string(state.Platform)), strings.TrimSpace(string(state.AccountKind)), strings.TrimSpace(state.State), strings.TrimSpace(state.CodeVerifier), state.ExpiresAt.Format(time.RFC3339Nano), state.CreatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return domain.OauthState{}, err
 	}
@@ -371,13 +372,14 @@ func (s *Store) ConsumeOAuthState(ctx context.Context, stateRaw string) (domain.
 	var state domain.OauthState
 	var expires, created string
 	err = tx.QueryRowContext(ctx, `
-		SELECT id, platform, state, code_verifier, expires_at, created_at
+		SELECT id, platform, account_kind, state, code_verifier, expires_at, created_at
 		FROM oauth_states
 		WHERE state = ?
-	`, stateRaw).Scan(&state.ID, &state.Platform, &state.State, &state.CodeVerifier, &expires, &created)
+	`, stateRaw).Scan(&state.ID, &state.Platform, &state.AccountKind, &state.State, &state.CodeVerifier, &expires, &created)
 	if err != nil {
 		return domain.OauthState{}, err
 	}
+	state.AccountKind = domain.NormalizeAccountKind(state.Platform, state.AccountKind)
 	state.ExpiresAt, _ = time.Parse(time.RFC3339Nano, expires)
 	state.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	if state.ExpiresAt.Before(time.Now().UTC()) {

@@ -75,6 +75,11 @@ var dbMigrations = []migration{
 		Name:    "campaigns_visual_fields",
 		Up:      migrationAddCampaignsVisualFields,
 	},
+	{
+		Version: 12,
+		Name:    "oauth_states_account_kind",
+		Up:      migrationAddOAuthStatesAccountKind,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -269,6 +274,7 @@ func migrationInitialSchema(ctx context.Context, tx *sql.Tx) error {
 		`CREATE TABLE IF NOT EXISTS oauth_states (
 			id TEXT PRIMARY KEY,
 			platform TEXT NOT NULL,
+			account_kind TEXT NOT NULL DEFAULT '',
 			state TEXT NOT NULL UNIQUE,
 			code_verifier TEXT NOT NULL,
 			expires_at TEXT NOT NULL,
@@ -453,6 +459,16 @@ func migrationAddOAuthPendingAccountSelections(ctx context.Context, tx *sql.Tx) 
 		if _, err := tx.ExecContext(ctx, query); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func migrationAddOAuthStatesAccountKind(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE oauth_states ADD COLUMN account_kind TEXT NOT NULL DEFAULT ''`); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			return nil
+		}
+		return err
 	}
 	return nil
 }

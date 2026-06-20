@@ -65,6 +65,7 @@ type OAuthCallbackInput struct {
 	State        string
 	CodeVerifier string
 	RedirectURL  string
+	AccountKind  domain.AccountKind
 }
 
 type Provider interface {

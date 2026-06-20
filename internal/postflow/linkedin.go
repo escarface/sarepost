@@ -30,8 +30,8 @@ type LinkedInProvider struct {
 	allowUnsafeArticleFetches bool
 }
 
-const linkedInPersonalOAuthScope = "r_liteprofile w_member_social"
-const linkedInOrganizationOAuthScope = linkedInPersonalOAuthScope + " rw_organization_admin w_organization_social"
+const linkedInPersonalOAuthScope = "r_basicprofile w_member_social"
+const linkedInOrganizationOAuthScope = "rw_organization_admin w_organization_social"
 const linkedInRESTVersion = "202601"
 
 func NewLinkedInProvider(cfg LinkedInProviderConfig) *LinkedInProvider {
@@ -596,10 +596,6 @@ func (p *LinkedInProvider) HandleOAuthCallback(ctx context.Context, in OAuthCall
 		return nil, fmt.Errorf("linkedin token exchange returned empty access token")
 	}
 
-	memberID, displayName, err := p.fetchMemberProfile(ctx, tokenResp.AccessToken, tokenResp.Scope)
-	if err != nil {
-		return nil, err
-	}
 	creds := Credentials{
 		AccessToken:  strings.TrimSpace(tokenResp.AccessToken),
 		RefreshToken: strings.TrimSpace(tokenResp.RefreshToken),
@@ -610,14 +606,22 @@ func (p *LinkedInProvider) HandleOAuthCallback(ctx context.Context, in OAuthCall
 		expiresAt := time.Now().UTC().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 		creds.ExpiresAt = &expiresAt
 	}
-	accounts := []ConnectedAccount{{
-		Platform:          domain.PlatformLinkedIn,
-		AccountKind:       domain.AccountKindPersonal,
-		DisplayName:       displayName,
-		ExternalAccountID: memberID,
-		Credentials:       creds,
-	}}
-	if linkedInScopeIncludesOrganizationAccess(tokenResp.Scope) {
+	normalizedKind := domain.NormalizeAccountKind(domain.PlatformLinkedIn, in.AccountKind)
+	accounts := make([]ConnectedAccount, 0, 2)
+	if normalizedKind != domain.AccountKindOrganization {
+		memberID, displayName, err := p.fetchMemberProfile(ctx, tokenResp.AccessToken, tokenResp.Scope)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, ConnectedAccount{
+			Platform:          domain.PlatformLinkedIn,
+			AccountKind:       domain.AccountKindPersonal,
+			DisplayName:       displayName,
+			ExternalAccountID: memberID,
+			Credentials:       creds,
+		})
+	}
+	if normalizedKind == domain.AccountKindOrganization || linkedInScopeIncludesOrganizationAccess(tokenResp.Scope) {
 		organizations, err := p.fetchOrganizations(ctx, tokenResp.AccessToken)
 		if err != nil {
 			return nil, fmt.Errorf("linkedin organization discovery failed: %w", err)

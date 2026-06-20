@@ -65,6 +65,7 @@ func (s Server) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	)
 	recorded, err := s.Store.CreateOAuthState(r.Context(), domain.OauthState{
 		Platform:     platform,
+		AccountKind:  accountKind,
 		State:        state,
 		CodeVerifier: codeVerifier,
 		ExpiresAt:    time.Now().UTC().Add(10 * time.Minute),
@@ -215,6 +216,7 @@ func (s Server) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		State:        recorded.State,
 		CodeVerifier: recorded.CodeVerifier,
 		RedirectURL:  s.oauthCallbackURL(r, platform),
+		AccountKind:  recorded.AccountKind,
 	})
 	if err != nil {
 		rememberOAuthCallbackOutcome(recorded.State, false, err.Error(), "")

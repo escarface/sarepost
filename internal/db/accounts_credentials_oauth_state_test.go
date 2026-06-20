@@ -106,6 +106,7 @@ func TestConsumeOAuthStateSuccessDeletesState(t *testing.T) {
 
 	created, err := store.CreateOAuthState(context.Background(), domain.OauthState{
 		Platform:     domain.PlatformLinkedIn,
+		AccountKind:  domain.AccountKindOrganization,
 		State:        "state_success_" + strings.ReplaceAll(t.Name(), "/", "_"),
 		CodeVerifier: "verifier-success",
 		ExpiresAt:    time.Now().UTC().Add(5 * time.Minute),
@@ -118,7 +119,7 @@ func TestConsumeOAuthStateSuccessDeletesState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("consume oauth state: %v", err)
 	}
-	if consumed.ID != created.ID || consumed.State != created.State || consumed.Platform != created.Platform {
+	if consumed.ID != created.ID || consumed.State != created.State || consumed.Platform != created.Platform || consumed.AccountKind != created.AccountKind {
 		t.Fatalf("unexpected consumed state: got=%+v want=%+v", consumed, created)
 	}
 

@@ -117,6 +117,7 @@ func seedLegacySchemaV1(ctx context.Context, db *sql.DB, accountID, postID strin
 		`CREATE TABLE IF NOT EXISTS oauth_states (
 			id TEXT PRIMARY KEY,
 			platform TEXT NOT NULL,
+			account_kind TEXT NOT NULL DEFAULT '',
 			state TEXT NOT NULL UNIQUE,
 			code_verifier TEXT NOT NULL,
 			expires_at TEXT NOT NULL,

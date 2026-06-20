@@ -377,7 +377,7 @@ func TestLinkedInRefreshOAuthAndCallbackFlows(t *testing.T) {
 			t.Fatalf("unexpected query in auth url: %s", parsed.RawQuery)
 		}
 		scope := strings.Fields(query.Get("scope"))
-		expectedScopes := []string{"r_liteprofile", "w_member_social"}
+		expectedScopes := []string{"r_basicprofile", "w_member_social"}
 		for _, expected := range expectedScopes {
 			if !slices.Contains(scope, expected) {
 				t.Fatalf("expected oauth scope %q in auth url, got %q", expected, query.Get("scope"))
@@ -391,7 +391,7 @@ func TestLinkedInRefreshOAuthAndCallbackFlows(t *testing.T) {
 		}
 	})
 
-	t.Run("start oauth can request organization scopes", func(t *testing.T) {
+	t.Run("start oauth can request organization-only scopes", func(t *testing.T) {
 		provider := NewLinkedInProvider(LinkedInProviderConfig{
 			ClientID:     "client-id",
 			ClientSecret: "client-secret",
@@ -410,17 +410,64 @@ func TestLinkedInRefreshOAuthAndCallbackFlows(t *testing.T) {
 			t.Fatalf("parse auth url: %v", err)
 		}
 		scope := strings.Fields(parsed.Query().Get("scope"))
-		expectedScopes := []string{"r_liteprofile", "w_member_social", "rw_organization_admin", "w_organization_social"}
+		expectedScopes := []string{"rw_organization_admin", "w_organization_social"}
 		for _, expected := range expectedScopes {
 			if !slices.Contains(scope, expected) {
 				t.Fatalf("expected oauth scope %q in auth url, got %q", expected, parsed.Query().Get("scope"))
 			}
 		}
-		rejectedScopes := []string{"openid", "profile"}
+		rejectedScopes := []string{"openid", "profile", "r_basicprofile", "w_member_social"}
 		for _, rejected := range rejectedScopes {
 			if slices.Contains(scope, rejected) {
 				t.Fatalf("did not expect oauth scope %q in organization auth url, got %q", rejected, parsed.Query().Get("scope"))
 			}
+		}
+	})
+
+	t.Run("organization callback can connect without personal profile scopes", func(t *testing.T) {
+		var userInfoCalls, meCalls int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/oauth/v2/accessToken":
+				_, _ = io.WriteString(w, `{"access_token":"li-access","expires_in":3600,"scope":"rw_organization_admin,w_organization_social"}`)
+			case "/v2/userinfo":
+				userInfoCalls++
+				http.NotFound(w, r)
+			case "/v2/me":
+				meCalls++
+				http.NotFound(w, r)
+			case "/rest/organizationAcls":
+				_, _ = io.WriteString(w, `{"elements":[{"role":"ADMINISTRATOR","organizationTarget":"urn:li:organization:987"}],"paging":{"start":0,"count":100}}`)
+			case "/rest/organizationsLookup":
+				_, _ = io.WriteString(w, `{"results":{"987":{"localizedName":"Acme Co"}}}`)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
+
+		provider := NewLinkedInProvider(LinkedInProviderConfig{
+			ClientID:     "client-id",
+			ClientSecret: "client-secret",
+			AuthBaseURL:  server.URL,
+			APIBaseURL:   server.URL,
+		})
+		accounts, err := provider.HandleOAuthCallback(context.Background(), OAuthCallbackInput{
+			Code:        "oauth-code",
+			RedirectURL: "https://app.example.com/callback",
+			AccountKind: domain.AccountKindOrganization,
+		})
+		if err != nil {
+			t.Fatalf("handle organization oauth callback: %v", err)
+		}
+		if userInfoCalls != 0 || meCalls != 0 {
+			t.Fatalf("expected no personal profile lookups, got userinfo=%d me=%d", userInfoCalls, meCalls)
+		}
+		if len(accounts) != 1 {
+			t.Fatalf("expected one organization account, got %d", len(accounts))
+		}
+		if accounts[0].AccountKind != domain.AccountKindOrganization || accounts[0].ExternalAccountID != "987" || accounts[0].DisplayName != "Acme Co" {
+			t.Fatalf("unexpected organization account details: %+v", accounts[0])
 		}
 	})
 

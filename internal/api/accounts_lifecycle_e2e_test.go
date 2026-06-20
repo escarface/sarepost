@@ -58,7 +58,7 @@ func (p *oauthLifecycleProvider) HandleOAuthCallback(_ context.Context, _ postfl
 				RefreshToken: "oauth_refresh_token",
 				TokenType:    "Bearer",
 				Extra: map[string]string{
-					"scope": "r_liteprofile w_member_social",
+					"scope": "r_basicprofile w_member_social",
 				},
 			},
 		},

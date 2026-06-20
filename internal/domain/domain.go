@@ -158,12 +158,13 @@ type SocialAccount struct {
 }
 
 type OauthState struct {
-	ID           string    `json:"id"`
-	Platform     Platform  `json:"platform"`
-	State        string    `json:"state"`
-	CodeVerifier string    `json:"code_verifier"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           string      `json:"id"`
+	Platform     Platform    `json:"platform"`
+	AccountKind  AccountKind `json:"account_kind"`
+	State        string      `json:"state"`
+	CodeVerifier string      `json:"code_verifier"`
+	ExpiresAt    time.Time   `json:"expires_at"`
+	CreatedAt    time.Time   `json:"created_at"`
 }
 
 type Post struct {
