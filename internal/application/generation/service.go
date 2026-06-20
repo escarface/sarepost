@@ -151,7 +151,7 @@ func (s Service) GenerateImage(ctx context.Context, in GenerateImageInput) (Gene
 		return GenerateImageOutput{}, err
 	}
 	result, err := provider.GenerateImage(ctx, genai.ImageRequest{
-		Prompt:       buildImagePrompt(prompt, len(refImage) > 0),
+		Prompt:       buildImagePrompt(prompt, profile, len(refImage) > 0),
 		Size:         in.Size,
 		RefImage:     refImage,
 		RefImageMime: refMime,
@@ -210,11 +210,21 @@ func (s Service) loadReferenceImage(ctx context.Context, profile BrandProfile) (
 	return data, mime, nil
 }
 
-func buildImagePrompt(prompt string, hasReference bool) string {
-	if hasReference {
-		return prompt + "\n\nMatch the visual style, color palette, and overall look of the provided reference image."
+func buildImagePrompt(prompt string, profile BrandProfile, hasReference bool) string {
+	var b strings.Builder
+	b.WriteString(prompt)
+	if sp := strings.TrimSpace(profile.SystemPrompt); sp != "" {
+		b.WriteString("\n\nBrand context:\n")
+		b.WriteString(sp)
 	}
-	return prompt
+	if tone := strings.TrimSpace(profile.Tone); tone != "" {
+		b.WriteString("\n\nDesired tone/look: ")
+		b.WriteString(tone)
+	}
+	if hasReference {
+		b.WriteString("\n\nMatch the visual style, color palette, and overall look of the provided reference image.")
+	}
+	return b.String()
 }
 
 func platformGuidance(platform domain.Platform) string {

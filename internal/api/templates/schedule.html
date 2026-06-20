@@ -8726,6 +8726,7 @@
   const textBtn = document.getElementById('gen-text-btn');
   const imageBtn = document.getElementById('gen-image-btn');
   const useBtn = document.getElementById('gen-use-btn');
+  const createLinks = Array.from(document.querySelectorAll('a.create-pill[href*="view=create"], a.create-fab[href*="view=create"]'));
 
   const setStatus = (msg, isError) => {
     statusEl.textContent = msg || '';
@@ -8741,6 +8742,22 @@
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || ('request failed (' + resp.status + ')'));
     return data;
+  };
+
+  const buildCreateURL = (rawURL) => {
+    const target = new URL(rawURL || '/?view=create', window.location.origin);
+    const text = (resultEl.value || '').trim();
+    if (text) {
+      target.searchParams.set('text', text);
+    } else {
+      target.searchParams.delete('text');
+    }
+    if (mediaIdEl.value) {
+      target.searchParams.set('media_id', mediaIdEl.value);
+    } else {
+      target.searchParams.delete('media_id');
+    }
+    return target.toString();
   };
 
   textBtn?.addEventListener('click', async () => {
@@ -8787,11 +8804,14 @@
   });
 
   useBtn?.addEventListener('click', () => {
-    const params = new URLSearchParams({ view: 'create' });
-    const text = (resultEl.value || '').trim();
-    if (text) params.set('text', text);
-    if (mediaIdEl.value) params.set('media_id', mediaIdEl.value);
-    window.location.href = '/?' + params.toString();
+    window.location.href = buildCreateURL('/?view=create');
+  });
+
+  createLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      window.location.href = buildCreateURL(link.href);
+    });
   });
 })();
 </script>

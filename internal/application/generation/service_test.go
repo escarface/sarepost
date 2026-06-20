@@ -182,7 +182,7 @@ func TestGenerateImage_AppliesBrandReferenceImage(t *testing.T) {
 		t.Fatalf("save provider: %v", err)
 	}
 	profile, err := svc.SaveBrandProfile(context.Background(), BrandProfileUpdate{
-		Name: "Sare", ImageRefMediaID: "med_ref",
+		Name: "Sare", SystemPrompt: "Minimalist premium brand.", Tone: "confident", ImageRefMediaID: "med_ref",
 	})
 	if err != nil {
 		t.Fatalf("save brand: %v", err)
@@ -205,6 +205,12 @@ func TestGenerateImage_AppliesBrandReferenceImage(t *testing.T) {
 	}
 	if !strings.Contains(capt.gotPrompt, "reference image") {
 		t.Errorf("prompt missing reference hint: %q", capt.gotPrompt)
+	}
+	if !strings.Contains(capt.gotPrompt, "Minimalist premium brand.") {
+		t.Errorf("prompt missing brand system prompt: %q", capt.gotPrompt)
+	}
+	if !strings.Contains(capt.gotPrompt, "confident") {
+		t.Errorf("prompt missing tone: %q", capt.gotPrompt)
 	}
 }
 
