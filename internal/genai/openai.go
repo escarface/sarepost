@@ -119,7 +119,12 @@ func (p openAITextProvider) generateTextWithWebSearch(ctx context.Context, req T
 	if out == "" {
 		return TextResult{}, fmt.Errorf("openai returned empty response")
 	}
-	return TextResult{Text: out, Model: p.model}, nil
+	return TextResult{
+		Text:          out,
+		Model:         p.model,
+		UsedWebSearch: true,
+		Sources:       extractOpenAIResponsesSources(raw),
+	}, nil
 }
 
 func (p openAITextProvider) postJSON(ctx context.Context, path string, body any, out any) error {
@@ -315,4 +320,45 @@ func extractOpenAIResponsesText(raw []byte) string {
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func extractOpenAIResponsesSources(raw []byte) []TextSource {
+	var parsed struct {
+		Output []struct {
+			Content []struct {
+				Annotations []struct {
+					Type  string `json:"type"`
+					Title string `json:"title"`
+					URL   string `json:"url"`
+				} `json:"annotations"`
+			} `json:"content"`
+		} `json:"output"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil
+	}
+	sources := make([]TextSource, 0)
+	seen := make(map[string]struct{})
+	for _, item := range parsed.Output {
+		for _, content := range item.Content {
+			for _, annotation := range content.Annotations {
+				url := strings.TrimSpace(annotation.URL)
+				if url == "" {
+					continue
+				}
+				if _, ok := seen[url]; ok {
+					continue
+				}
+				seen[url] = struct{}{}
+				sources = append(sources, TextSource{
+					Title: strings.TrimSpace(annotation.Title),
+					URL:   url,
+				})
+			}
+		}
+	}
+	if len(sources) == 0 {
+		return nil
+	}
+	return sources
 }

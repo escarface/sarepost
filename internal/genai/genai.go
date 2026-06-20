@@ -41,10 +41,18 @@ type TextRequest struct {
 	WebSearchRequired bool
 }
 
+// TextSource is a source cited by a generation response.
+type TextSource struct {
+	Title string
+	URL   string
+}
+
 // TextResult is the generated text.
 type TextResult struct {
-	Text  string
-	Model string
+	Text          string
+	Model         string
+	UsedWebSearch bool
+	Sources       []TextSource
 }
 
 // ImageRequest is a single image-generation call.

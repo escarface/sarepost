@@ -22,6 +22,7 @@ func (s Server) handleGenerateText(w http.ResponseWriter, r *http.Request) {
 		Platform       string `json:"platform"`
 		BrandProfileID string `json:"brand_profile_id"`
 		MaxTokens      int    `json:"max_tokens"`
+		WebSearch      bool   `json:"web_search"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
@@ -32,15 +33,18 @@ func (s Server) handleGenerateText(w http.ResponseWriter, r *http.Request) {
 		Platform:       domain.Platform(strings.TrimSpace(strings.ToLower(body.Platform))),
 		BrandProfileID: body.BrandProfileID,
 		MaxTokens:      body.MaxTokens,
+		ForceWebSearch: body.WebSearch,
 	})
 	if err != nil {
 		writeError(w, generationErrorStatus(err), err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"text":     out.Text,
-		"model":    out.Model,
-		"provider": out.Provider,
+		"text":            out.Text,
+		"model":           out.Model,
+		"provider":        out.Provider,
+		"used_web_search": out.UsedWebSearch,
+		"sources":         out.Sources,
 	})
 }
 

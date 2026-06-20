@@ -62,14 +62,61 @@ func TestGenerateText_MockDriver(t *testing.T) {
 		t.Fatalf("generate text: %d (%s)", w.Code, w.Body.String())
 	}
 	var out struct {
-		Text     string `json:"text"`
-		Provider string `json:"provider"`
+		Text          string `json:"text"`
+		Provider      string `json:"provider"`
+		UsedWebSearch bool   `json:"used_web_search"`
+		Sources       []struct {
+			Title string `json:"title"`
+			URL   string `json:"url"`
+		} `json:"sources"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
 	if !strings.Contains(out.Text, "Announce launch") {
 		t.Errorf("unexpected text %q", out.Text)
+	}
+	if out.UsedWebSearch {
+		t.Errorf("expected used_web_search=false, got true")
+	}
+}
+
+func TestGenerateText_ExplicitWebSearch(t *testing.T) {
+	_, h := newGenerationTestServer(t)
+
+	saveW := postJSON(t, h, "/settings/generation/text", map[string]any{
+		"provider": "openai", "model": "gpt-4.1-mini", "api_key": "sk-test",
+	})
+	if saveW.Code != http.StatusOK {
+		t.Fatalf("save provider: %d (%s)", saveW.Code, saveW.Body.String())
+	}
+
+	w := postJSON(t, h, "/generate/text", map[string]any{
+		"prompt":     "Busca noticias de IA y resume lo relevante para LinkedIn",
+		"platform":   "linkedin",
+		"web_search": true,
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("generate text: %d (%s)", w.Code, w.Body.String())
+	}
+	var out struct {
+		UsedWebSearch bool `json:"used_web_search"`
+		Sources       []struct {
+			Title string `json:"title"`
+			URL   string `json:"url"`
+		} `json:"sources"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !out.UsedWebSearch {
+		t.Fatal("expected used_web_search=true")
+	}
+	if len(out.Sources) != 1 {
+		t.Fatalf("expected one source, got %#v", out.Sources)
+	}
+	if out.Sources[0].URL == "" {
+		t.Fatalf("expected source URL, got %#v", out.Sources[0])
 	}
 }
 

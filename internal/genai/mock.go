@@ -27,9 +27,21 @@ func (m MockTextProvider) GenerateText(_ context.Context, req TextRequest) (Text
 		model = "mock-text"
 	}
 	return TextResult{
-		Text:  fmt.Sprintf("[mock] %s", prompt),
-		Model: model,
+		Text:          fmt.Sprintf("[mock] %s", prompt),
+		Model:         model,
+		UsedWebSearch: req.WebSearchRequired,
+		Sources:       mockSources(req.WebSearchRequired),
 	}, nil
+}
+
+func mockSources(enabled bool) []TextSource {
+	if !enabled {
+		return nil
+	}
+	return []TextSource{{
+		Title: "Mock source",
+		URL:   "https://example.com/mock-source",
+	}}
 }
 
 // MockImageProvider returns a small solid-color PNG without any network call.

@@ -1546,6 +1546,24 @@
       font-size: 12px;
       color: #8a8a8a;
     }
+    .generate-sources {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .generate-sources-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #b8b8b8;
+      font-size: 13px;
+    }
+    .generate-sources-list a {
+      color: #d7d7d7;
+      text-decoration: none;
+    }
+    .generate-sources-list a:hover {
+      text-decoration: underline;
+    }
     .editor-head {
       padding: 10px 12px;
       border-bottom: 1px solid #2a2a2a;
@@ -5757,6 +5775,10 @@
             <label for="gen-prompt">{{t "generate.prompt"}}</label>
             <textarea id="gen-prompt" rows="4" placeholder="{{t "generate.prompt"}}"></textarea>
           </div>
+          <label class="settings-account-premium-toggle">
+            <input class="failed-checkbox" type="checkbox" id="gen-web-search" value="1" />
+            <span>{{t "generate.web_search"}}</span>
+          </label>
           <div class="editor-actions timezone-actions">
             <button type="button" class="btn-primary" id="gen-text-btn">{{t "generate.generate_text"}}</button>
             <button type="button" class="btn-secondary" id="gen-image-btn">{{t "generate.generate_image"}}</button>
@@ -5764,6 +5786,10 @@
           <div class="field">
             <label for="gen-result">{{t "generate.result"}}</label>
             <textarea id="gen-result" rows="5"></textarea>
+          </div>
+          <div id="gen-sources-wrap" class="field generate-sources" hidden>
+            <label>{{t "generate.sources"}}</label>
+            <ul id="gen-sources" class="generate-sources-list"></ul>
           </div>
           <div id="gen-image-preview" class="gen-image-preview" hidden>
             <img id="gen-image-img" alt="" />
@@ -8718,7 +8744,10 @@
   const promptEl = document.getElementById('gen-prompt');
   const brandEl = document.getElementById('gen-brand');
   const platformEl = document.getElementById('gen-platform');
+  const webSearchEl = document.getElementById('gen-web-search');
   const resultEl = document.getElementById('gen-result');
+  const sourcesWrapEl = document.getElementById('gen-sources-wrap');
+  const sourcesEl = document.getElementById('gen-sources');
   const statusEl = document.getElementById('gen-status');
   const mediaIdEl = document.getElementById('gen-media-id');
   const imgWrap = document.getElementById('gen-image-preview');
@@ -8742,6 +8771,27 @@
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || ('request failed (' + resp.status + ')'));
     return data;
+  };
+
+  const renderSources = (sources) => {
+    if (!sourcesEl || !sourcesWrapEl) return;
+    sourcesEl.innerHTML = '';
+    const items = Array.isArray(sources) ? sources.filter((item) => item && item.url) : [];
+    if (!items.length) {
+      sourcesWrapEl.hidden = true;
+      return;
+    }
+    items.forEach((item) => {
+      const li = document.createElement('li');
+      const link = document.createElement('a');
+      link.href = item.url;
+      link.target = '_blank';
+      link.rel = 'noreferrer noopener';
+      link.textContent = item.title || item.url;
+      li.appendChild(link);
+      sourcesEl.appendChild(li);
+    });
+    sourcesWrapEl.hidden = false;
   };
 
   const buildCreateURL = (rawURL) => {
@@ -8770,10 +8820,15 @@
         prompt,
         platform: platformEl.value,
         brand_profile_id: brandEl.value,
+        web_search: Boolean(webSearchEl && webSearchEl.checked),
       });
       resultEl.value = data.text || '';
-      setStatus(data.provider ? ('generated · ' + data.provider) : 'generated', false);
+      renderSources(data.sources);
+      const meta = [data.provider || 'generated'];
+      if (data.used_web_search) meta.push('web');
+      setStatus(meta.join(' · '), false);
     } catch (e) {
+      renderSources([]);
       setStatus(e.message, true);
     } finally {
       textBtn.disabled = false;

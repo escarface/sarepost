@@ -58,7 +58,15 @@ func (c *capturingText) GenerateText(_ context.Context, req genai.TextRequest) (
 	c.gotSystem = req.System
 	c.gotPrompt = req.Prompt
 	c.gotWebSearch = req.WebSearchRequired
-	return genai.TextResult{Text: "generated copy", Model: "stub-model"}, nil
+	return genai.TextResult{
+		Text:          "generated copy",
+		Model:         "stub-model",
+		UsedWebSearch: req.WebSearchRequired,
+		Sources: []genai.TextSource{{
+			Title: "Stub source",
+			URL:   "https://example.com/stub",
+		}},
+	}, nil
 }
 
 type capturingImage struct {
@@ -176,6 +184,39 @@ func TestGenerateText_EnablesWebSearchForRealTimeNewsPrompts(t *testing.T) {
 	}
 	if !capt.gotWebSearch {
 		t.Fatalf("expected web search to be required for prompt %q", capt.gotPrompt)
+	}
+}
+
+func TestGenerateText_ForceWebSearch(t *testing.T) {
+	store := newMemSettings()
+	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock}
+	if _, err := svc.SaveTextProviderConfig(context.Background(), ProviderConfigUpdate{
+		Provider: genai.ProviderOpenAI, Model: "gpt-4.1-mini", APIKey: "sk-test",
+	}); err != nil {
+		t.Fatalf("save provider: %v", err)
+	}
+
+	capt := &capturingText{}
+	svc.TextFactory = func(_ genai.Driver, _ genai.ProviderConfig) (genai.TextProvider, error) {
+		return capt, nil
+	}
+
+	out, err := svc.GenerateText(context.Background(), GenerateTextInput{
+		Prompt:         "Haz un post corporativo sobre automatización comercial",
+		Platform:       domain.PlatformLinkedIn,
+		ForceWebSearch: true,
+	})
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if !capt.gotWebSearch {
+		t.Fatal("expected forced web search to be enabled")
+	}
+	if !out.UsedWebSearch {
+		t.Fatal("expected output to mark web search as used")
+	}
+	if len(out.Sources) != 1 || out.Sources[0].URL == "" {
+		t.Fatalf("expected sources in output, got %#v", out.Sources)
 	}
 }
 

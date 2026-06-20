@@ -44,13 +44,16 @@ type GenerateTextInput struct {
 	Platform       domain.Platform
 	BrandProfileID string
 	MaxTokens      int
+	ForceWebSearch bool
 }
 
 // GenerateTextOutput is the generated copy.
 type GenerateTextOutput struct {
-	Text     string
-	Model    string
-	Provider string
+	Text          string
+	Model         string
+	Provider      string
+	UsedWebSearch bool
+	Sources       []genai.TextSource
 }
 
 // GenerateImageInput is an image-generation request.
@@ -116,12 +119,18 @@ func (s Service) GenerateText(ctx context.Context, in GenerateTextInput) (Genera
 		System:            buildTextSystemPrompt(profile, in.Platform),
 		Prompt:            prompt,
 		MaxTokens:         in.MaxTokens,
-		WebSearchRequired: promptNeedsRealTimeResearch(prompt),
+		WebSearchRequired: in.ForceWebSearch || promptNeedsRealTimeResearch(prompt),
 	})
 	if err != nil {
 		return GenerateTextOutput{}, err
 	}
-	return GenerateTextOutput{Text: result.Text, Model: result.Model, Provider: provider.Name()}, nil
+	return GenerateTextOutput{
+		Text:          result.Text,
+		Model:         result.Model,
+		Provider:      provider.Name(),
+		UsedWebSearch: result.UsedWebSearch,
+		Sources:       append([]genai.TextSource(nil), result.Sources...),
+	}, nil
 }
 
 // GenerateImage builds a brand-aware image prompt and delegates to the provider.

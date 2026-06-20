@@ -138,3 +138,47 @@ func TestOpenAITextProvider_ExtractsResponsesTextFromOutputBlocks(t *testing.T) 
 		t.Fatalf("unexpected text %q", res.Text)
 	}
 }
+
+func TestOpenAITextProvider_ExtractsResponsesSources(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"output_text": "researched response",
+			"output": []map[string]any{
+				{
+					"content": []map[string]any{
+						{
+							"type": "output_text",
+							"text": "researched response",
+							"annotations": []map[string]any{
+								{
+									"type":  "url_citation",
+									"title": "OpenAI News",
+									"url":   "https://openai.com/news",
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := newOpenAITextProvider(ProviderConfig{APIKey: "sk-test", Model: "gpt-4.1-mini", BaseURL: srv.URL})
+	res, err := p.GenerateText(context.Background(), TextRequest{
+		Prompt:            "Write about the latest AI news from last week.",
+		WebSearchRequired: true,
+	})
+	if err != nil {
+		t.Fatalf("generate text: %v", err)
+	}
+	if !res.UsedWebSearch {
+		t.Fatal("expected UsedWebSearch=true")
+	}
+	if len(res.Sources) != 1 {
+		t.Fatalf("expected one source, got %#v", res.Sources)
+	}
+	if res.Sources[0].Title != "OpenAI News" {
+		t.Fatalf("unexpected source title %#v", res.Sources[0])
+	}
+}
