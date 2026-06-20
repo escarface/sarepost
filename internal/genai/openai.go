@@ -111,13 +111,11 @@ func (p openAITextProvider) generateTextWithWebSearch(ctx context.Context, req T
 		body["max_output_tokens"] = req.MaxTokens
 	}
 
-	var parsed struct {
-		OutputText string `json:"output_text"`
-	}
-	if err := p.postJSON(ctx, "/responses", body, &parsed); err != nil {
+	raw, err := openAIPostJSONRaw(ctx, p.baseURL, p.apiKey, "/responses", body)
+	if err != nil {
 		return TextResult{}, err
 	}
-	out := strings.TrimSpace(parsed.OutputText)
+	out := strings.TrimSpace(extractOpenAIResponsesText(raw))
 	if out == "" {
 		return TextResult{}, fmt.Errorf("openai returned empty response")
 	}
@@ -250,32 +248,71 @@ func extensionForMime(mime string) string {
 }
 
 func openAIPostJSON(ctx context.Context, baseURL, apiKey, path string, body any, out any) error {
-	payload, err := json.Marshal(body)
+	data, err := openAIPostJSONRaw(ctx, baseURL, apiKey, path, body)
 	if err != nil {
 		return err
 	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("decode openai response: %w", err)
+	}
+	return nil
+}
+
+func openAIPostJSONRaw(ctx context.Context, baseURL, apiKey, path string, body any) ([]byte, error) {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+path, bytes.NewReader(payload))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := openAIHTTPClient().Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("openai request: %w", err)
+		return nil, fmt.Errorf("openai request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("openai request failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(data)))
+		return nil, fmt.Errorf("openai request failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(data)))
 	}
-	if err := json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("decode openai response: %w", err)
+	return data, nil
+}
+
+func extractOpenAIResponsesText(raw []byte) string {
+	var parsed struct {
+		OutputText string `json:"output_text"`
+		Output     []struct {
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"output"`
 	}
-	return nil
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return ""
+	}
+	if strings.TrimSpace(parsed.OutputText) != "" {
+		return strings.TrimSpace(parsed.OutputText)
+	}
+	var b strings.Builder
+	for _, item := range parsed.Output {
+		for _, content := range item.Content {
+			if strings.TrimSpace(content.Text) == "" {
+				continue
+			}
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(strings.TrimSpace(content.Text))
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
