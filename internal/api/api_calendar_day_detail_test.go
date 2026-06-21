@@ -116,6 +116,85 @@ func TestCalendarDayDetailShowsPendingBeforePublished(t *testing.T) {
 	}
 }
 
+func TestCalendarDayDetailPublishedPostShowsReuseButton(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	settingsForm := url.Values{}
+	settingsForm.Set("timezone", "UTC")
+	settingsReq := httptest.NewRequest(http.MethodPost, "/settings/timezone", bytes.NewBufferString(settingsForm.Encode()))
+	settingsReq.Header.Set("content-type", "application/x-www-form-urlencoded")
+	settingsW := httptest.NewRecorder()
+	h.ServeHTTP(settingsW, settingsReq)
+	if settingsW.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 on timezone update, got %d", settingsW.Code)
+	}
+
+	selectedDay := time.Date(2026, time.February, 26, 0, 0, 0, 0, time.UTC)
+	publishedAt := selectedDay.Add(9 * time.Hour)
+	accountID := testAccountID(t, store)
+
+	createPublishedBody, _ := json.Marshal(map[string]any{
+		"account_id":   accountID,
+		"text":         "published item reusable",
+		"scheduled_at": publishedAt.Format(time.RFC3339),
+	})
+	createPublishedReq := httptest.NewRequest(http.MethodPost, "/posts", bytes.NewReader(createPublishedBody))
+	createPublishedW := httptest.NewRecorder()
+	h.ServeHTTP(createPublishedW, createPublishedReq)
+	if createPublishedW.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for published seed post, got %d", createPublishedW.Code)
+	}
+	var publishedResp map[string]any
+	if err := json.Unmarshal(createPublishedW.Body.Bytes(), &publishedResp); err != nil {
+		t.Fatalf("decode published seed response: %v", err)
+	}
+	publishedID, _ := publishedResp["id"].(string)
+	if publishedID == "" {
+		t.Fatalf("expected published post id")
+	}
+	if err := store.MarkPublished(t.Context(), publishedID, "x-published-seed", ""); err != nil {
+		t.Fatalf("mark published: %v", err)
+	}
+
+	monthParam := selectedDay.Format("2006-01")
+	dayParam := selectedDay.Format("2006-01-02")
+	calendarReq := httptest.NewRequest(http.MethodGet, "/?view=calendar&month="+monthParam+"&day="+dayParam, nil)
+	calendarW := httptest.NewRecorder()
+	h.ServeHTTP(calendarW, calendarReq)
+	if calendarW.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", calendarW.Code)
+	}
+
+	body := calendarW.Body.String()
+	reuseHrefMatch := regexp.MustCompile(`<a class="btn-secondary" href="([^"]+)">Reutilizar</a>`).FindStringSubmatch(body)
+	if len(reuseHrefMatch) != 2 {
+		t.Fatalf("expected reuse button for published post")
+	}
+	reuseHref := html.UnescapeString(reuseHrefMatch[1])
+	parsedReuseHref, err := url.Parse(reuseHref)
+	if err != nil {
+		t.Fatalf("parse reuse href: %v", err)
+	}
+	if got := parsedReuseHref.Query().Get("view"); got != "create" {
+		t.Fatalf("expected reuse button to target create view, got %q", got)
+	}
+	if got := parsedReuseHref.Query().Get("source_post_id"); got != publishedID {
+		t.Fatalf("expected source_post_id %q, got %q", publishedID, got)
+	}
+	wantReturnTo := "/?view=calendar&month=" + monthParam + "&day=" + dayParam
+	if got := parsedReuseHref.Query().Get("return_to"); got != wantReturnTo {
+		t.Fatalf("expected return_to %q, got %q", wantReturnTo, got)
+	}
+}
+
 func TestCalendarDayDetailShowsFailedSeparatelyFromPending(t *testing.T) {
 	tempDir := t.TempDir()
 	store, err := db.Open(filepath.Join(tempDir, "test.db"))

@@ -125,6 +125,7 @@ type publicationGroupItem struct {
 	FailedAtLabel    string
 	LastError        string
 	EditURL          string
+	ReuseURL         string
 	PublishedLinks   []publicationPlatformLink
 }
 
@@ -187,6 +188,7 @@ type pageData struct {
 	CreateAccountIDs            []string
 	CreateCampaignID            string
 	EditPostIDs                 []string
+	CreateSourcePostID          string
 	CreateText                  string
 	CreateScheduledLocal        string
 	CreateError                 string

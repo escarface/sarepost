@@ -471,6 +471,9 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 	for i := range selectedDayFailedGroups {
 		selectedDayFailedGroups[i].EditURL = publicationGroupEditURL(selectedDayFailedGroups[i], currentViewURL)
 	}
+	for i := range selectedDayPublishedGroups {
+		selectedDayPublishedGroups[i].ReuseURL = publicationGroupReuseURL(selectedDayPublishedGroups[i], currentViewURL)
+	}
 	backURL := "/?view=calendar&month=" + currentMonthParam + "&day=" + selectedDayKey
 	if returnTo != "" {
 		backURL = returnTo
@@ -514,6 +517,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 	var createAccountID string
 	createAccountIDs := make([]string, 0, 2)
 	createCampaignID := strings.TrimSpace(r.URL.Query().Get("campaign_id"))
+	createSourcePostID := strings.TrimSpace(r.URL.Query().Get("source_post_id"))
 	if editID != "" {
 		p, err := s.Store.GetPost(r.Context(), editID)
 		if err == nil {
@@ -726,6 +730,7 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		CreateAccountIDs:            createAccountIDs,
 		CreateCampaignID:            createCampaignID,
 		EditPostIDs:                 editPostIDs,
+		CreateSourcePostID:          createSourcePostID,
 		CreateText:                  createText,
 		CreateScheduledLocal:        createScheduledLocal,
 		CreateError:                 createError,
@@ -971,6 +976,18 @@ func publicationGroupEditURL(group publicationGroupItem, currentViewURL string) 
 	if len(group.EditPostIDs) > 0 {
 		values.Set("post_ids", strings.Join(group.EditPostIDs, ","))
 	}
+	return "/?" + values.Encode()
+}
+
+func publicationGroupReuseURL(group publicationGroupItem, currentViewURL string) string {
+	sourcePostID := strings.TrimSpace(group.PrimaryPostID)
+	if sourcePostID == "" {
+		return ""
+	}
+	values := url.Values{}
+	values.Set("view", "create")
+	values.Set("source_post_id", sourcePostID)
+	values.Set("return_to", currentViewURL)
 	return "/?" + values.Encode()
 }
 

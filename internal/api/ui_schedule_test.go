@@ -60,3 +60,19 @@ func TestCalendarSelectedDayFromCreateQueryFallsBackToReturnTo(t *testing.T) {
 		t.Fatalf("expected selected day 2026-03-19, got %q", got)
 	}
 }
+
+func TestPublicationGroupReuseURL(t *testing.T) {
+	group := publicationGroupItem{PrimaryPostID: "pst_123"}
+
+	got := publicationGroupReuseURL(group, "/?view=calendar&month=2026-03&day=2026-03-19")
+	want := "/?return_to=%2F%3Fview%3Dcalendar%26month%3D2026-03%26day%3D2026-03-19&source_post_id=pst_123&view=create"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestPublicationGroupReuseURLEmptyWithoutSource(t *testing.T) {
+	if got := publicationGroupReuseURL(publicationGroupItem{}, "/?view=calendar"); got != "" {
+		t.Fatalf("expected empty reuse url, got %q", got)
+	}
+}

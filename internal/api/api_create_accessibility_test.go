@@ -458,3 +458,28 @@ func TestCreateViewPreviewRendersMarkdownFormatting(t *testing.T) {
 		t.Fatalf("expected markdown formatting in preview html")
 	}
 }
+
+func TestCreateViewKeepsSourcePostIDHiddenField(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+	_ = testAccountID(t, store)
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/?view=create&source_post_id=pst_source_123", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for create view, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `<input type="hidden" name="source_post_id" value="pst_source_123" />`) {
+		t.Fatalf("expected source_post_id hidden input in create form")
+	}
+}
