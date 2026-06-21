@@ -65,7 +65,7 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 
 	body := map[string]any{"model": p.model, "messages": messages}
 	if req.MaxTokens > 0 {
-		body["max_tokens"] = req.MaxTokens
+		body["max_completion_tokens"] = req.MaxTokens
 	}
 
 	var parsed struct {

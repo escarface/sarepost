@@ -111,6 +111,47 @@ func TestOpenAITextProvider_UsesResponsesWebSearchWhenRequired(t *testing.T) {
 	}
 }
 
+func TestOpenAITextProvider_UsesMaxCompletionTokensForChatCompletions(t *testing.T) {
+	var gotPath string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{
+					"message": map[string]any{
+						"content": "generated copy",
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := newOpenAITextProvider(ProviderConfig{APIKey: "sk-test", Model: "gpt-4.1-mini", BaseURL: srv.URL})
+	res, err := p.GenerateText(context.Background(), TextRequest{
+		Prompt:    "Write a post about demand generation.",
+		MaxTokens: 300,
+	})
+	if err != nil {
+		t.Fatalf("generate text: %v", err)
+	}
+	if res.Text != "generated copy" {
+		t.Fatalf("unexpected text %q", res.Text)
+	}
+	if gotPath != "/chat/completions" {
+		t.Fatalf("path = %q, want /chat/completions", gotPath)
+	}
+	if _, ok := gotBody["max_tokens"]; ok {
+		t.Fatalf("request unexpectedly used max_tokens: %#v", gotBody)
+	}
+	if gotBody["max_completion_tokens"] != float64(300) {
+		t.Fatalf("max_completion_tokens = %#v, want 300", gotBody["max_completion_tokens"])
+	}
+}
+
 func TestOpenAITextProvider_ExtractsResponsesTextFromOutputBlocks(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
