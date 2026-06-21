@@ -54,26 +54,24 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 	if strings.TrimSpace(req.Prompt) == "" {
 		return TextResult{}, fmt.Errorf("prompt is required")
 	}
-	body := map[string]any{
-		"model": p.model,
-		"input": req.Prompt,
-	}
-	if system := strings.TrimSpace(req.System); system != "" {
-		body["instructions"] = system
-	}
-	if req.MaxTokens > 0 {
-		body["max_output_tokens"] = req.MaxTokens
-	}
-	if req.WebSearchRequired {
-		body["tools"] = []map[string]any{{"type": "web_search"}}
-		body["tool_choice"] = "required"
-	}
-
-	raw, err := openAIPostJSONRaw(ctx, p.baseURL, p.apiKey, "/responses", body)
+	raw, err := p.generateResponse(ctx, req, req.MaxTokens)
 	if err != nil {
 		return TextResult{}, err
 	}
 	out := strings.TrimSpace(extractOpenAIResponsesText(raw))
+	if out == "" && openAIResponseIncompleteReason(raw) == "max_output_tokens" {
+		retryLimit := req.MaxTokens * 2
+		if retryLimit < 1200 {
+			retryLimit = 1200
+		}
+		if retryLimit != req.MaxTokens {
+			raw, err = p.generateResponse(ctx, req, retryLimit)
+			if err != nil {
+				return TextResult{}, err
+			}
+			out = strings.TrimSpace(extractOpenAIResponsesText(raw))
+		}
+	}
 	if out == "" {
 		return TextResult{}, fmt.Errorf("openai returned empty response: %s", describeOpenAIResponse(raw))
 	}
@@ -83,6 +81,27 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 		UsedWebSearch: req.WebSearchRequired,
 		Sources:       extractOpenAIResponsesSources(raw),
 	}, nil
+}
+
+func (p openAITextProvider) generateResponse(ctx context.Context, req TextRequest, maxTokens int) ([]byte, error) {
+	body := map[string]any{
+		"model": p.model,
+		"input": req.Prompt,
+	}
+	if system := strings.TrimSpace(req.System); system != "" {
+		body["instructions"] = system
+	}
+	if maxTokens > 0 {
+		body["max_output_tokens"] = maxTokens
+	}
+	if effort := openAIReasoningEffort(p.model); effort != "" {
+		body["reasoning"] = map[string]any{"effort": effort}
+	}
+	if req.WebSearchRequired {
+		body["tools"] = []map[string]any{{"type": "web_search"}}
+		body["tool_choice"] = "required"
+	}
+	return openAIPostJSONRaw(ctx, p.baseURL, p.apiKey, "/responses", body)
 }
 
 func (p openAITextProvider) postJSON(ctx context.Context, path string, body any, out any) error {
@@ -278,6 +297,28 @@ func extractOpenAIResponsesText(raw []byte) string {
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func openAIResponseIncompleteReason(raw []byte) string {
+	var parsed struct {
+		IncompleteDetails struct {
+			Reason string `json:"reason"`
+		} `json:"incomplete_details"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(parsed.IncompleteDetails.Reason)
+}
+
+func openAIReasoningEffort(model string) string {
+	model = strings.ToLower(strings.TrimSpace(model))
+	switch {
+	case strings.HasPrefix(model, "gpt-5"), strings.HasPrefix(model, "o1"), strings.HasPrefix(model, "o3"), strings.HasPrefix(model, "o4"):
+		return "minimal"
+	default:
+		return ""
+	}
 }
 
 func describeOpenAIResponse(raw []byte) string {

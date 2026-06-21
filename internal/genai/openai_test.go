@@ -183,6 +183,64 @@ func TestOpenAITextProvider_UsesInstructionsForSystemPrompt(t *testing.T) {
 	if gotBody["instructions"] != "You are a social media copywriter." {
 		t.Fatalf("instructions = %#v", gotBody["instructions"])
 	}
+	if gotBody["reasoning"] != nil {
+		t.Fatalf("reasoning = %#v, want nil for gpt-4.1-mini", gotBody["reasoning"])
+	}
+}
+
+func TestOpenAITextProvider_RetriesIncompleteMaxOutputTokens(t *testing.T) {
+	var requests []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var body map[string]any
+		_ = json.Unmarshal(raw, &body)
+		requests = append(requests, body)
+		if len(requests) == 1 {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":             "incomplete",
+				"incomplete_details": map[string]any{"reason": "max_output_tokens"},
+				"output":             []map[string]any{{"type": "reasoning", "status": "completed"}},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": "completed",
+			"output": []map[string]any{
+				{
+					"type": "message",
+					"content": []map[string]any{
+						{"type": "output_text", "text": "generated copy"},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := newOpenAITextProvider(ProviderConfig{APIKey: "sk-test", Model: "gpt-5.4", BaseURL: srv.URL})
+	res, err := p.GenerateText(context.Background(), TextRequest{
+		Prompt:    "Write a post about demand generation.",
+		MaxTokens: 300,
+	})
+	if err != nil {
+		t.Fatalf("generate text: %v", err)
+	}
+	if res.Text != "generated copy" {
+		t.Fatalf("unexpected text %q", res.Text)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("expected 2 requests, got %d", len(requests))
+	}
+	if requests[0]["max_output_tokens"] != float64(300) {
+		t.Fatalf("first max_output_tokens = %#v", requests[0]["max_output_tokens"])
+	}
+	firstReasoning, ok := requests[0]["reasoning"].(map[string]any)
+	if !ok || firstReasoning["effort"] != "minimal" {
+		t.Fatalf("first reasoning = %#v", requests[0]["reasoning"])
+	}
+	if requests[1]["max_output_tokens"] != float64(1200) {
+		t.Fatalf("second max_output_tokens = %#v", requests[1]["max_output_tokens"])
+	}
 }
 
 func TestOpenAITextProvider_ExtractsResponsesTextFromOutputBlocks(t *testing.T) {
