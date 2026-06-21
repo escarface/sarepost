@@ -37,7 +37,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_list_schedule",
-		Description: "List scheduled publications by default, or raw posts with view=posts. Supports RFC3339 from/to filters.",
+		Description: "List scheduled items in a time window. Default view=publications groups thread segments into one publication; use view=posts for raw post rows and post IDs needed by later mutations. Prefer RFC3339 from/to filters.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint:   true,
 			IdempotentHint: true,
@@ -191,7 +191,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_create_post",
-		Description: "Create a post or thread as draft (no scheduled_at) or scheduled (with scheduled_at).",
+		Description: "Create a post or thread for one account. Omit scheduled_at to create a draft. Provide segments to create a thread where the first segment is the root post. Use source_post_id to reuse an existing post or thread for another account. Supports editorial metadata and optional idempotency_key for safe retries.",
 		Annotations: &mcp.ToolAnnotations{
 			IdempotentHint: false,
 		},
@@ -207,7 +207,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_schedule_post",
-		Description: "Schedule a draft post by ID.",
+		Description: "Schedule an existing draft post by ID at scheduled_at. Use preview_schedule first when you want guardrail feedback without mutating state.",
 		Annotations: &mcp.ToolAnnotations{
 			IdempotentHint: false,
 		},
@@ -215,7 +215,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_preview_schedule",
-		Description: "Preview scheduling a draft without mutating it, including normalized text, account, media, local time, and guardrail warnings.",
+		Description: "Preview scheduling a draft without mutating it. Returns normalized content, resolved local time, account/media context, and scheduling guardrail warnings that an LLM should surface before calling schedule_post.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint:   true,
 			IdempotentHint: true,
@@ -232,7 +232,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_edit_post",
-		Description: "Edit a single post or replace an editable thread via segments, plus optional intent/scheduled date.",
+		Description: "Edit an editable post by post_id. For threads, provide segments to replace the ordered thread payload. media_ids replaces existing media for single-post edits; pass [] to remove media when platform rules allow it.",
 		Annotations: &mcp.ToolAnnotations{
 			IdempotentHint: false,
 		},
@@ -248,7 +248,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_validate_post",
-		Description: "Validate a post or thread payload without creating it.",
+		Description: "Validate a post or thread payload without creating it. Returns valid, normalized payload details, and warnings. Preferred before create_post when an LLM wants to confirm platform fit.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint:   true,
 			IdempotentHint: true,
@@ -257,7 +257,7 @@ func (s Server) newMCPHandler() http.Handler {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_upload_media",
-		Description: "Upload media and return media_id. Provide content_base64.",
+		Description: "Upload media from inline base64 bytes and return media_id. MCP clients must send content_base64, not local file paths. Upload first, then reuse media_id in post or content plan calls.",
 		Annotations: &mcp.ToolAnnotations{
 			IdempotentHint: false,
 		},
@@ -375,13 +375,14 @@ type mcpListFailedInput struct {
 }
 
 type mcpCreatePostInput struct {
-	AccountID        string                  `json:"account_id" jsonschema:"Target connected account ID."`
-	Text             string                  `json:"text" jsonschema:"Post text content."`
-	ScheduledAt      string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 or datetime-local value. Empty means draft."`
-	MediaIDs         []string                `json:"media_ids,omitempty" jsonschema:"Existing media IDs to attach."`
-	Segments         []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] where first segment is the root post."`
+	AccountID        string                  `json:"account_id" jsonschema:"Target connected account ID. Always resolve this from list_accounts instead of guessing."`
+	SourcePostID     string                  `json:"source_post_id,omitempty" jsonschema:"Optional existing post ID to reuse as the source copy/media/thread when creating for another account."`
+	Text             string                  `json:"text,omitempty" jsonschema:"Post text content for single-post creates. If segments is provided, the first segment becomes the root post text."`
+	ScheduledAt      string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 with explicit timezone offset is preferred. Datetime-local is also accepted in the configured UI timezone. Empty means draft."`
+	MediaIDs         []string                `json:"media_ids,omitempty" jsonschema:"Existing uploaded media IDs to attach to a single post. Upload media first via postflow_upload_media."`
+	Segments         []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] in order. Segment 1 is the root post and later segments are follow-ups."`
 	MaxAttempts      int                     `json:"max_attempts,omitempty" jsonschema:"Max publish retries. Default from server config."`
-	IdempotencyKey   string                  `json:"idempotency_key,omitempty" jsonschema:"Optional idempotency key (max 128 chars)."`
+	IdempotencyKey   string                  `json:"idempotency_key,omitempty" jsonschema:"Optional idempotency key (max 128 chars). Recommended when the client may retry create requests."`
 	CampaignID       string                  `json:"campaign_id,omitempty" jsonschema:"Optional editorial campaign ID."`
 	EditorialStatus  string                  `json:"editorial_status,omitempty" jsonschema:"Optional editorial status: idea|drafting|needs_review|approved|scheduled."`
 	RequiresApproval bool                    `json:"requires_approval,omitempty" jsonschema:"Whether approval is required before scheduling."`
@@ -389,17 +390,17 @@ type mcpCreatePostInput struct {
 }
 
 type mcpValidatePostInput struct {
-	AccountID   string                  `json:"account_id" jsonschema:"Target connected account ID."`
-	Text        string                  `json:"text" jsonschema:"Post text content."`
-	ScheduledAt string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 value. Empty means draft."`
-	MediaIDs    []string                `json:"media_ids,omitempty" jsonschema:"Existing media IDs to validate."`
-	Segments    []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] where first segment is the root post."`
+	AccountID   string                  `json:"account_id" jsonschema:"Target connected account ID. Resolve it from list_accounts first."`
+	Text        string                  `json:"text" jsonschema:"Post text content for single-post validation. If segments is provided, the first segment becomes the root post text."`
+	ScheduledAt string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 with explicit timezone offset is preferred. Empty means validate as a draft."`
+	MediaIDs    []string                `json:"media_ids,omitempty" jsonschema:"Existing uploaded media IDs to validate for a single post."`
+	Segments    []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] in order. Segment 1 is the root post."`
 	MaxAttempts int                     `json:"max_attempts,omitempty" jsonschema:"Max publish retries. Default from server config."`
 }
 
 type mcpThreadSegmentInput struct {
-	Text     string   `json:"text"`
-	MediaIDs []string `json:"media_ids,omitempty"`
+	Text     string   `json:"text" jsonschema:"Segment text. For a thread, the first segment is the root post and later segments are follow-ups."`
+	MediaIDs []string `json:"media_ids,omitempty" jsonschema:"Optional uploaded media IDs attached to this segment."`
 }
 
 type mcpPostSummary struct {
@@ -614,7 +615,8 @@ func (s Server) mcpCreatePostTool(ctx context.Context, _ *mcp.CallToolRequest, i
 	if len(segments) > 0 {
 		text = strings.TrimSpace(segments[0].Text)
 	}
-	if text == "" && len(segments) == 0 {
+	sourcePostID := strings.TrimSpace(in.SourcePostID)
+	if text == "" && len(segments) == 0 && sourcePostID == "" {
 		return nil, mcpCreatePostOutput{}, fmt.Errorf("text is required")
 	}
 
@@ -636,6 +638,7 @@ func (s Server) mcpCreatePostTool(ctx context.Context, _ *mcp.CallToolRequest, i
 	}
 	createOut, err := createService.Create(ctx, postsapp.CreateInput{
 		AccountIDs:       []string{in.AccountID},
+		SourcePostID:     sourcePostID,
 		Text:             text,
 		ScheduledAt:      scheduledAt,
 		MediaIDs:         mediaIDs,

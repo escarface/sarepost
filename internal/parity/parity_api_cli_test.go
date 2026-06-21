@@ -45,6 +45,26 @@ func (e *parityEnv) apiCreatePostForAccount(accountID, text string, scheduledAt 
 	return out.ID
 }
 
+func (e *parityEnv) apiCreatePostFromSource(accountID, sourcePostID string) string {
+	e.t.Helper()
+	body := map[string]any{
+		"account_id":     strings.TrimSpace(accountID),
+		"source_post_id": strings.TrimSpace(sourcePostID),
+	}
+	raw, status := e.apiJSON(http.MethodPost, "/posts", body, "application/json")
+	if status != http.StatusCreated && status != http.StatusOK {
+		e.t.Fatalf("create post from source status=%d body=%s", status, string(raw))
+	}
+	var out struct {
+		ID string `json:"id"`
+	}
+	mustJSON(e.t, raw, &out)
+	if strings.TrimSpace(out.ID) == "" {
+		e.t.Fatalf("expected post id in create-from-source response")
+	}
+	return out.ID
+}
+
 func (e *parityEnv) apiCreateThread(segments []map[string]any) []string {
 	e.t.Helper()
 	body := map[string]any{
@@ -421,6 +441,16 @@ func (e *parityEnv) cliCreatePostForAccount(accountID, text string, mediaIDs []s
 		args = append(args, "--media-id", strings.TrimSpace(mediaID))
 	}
 	raw := e.runCLI(args...)
+	var out struct {
+		ID string `json:"id"`
+	}
+	mustJSON(e.t, raw, &out)
+	return strings.TrimSpace(out.ID)
+}
+
+func (e *parityEnv) cliCreatePostFromSource(accountID, sourcePostID string) string {
+	e.t.Helper()
+	raw := e.runCLI("posts", "create", "--account-id", strings.TrimSpace(accountID), "--source-post-id", strings.TrimSpace(sourcePostID))
 	var out struct {
 		ID string `json:"id"`
 	}

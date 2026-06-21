@@ -17,6 +17,7 @@ import (
 type createPostRequest struct {
 	AccountID        string              `json:"account_id"`
 	AccountIDs       []string            `json:"account_ids"`
+	SourcePostID     string              `json:"source_post_id"`
 	Text             string              `json:"text"`
 	ScheduledAt      string              `json:"scheduled_at"`
 	MediaIDs         []string            `json:"media_ids"`
@@ -61,7 +62,8 @@ func (s Server) handleCreatePost(w http.ResponseWriter, r *http.Request) {
 	if len(segments) > 0 {
 		text = strings.TrimSpace(segments[0].Text)
 	}
-	if text == "" && len(segments) == 0 {
+	sourcePostID := strings.TrimSpace(req.SourcePostID)
+	if text == "" && len(segments) == 0 && sourcePostID == "" {
 		if fromForm {
 			http.Redirect(w, r, createViewURL("", req.Text, req.ScheduledAt, req.ReturnTo, "text is required", ""), http.StatusSeeOther)
 			return
@@ -111,6 +113,7 @@ func (s Server) handleCreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 	createOut, err := createService.Create(r.Context(), postsapp.CreateInput{
 		AccountIDs:       accountIDs,
+		SourcePostID:     sourcePostID,
 		Text:             text,
 		ScheduledAt:      scheduledAt,
 		MediaIDs:         req.MediaIDs,

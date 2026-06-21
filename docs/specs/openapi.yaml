@@ -2101,10 +2101,12 @@ components:
       description: >
         Backward compatible payload. Use `text` + `media_ids` for single post, or `segments` for
         thread creation/editing. When `segments` is present, `text`/`media_ids` are treated as legacy
-        compatibility fields and the first segment is used as canonical root content.
+        compatibility fields and the first segment is used as canonical root content. Use
+        `source_post_id` to reuse an existing post or thread as source content/media for a new post.
       oneOf:
         - required: [text]
         - required: [segments]
+        - required: [source_post_id]
       properties:
         account_id:
           type: string
@@ -2113,6 +2115,9 @@ components:
           items:
             type: string
           description: Optional multi-account fanout. If omitted, `account_id` is used.
+        source_post_id:
+          type: string
+          description: Optional existing post ID to reuse as source text/media/thread for the new post.
         text:
           type: string
           description: Root post text for legacy single-post payloads.

@@ -224,6 +224,47 @@ func TestRunPostsCreateIncludesAuthAndIdempotencyHeaders(t *testing.T) {
 	}
 }
 
+func TestRunPostsCreateFromSourcePost(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/posts" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if payload["source_post_id"] != "pst_source_1" {
+			t.Fatalf("unexpected source_post_id payload %v", payload["source_post_id"])
+		}
+		if _, ok := payload["text"]; ok {
+			t.Fatalf("did not expect text when using source_post_id")
+		}
+		if _, ok := payload["media_ids"]; ok {
+			t.Fatalf("did not expect media_ids when using source_post_id")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "pst_new"})
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"--base-url", server.URL,
+		"posts", "create",
+		"--account-id", "acc_1",
+		"--source-post-id", "pst_source_1",
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d, stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "pst_new") {
+		t.Fatalf("expected created post output, got %s", stdout.String())
+	}
+}
+
 func TestRunVersion(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ var (
 	ErrStoreNotConfigured    = errors.New("post create store is not configured")
 	ErrRegistryNotConfigured = errors.New("post provider registry is not configured")
 	ErrCampaignArchived      = errors.New("campaign is archived")
+	ErrSourcePostNotFound    = errors.New("source post not found")
+	ErrSourcePostConflicts   = errors.New("source_post_id cannot be combined with text, media_ids, or segments")
 )
 
 const MaxThreadSegments = 500
@@ -32,6 +35,7 @@ const MaxThreadSegments = 500
 type Store interface {
 	GetAccount(ctx context.Context, id string) (domain.SocialAccount, error)
 	GetCampaign(ctx context.Context, id string) (domain.Campaign, error)
+	GetPost(ctx context.Context, id string) (domain.Post, error)
 	GetMediaByIDs(ctx context.Context, ids []string) ([]domain.Media, error)
 	GetPostByIdempotencyKey(ctx context.Context, idempotencyKey string) (domain.Post, error)
 	ListThreadPosts(ctx context.Context, rootPostID string) ([]domain.Post, error)
@@ -47,6 +51,7 @@ type CreateService struct {
 
 type CreateInput struct {
 	AccountIDs       []string
+	SourcePostID     string
 	Text             string
 	ScheduledAt      time.Time
 	MediaIDs         []string
@@ -126,6 +131,11 @@ func (s CreateService) Create(ctx context.Context, in CreateInput) (CreateOutput
 	accountIDs := NormalizeAccountIDs("", in.AccountIDs)
 	if len(accountIDs) == 0 {
 		return CreateOutput{}, ValidationError{Err: ErrAccountIDRequired}
+	}
+
+	in, err := s.resolveSourcePost(ctx, in)
+	if err != nil {
+		return CreateOutput{}, ValidationError{Err: err}
 	}
 
 	segments, err := normalizeSegments(in)
@@ -252,6 +262,71 @@ func (s CreateService) Create(ctx context.Context, in CreateInput) (CreateOutput
 	}
 
 	return out, nil
+}
+
+func (s CreateService) resolveSourcePost(ctx context.Context, in CreateInput) (CreateInput, error) {
+	sourcePostID := strings.TrimSpace(in.SourcePostID)
+	if sourcePostID == "" {
+		return in, nil
+	}
+	if strings.TrimSpace(in.Text) != "" || len(in.MediaIDs) > 0 || len(in.Segments) > 0 {
+		return CreateInput{}, ErrSourcePostConflicts
+	}
+	source, err := s.Store.GetPost(ctx, sourcePostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return CreateInput{}, ErrSourcePostNotFound
+		}
+		return CreateInput{}, err
+	}
+	rootID := strings.TrimSpace(source.ID)
+	if source.RootPostID != nil && strings.TrimSpace(*source.RootPostID) != "" {
+		rootID = strings.TrimSpace(*source.RootPostID)
+	}
+	threadPosts, err := s.Store.ListThreadPosts(ctx, rootID)
+	if err != nil {
+		return CreateInput{}, err
+	}
+	if len(threadPosts) == 0 {
+		threadPosts = []domain.Post{source}
+	}
+	slices.SortFunc(threadPosts, func(a, b domain.Post) int {
+		if a.ThreadPosition != b.ThreadPosition {
+			return a.ThreadPosition - b.ThreadPosition
+		}
+		return strings.Compare(strings.TrimSpace(a.ID), strings.TrimSpace(b.ID))
+	})
+	if len(threadPosts) == 1 && strings.TrimSpace(threadPosts[0].ID) != strings.TrimSpace(source.ID) {
+		threadPosts = []domain.Post{source}
+	}
+	if len(threadPosts) == 1 {
+		in.Text = strings.TrimSpace(threadPosts[0].Text)
+		in.MediaIDs = copyMediaIDsFromPost(threadPosts[0])
+		return in, nil
+	}
+	in.Segments = make([]ThreadSegmentInput, 0, len(threadPosts))
+	for _, post := range threadPosts {
+		in.Segments = append(in.Segments, ThreadSegmentInput{
+			Text:     strings.TrimSpace(post.Text),
+			MediaIDs: copyMediaIDsFromPost(post),
+		})
+	}
+	return in, nil
+}
+
+func copyMediaIDsFromPost(post domain.Post) []string {
+	if len(post.Media) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(post.Media))
+	for _, media := range post.Media {
+		id := strings.TrimSpace(media.ID)
+		if id == "" {
+			continue
+		}
+		out = append(out, id)
+	}
+	return out
 }
 
 func normalizeMediaIDs(mediaIDs []string) []string {

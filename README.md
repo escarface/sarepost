@@ -226,6 +226,9 @@ claude mcp add -t http postflow http://localhost:8080/mcp --header "Authorizatio
 
 Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls require OAuth bearer auth or `API_TOKEN`.
 
+Full MCP contract for integrators and LLM clients:
+- [`docs/specs/mcp.md`](docs/specs/mcp.md)
+
 ### Available MCP Tools
 
 | Tool | Description |
@@ -240,7 +243,7 @@ Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls req
 | `postflow_set_x_premium` | Toggle X Premium status |
 | `postflow_delete_account` | Delete an account |
 | `postflow_list_failed` | List failed posts (DLQ) |
-| `postflow_create_post` | Create a new post |
+| `postflow_create_post` | Create a new post or reuse an existing post as source content |
 | `postflow_cancel_post` | Cancel a scheduled post |
 | `postflow_schedule_post` | Schedule a draft post |
 | `postflow_preview_schedule` | Preview schedule guardrails without mutating a draft |
@@ -276,6 +279,15 @@ Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls req
 | `postflow_set_smtp_notifications` | Configure SMTP alerts |
 
 All tools support thread/multi-segment posts via the `segments` field, where segment `1` is the root post and segments `2..N` are follow-ups.
+
+Recommended LLM usage rules:
+
+- List accounts before creating or scheduling real posts
+- Use `postflow_validate_post` before `postflow_create_post` when content quality or platform fit matters
+- Use `postflow_preview_schedule` before `postflow_schedule_post` when checking guardrails without mutation
+- Upload media with `content_base64`, then reference returned `media_id` values in later tool calls
+- Use `source_post_id` on `postflow_create_post` when reusing a post or thread for another account/platform
+- Prefer RFC3339 timestamps with explicit timezone offsets
 
 ---
 
@@ -319,6 +331,7 @@ postflow posts validate --account-id acc_xxx --segments-json '[{"text":"root"},{
 # Create
 postflow posts create --account-id acc_xxx --text "Hello world" --scheduled-at 2026-03-01T10:00:00Z
 postflow posts create --account-id acc_xxx --segments-json '[{"text":"root"},{"text":"reply","media_ids":["med_x"]}]' --scheduled-at 2026-03-01T10:00:00Z
+postflow posts create --account-id acc_other --source-post-id pst_source_123
 postflow posts create --account-id acc_xxx --campaign-id cmp_xxx --editorial-status needs_review --requires-approval --tags launch,linkedin --text "Review this"
 
 # Schedule a draft
@@ -470,6 +483,7 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 - [Architecture](docs/architecture.md)
 - [API spec](docs/specs/openapi.yaml)
+- [MCP contract](docs/specs/mcp.md)
 - [Deployment guide](docs/coolify-deploy.md)
 - [Release guide](docs/RELEASING.md)
 - [ADR: Modular monolith](docs/adr/0001-modular-monolith-application-layer.md)

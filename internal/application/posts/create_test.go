@@ -27,6 +27,14 @@ type fakeStore struct {
 	campaigns          map[string]domain.Campaign
 }
 
+func (f *fakeStore) GetPost(_ context.Context, id string) (domain.Post, error) {
+	post, ok := f.postsByID[strings.TrimSpace(id)]
+	if !ok {
+		return domain.Post{}, sql.ErrNoRows
+	}
+	return post, nil
+}
+
 func (f *fakeStore) GetAccount(_ context.Context, id string) (domain.SocialAccount, error) {
 	account, ok := f.accounts[id]
 	if !ok {
@@ -342,5 +350,114 @@ func TestCreateRejectsTooManySegments(t *testing.T) {
 	}
 	if !errors.Is(err, ErrThreadTooLong) {
 		t.Fatalf("expected ErrThreadTooLong, got %v", err)
+	}
+}
+
+func TestCreateCopiesSourcePostTextAndMedia(t *testing.T) {
+	store := &fakeStore{
+		accounts: map[string]domain.SocialAccount{
+			"acc_target": {ID: "acc_target", Platform: domain.PlatformLinkedIn, Status: domain.AccountStatusConnected},
+		},
+		postsByID: map[string]domain.Post{
+			"pst_source": {
+				ID:        "pst_source",
+				AccountID: "acc_source",
+				Platform:  domain.PlatformLinkedIn,
+				Text:      "source copy",
+				Media: []domain.Media{
+					{ID: "med_a"},
+					{ID: "med_b"},
+				},
+			},
+		},
+		media: map[string]domain.Media{
+			"med_a": {ID: "med_a", Kind: "image", MimeType: "image/png"},
+			"med_b": {ID: "med_b", Kind: "image", MimeType: "image/png"},
+		},
+	}
+	service := CreateService{
+		Store: store,
+		Registry: fakeRegistry{
+			providers: map[domain.Platform]postflow.Provider{
+				domain.PlatformLinkedIn: fakeProvider{platform: domain.PlatformLinkedIn},
+			},
+		},
+		DefaultMaxRetries: 3,
+	}
+
+	out, err := service.Create(t.Context(), CreateInput{
+		AccountIDs:   []string{"acc_target"},
+		SourcePostID: "pst_source",
+	})
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+	if len(out.Items) != 1 {
+		t.Fatalf("expected 1 created item, got %d", len(out.Items))
+	}
+	if got := store.createCalls[0].Post.Text; got != "source copy" {
+		t.Fatalf("expected copied text, got %q", got)
+	}
+	if got := store.createCalls[0].MediaIDs; len(got) != 2 || got[0] != "med_a" || got[1] != "med_b" {
+		t.Fatalf("expected copied media ids, got %#v", got)
+	}
+}
+
+func TestCreateCopiesSourceThreadSegments(t *testing.T) {
+	rootID := "pst_root"
+	store := &fakeStore{
+		accounts: map[string]domain.SocialAccount{
+			"acc_target": {ID: "acc_target", Platform: domain.PlatformLinkedIn, Status: domain.AccountStatusConnected},
+		},
+		postsByID: map[string]domain.Post{
+			rootID: {
+				ID:             rootID,
+				AccountID:      "acc_source",
+				Platform:       domain.PlatformLinkedIn,
+				Text:           "root text",
+				ThreadPosition: 1,
+				Media:          []domain.Media{{ID: "med_root"}},
+			},
+			"pst_reply": {
+				ID:             "pst_reply",
+				AccountID:      "acc_source",
+				Platform:       domain.PlatformLinkedIn,
+				Text:           "reply text",
+				ThreadPosition: 2,
+				RootPostID:     &rootID,
+			},
+		},
+		media: map[string]domain.Media{
+			"med_root": {ID: "med_root", Kind: "image", MimeType: "image/png"},
+		},
+	}
+	service := CreateService{
+		Store: store,
+		Registry: fakeRegistry{
+			providers: map[domain.Platform]postflow.Provider{
+				domain.PlatformLinkedIn: fakeProvider{platform: domain.PlatformLinkedIn},
+			},
+		},
+		DefaultMaxRetries: 3,
+	}
+
+	out, err := service.Create(t.Context(), CreateInput{
+		AccountIDs:   []string{"acc_target"},
+		SourcePostID: "pst_reply",
+	})
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+	if len(out.Items) != 2 {
+		t.Fatalf("expected 2 created items, got %d", len(out.Items))
+	}
+	if len(store.createCalls) != 2 {
+		t.Fatalf("expected 2 create calls, got %d", len(store.createCalls))
+	}
+	if got := store.createCalls[0].Post.Text; got != "root text" {
+		t.Fatalf("expected root first, got %q", got)
+	}
+	if got := store.createCalls[1].Post.Text; got != "reply text" {
+		t.Fatalf("expected reply second, got %q", got)
 	}
 }

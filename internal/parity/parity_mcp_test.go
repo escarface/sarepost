@@ -177,6 +177,16 @@ func (e *parityEnv) mcpCreatePostForAccount(accountID, text string, mediaIDs []s
 	return strings.TrimSpace(stringValue(post, "id"))
 }
 
+func (e *parityEnv) mcpCreatePostFromSource(accountID, sourcePostID string) string {
+	e.t.Helper()
+	out := e.mcpCallTool("postflow_create_post", map[string]any{
+		"account_id":     strings.TrimSpace(accountID),
+		"source_post_id": strings.TrimSpace(sourcePostID),
+	})
+	post, _ := out["post"].(map[string]any)
+	return strings.TrimSpace(stringValue(post, "id"))
+}
+
 func (e *parityEnv) mcpCreateThread(segments []map[string]any) []string {
 	e.t.Helper()
 	rootText := ""

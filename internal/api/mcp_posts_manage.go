@@ -23,8 +23,8 @@ type mcpCancelPostOutput struct {
 }
 
 type mcpSchedulePostInput struct {
-	PostID      string `json:"post_id" jsonschema:"Draft post ID."`
-	ScheduledAt string `json:"scheduled_at" jsonschema:"RFC3339 or datetime-local value in UI timezone."`
+	PostID      string `json:"post_id" jsonschema:"Draft post ID to schedule."`
+	ScheduledAt string `json:"scheduled_at" jsonschema:"RFC3339 with explicit timezone offset is preferred. Datetime-local is accepted in the configured UI timezone."`
 }
 
 type mcpSchedulePostOutput struct {
@@ -34,18 +34,18 @@ type mcpSchedulePostOutput struct {
 }
 
 type mcpPreviewScheduleInput struct {
-	PostID      string `json:"post_id" jsonschema:"Draft post ID."`
-	ScheduledAt string `json:"scheduled_at" jsonschema:"RFC3339 or datetime-local value in UI timezone."`
+	PostID      string `json:"post_id" jsonschema:"Draft post ID to preview."`
+	ScheduledAt string `json:"scheduled_at" jsonschema:"RFC3339 with explicit timezone offset is preferred. Datetime-local is accepted in the configured UI timezone."`
 }
 
 type mcpEditPostInput struct {
 	PostID      string                  `json:"post_id" jsonschema:"Editable post ID."`
 	PostIDs     []string                `json:"post_ids,omitempty" jsonschema:"Optional additional editable post IDs to update with the same edit."`
-	Text        string                  `json:"text" jsonschema:"Updated post text content for single-post edits."`
+	Text        string                  `json:"text" jsonschema:"Updated post text content for single-post edits. If segments is provided, the first segment becomes the root post text."`
 	Intent      string                  `json:"intent,omitempty" jsonschema:"Optional intent: draft|schedule|publish_now."`
-	ScheduledAt string                  `json:"scheduled_at,omitempty" jsonschema:"Optional RFC3339 or datetime-local value. If omitted with empty intent, current scheduling is preserved."`
-	MediaIDs    []string                `json:"media_ids,omitempty" jsonschema:"Optional replacement media IDs for single-post edits. Pass [] to remove all media."`
-	Segments    []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] where the first segment is the root post."`
+	ScheduledAt string                  `json:"scheduled_at,omitempty" jsonschema:"Optional RFC3339 with explicit timezone offset is preferred. Datetime-local is accepted in the configured UI timezone. If omitted with empty intent, current scheduling is preserved."`
+	MediaIDs    []string                `json:"media_ids,omitempty" jsonschema:"Optional replacement media IDs for single-post edits. Pass [] to remove all media where platform rules allow it."`
+	Segments    []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional full replacement thread payload [{text, media_ids}] in order. The first segment is the root post."`
 }
 
 type mcpEditPostOutput struct {

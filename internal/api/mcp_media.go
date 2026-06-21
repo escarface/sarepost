@@ -15,10 +15,10 @@ import (
 )
 
 type mcpUploadMediaInput struct {
-	Kind          string   `json:"kind,omitempty" jsonschema:"Media kind. Defaults to video."`
-	OriginalName  string   `json:"original_name,omitempty" jsonschema:"Original filename (recommended for extension/mime detection)."`
+	Kind          string   `json:"kind,omitempty" jsonschema:"Media kind. Defaults to video. Use image for image assets and video for video assets."`
+	OriginalName  string   `json:"original_name,omitempty" jsonschema:"Original filename. Strongly recommended because the extension helps MIME detection."`
 	MimeType      string   `json:"mime_type,omitempty" jsonschema:"Optional mime type override, e.g. image/png."`
-	ContentBase64 string   `json:"content_base64,omitempty" jsonschema:"Base64-encoded file content."`
+	ContentBase64 string   `json:"content_base64,omitempty" jsonschema:"Base64-encoded file content. Required for MCP uploads; local file paths are not accepted."`
 	Tags          []string `json:"tags,omitempty" jsonschema:"Optional editorial tags for library search."`
 }
 

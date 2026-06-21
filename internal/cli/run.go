@@ -283,6 +283,7 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 	fs := flag.NewFlagSet("posts create", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	var accountID string
+	var sourcePostID string
 	var text string
 	var scheduledAt string
 	var maxAttempts int
@@ -294,6 +295,7 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 	var segmentsJSON string
 	var mediaIDs stringListFlag
 	fs.StringVar(&accountID, "account-id", "", "Target account ID")
+	fs.StringVar(&sourcePostID, "source-post-id", "", "Optional existing post ID to reuse as source content/media")
 	fs.StringVar(&text, "text", "", "Post content")
 	fs.StringVar(&scheduledAt, "scheduled-at", "", "Scheduled datetime (RFC3339)")
 	fs.StringVar(&segmentsJSON, "segments-json", "", "Thread segments JSON: [{\"text\":\"...\",\"media_ids\":[\"med_x\"]}]")
@@ -307,8 +309,13 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if strings.TrimSpace(text) == "" && strings.TrimSpace(segmentsJSON) == "" {
+	sourcePostID = strings.TrimSpace(sourcePostID)
+	if strings.TrimSpace(text) == "" && strings.TrimSpace(segmentsJSON) == "" && sourcePostID == "" {
 		fmt.Fprintln(stderr, "--text is required (or --segments-json)")
+		return 2
+	}
+	if sourcePostID != "" && (strings.TrimSpace(text) != "" || strings.TrimSpace(segmentsJSON) != "" || len(mediaIDs) > 0) {
+		fmt.Fprintln(stderr, "--source-post-id cannot be combined with --text, --segments-json, or --media-id")
 		return 2
 	}
 	if strings.TrimSpace(text) != "" && strings.TrimSpace(segmentsJSON) != "" {
@@ -324,6 +331,11 @@ func runPostsCreate(ctx context.Context, client *APIClient, cfg config, args []s
 		"account_id": strings.TrimSpace(accountID),
 		"text":       text,
 		"media_ids":  []string(mediaIDs),
+	}
+	if sourcePostID != "" {
+		payload["source_post_id"] = sourcePostID
+		delete(payload, "text")
+		delete(payload, "media_ids")
 	}
 	if strings.TrimSpace(segmentsJSON) != "" {
 		var segments []map[string]any

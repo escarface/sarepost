@@ -45,6 +45,7 @@ func parseCreatePostRequest(r *http.Request) (createPostRequest, bool, error) {
 		}
 		req.AccountIDs = postsapp.NormalizeAccountIDs("", normalizedIDs)
 		req.AccountID = strings.TrimSpace(req.AccountID)
+		req.SourcePostID = strings.TrimSpace(req.SourcePostID)
 		if len(req.AccountIDs) == 0 && req.AccountID != "" {
 			req.AccountIDs = []string{req.AccountID}
 		}
@@ -59,6 +60,7 @@ func parseCreatePostRequest(r *http.Request) (createPostRequest, bool, error) {
 	}
 	req := createPostRequest{
 		AccountID:        strings.TrimSpace(r.FormValue("account_id")),
+		SourcePostID:     strings.TrimSpace(r.FormValue("source_post_id")),
 		Text:             strings.TrimSpace(r.FormValue("text")),
 		Intent:           strings.ToLower(strings.TrimSpace(r.FormValue("intent"))),
 		ReturnTo:         strings.TrimSpace(r.FormValue("return_to")),

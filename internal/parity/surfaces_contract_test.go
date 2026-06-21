@@ -95,6 +95,21 @@ func TestRequiredCapabilitiesBehaviorParity(t *testing.T) {
 		assertPostText(t, env.store, mcpID, "created via mcp")
 	})
 
+	t.Run("posts.create from source post", func(t *testing.T) {
+		linkedIn := mustCreateParityAccount(t, env, domain.PlatformLinkedIn, "li-source")
+		facebook := mustCreateParityAccount(t, env, domain.PlatformFacebook, "fb-source")
+		linkedInSecond := mustCreateParityAccount(t, env, domain.PlatformLinkedIn, "li-source-2")
+		sourceID := env.apiCreatePostForAccount(linkedIn, "reused published source", time.Time{}, nil)
+
+		apiID := env.apiCreatePostFromSource(facebook, sourceID)
+		cliID := env.cliCreatePostFromSource(linkedInSecond, sourceID)
+		mcpID := env.mcpCreatePostFromSource(linkedIn, sourceID)
+
+		assertPostText(t, env.store, apiID, "reused published source")
+		assertPostText(t, env.store, cliID, "reused published source")
+		assertPostText(t, env.store, mcpID, "reused published source")
+	})
+
 	t.Run("posts.schedule", func(t *testing.T) {
 		baseScheduledAt := time.Now().UTC().Add(40 * time.Minute).Round(time.Second)
 		apiID := env.apiCreatePost("schedule via api", time.Time{}, nil)

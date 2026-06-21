@@ -51,6 +51,9 @@ func (s *draftStore) GetMediaByIDs(_ context.Context, ids []string) ([]domain.Me
 	}
 	return out, nil
 }
+func (s *draftStore) GetPost(context.Context, string) (domain.Post, error) {
+	return domain.Post{}, sql.ErrNoRows
+}
 func (s *draftStore) GetPostByIdempotencyKey(context.Context, string) (domain.Post, error) {
 	return domain.Post{}, sql.ErrNoRows
 }
