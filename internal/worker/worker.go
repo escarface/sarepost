@@ -5,21 +5,29 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"os"
+	"strings"
 	"time"
 
+	contentplansapp "github.com/escarface/sarepost/internal/application/contentplans"
+	generationapp "github.com/escarface/sarepost/internal/application/generation"
+	mediaapp "github.com/escarface/sarepost/internal/application/media"
 	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 	publishcycle "github.com/escarface/sarepost/internal/application/publishcycle"
 	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/postflow"
 	"github.com/escarface/sarepost/internal/secure"
 )
 
 type Worker struct {
-	Store        *db.Store
-	Registry     *postflow.ProviderRegistry
-	Cipher       *secure.Cipher
-	Interval     time.Duration
-	RetryBackoff time.Duration
+	Store            *db.Store
+	Registry         *postflow.ProviderRegistry
+	Cipher           *secure.Cipher
+	Interval         time.Duration
+	RetryBackoff     time.Duration
+	DataDir          string
+	GenerationDriver string
 }
 
 func (w Worker) Start(ctx context.Context) {
@@ -54,6 +62,30 @@ func (w Worker) runOnce(ctx context.Context) {
 		Interval:        w.Interval,
 	}
 	runner.RunOnce(ctx)
+	w.runContentPlanOnce(ctx)
+}
+
+func (w Worker) runContentPlanOnce(ctx context.Context) {
+	job, err := w.Store.ClaimContentPlanJob(ctx, 5*time.Minute)
+	if errors.Is(err, db.ErrNoContentPlanJob) {
+		return
+	}
+	if err != nil {
+		slog.Default().Error("content plan job claim failed", "error", err)
+		return
+	}
+	driver := genai.DriverMock
+	if strings.EqualFold(strings.TrimSpace(w.GenerationDriver), "live") {
+		driver = genai.DriverLive
+	}
+	generation := generationapp.Service{Store: w.Store, Cipher: w.Cipher, Driver: driver, MediaReader: workerMediaReader{store: w.Store}}
+	runner := contentplansapp.Runner{
+		Store: w.Store, Text: generation, Images: generation,
+		Media: mediaapp.Service{GeneratedStore: w.Store, DataDir: w.DataDir}, MaxConcurrency: 2,
+	}
+	if err := runner.RunJob(ctx, job); err != nil {
+		slog.Default().Error("content plan job failed", "job_id", job.ID, "plan_id", job.PlanID, "error", err)
+	}
 }
 
 func (w Worker) loadCredentials(ctx context.Context, accountID string) (postflow.Credentials, error) {
@@ -76,6 +108,23 @@ func (w Worker) loadCredentials(ctx context.Context, accountID string) (postflow
 
 type workerCredentialsStore struct {
 	worker Worker
+}
+
+type workerMediaReader struct{ store *db.Store }
+
+func (r workerMediaReader) ReadMedia(ctx context.Context, mediaID string) ([]byte, string, error) {
+	items, err := r.store.GetMediaByIDs(ctx, []string{strings.TrimSpace(mediaID)})
+	if err != nil {
+		return nil, "", err
+	}
+	if len(items) == 0 {
+		return nil, "", sql.ErrNoRows
+	}
+	data, err := os.ReadFile(items[0].StoragePath)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, items[0].MimeType, nil
 }
 
 func (w workerCredentialsStore) LoadCredentials(ctx context.Context, accountID string) (postflow.Credentials, error) {

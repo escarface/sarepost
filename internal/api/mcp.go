@@ -110,6 +110,18 @@ func (s Server) newMCPHandler() http.Handler {
 		},
 	}, s.mcpGenerateCampaignCalendarTool)
 
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_preview_content_plan", Description: "Validate and estimate a multi-brand, multi-network content plan without persisting it.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}}, s.mcpPreviewContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_create_content_plan", Description: "Create an editable multi-brand content plan with shared ideas adapted per social account."}, s.mcpCreateContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_update_content_plan", Description: "Replace the configuration of a content plan while it is still a draft."}, s.mcpUpdateContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_list_content_plans", Description: "List content plans and their generation state.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}}, s.mcpListContentPlansTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_get_content_plan", Description: "Get a content plan with blocks, items, variants, progress, and errors.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}}, s.mcpGetContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_generate_content_plan", Description: "Queue durable background generation for a draft content plan."}, s.mcpGenerateContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_cancel_content_plan", Description: "Cancel a content plan and any pending generation job."}, s.mcpCancelContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_retry_content_plan", Description: "Regenerate selected failed or ready content plan variants."}, s.mcpRetryContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_regenerate_content_plan", Description: "Regenerate selected variants or complete shared editorial items."}, s.mcpRegenerateContentPlanTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_update_content_plan_variant", Description: "Edit a content plan variant copy, planned time, or media."}, s.mcpUpdateContentPlanVariantTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_schedule_content_plan", Description: "Approve and schedule selected ready variants; valid items proceed and conflicts are reported."}, s.mcpScheduleContentPlanTool)
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_list_editorial_backlog",
 		Description: "List campaign-linked draft/scheduled/failed posts by campaign, platform, editorial status, or tag.",

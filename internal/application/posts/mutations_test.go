@@ -133,6 +133,15 @@ func (f *fakeMutationsStore) ListSchedule(context.Context, time.Time, time.Time)
 	return append([]domain.Post(nil), f.schedule...), nil
 }
 
+func TestValidateNewScheduleAppliesExistingConflictGuardrails(t *testing.T) {
+	when := time.Date(2026, time.July, 6, 9, 0, 0, 0, time.UTC)
+	store := &fakeMutationsStore{schedule: []domain.Post{{ID: "existing", AccountID: "acc_1", Text: "Existing", ScheduledAt: when.Add(2 * time.Minute)}}}
+	err := (MutationsService{Store: store}).ValidateNewSchedule(t.Context(), "acc_1", "New post", when)
+	if !errors.Is(err, ErrScheduleConflict) {
+		t.Fatalf("expected schedule conflict, got %v", err)
+	}
+}
+
 func TestResolveScheduledAtForEdit(t *testing.T) {
 	now := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
 

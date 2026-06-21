@@ -36,5 +36,16 @@ func ExposedCapabilities() map[string]struct{} {
 		capabilities.CapabilityCampaignsCalendarGenerate: {},
 		capabilities.CapabilityCampaignsBacklog:          {},
 		capabilities.CapabilityPostsApprove:              {},
+		capabilities.CapabilityContentPlansPreview:       {},
+		capabilities.CapabilityContentPlansCreate:        {},
+		capabilities.CapabilityContentPlansUpdate:        {},
+		capabilities.CapabilityContentPlansList:          {},
+		capabilities.CapabilityContentPlansGet:           {},
+		capabilities.CapabilityContentPlansGenerate:      {},
+		capabilities.CapabilityContentPlansCancel:        {},
+		capabilities.CapabilityContentPlansRetry:         {},
+		capabilities.CapabilityContentPlansRegenerate:    {},
+		capabilities.CapabilityContentPlansEdit:          {},
+		capabilities.CapabilityContentPlansSchedule:      {},
 	}
 }

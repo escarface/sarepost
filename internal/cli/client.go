@@ -47,6 +47,10 @@ func (c *APIClient) Post(ctx context.Context, path string, in any, out any) erro
 	return c.do(ctx, http.MethodPost, path, nil, in, out, nil)
 }
 
+func (c *APIClient) Patch(ctx context.Context, path string, in any, out any) error {
+	return c.do(ctx, http.MethodPatch, path, nil, in, out, nil)
+}
+
 func (c *APIClient) PostWithHeaders(ctx context.Context, path string, in any, out any, headers map[string]string) error {
 	return c.do(ctx, http.MethodPost, path, nil, in, out, headers)
 }

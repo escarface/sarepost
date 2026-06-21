@@ -138,6 +138,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runDrafts(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "campaigns":
 		return runCampaigns(ctx, client, cfg, rest[1:], stdout, stderr)
+	case "content-plans":
+		return runContentPlans(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "posts":
 		return runPosts(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "accounts":
@@ -647,6 +649,15 @@ Commands:
   health                 Check service health via /healthz
   schedule list          List scheduled publications from /schedule
   drafts list            List drafts via /drafts
+  content-plans create   Create a multi-brand editorial plan
+  content-plans preview  Validate and estimate a plan without saving
+  content-plans list     List content plans and progress
+  content-plans get      Get one plan with generated variants
+  content-plans generate Queue durable plan generation
+  content-plans edit     Edit one generated variant
+  content-plans retry    Regenerate selected variants
+  content-plans schedule Approve and schedule selected variants
+  content-plans cancel   Cancel a plan
   posts create           Create post via /posts
   posts validate         Validate payload via /posts/validate
   posts schedule         Schedule a draft via /posts/{id}/schedule

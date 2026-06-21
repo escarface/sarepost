@@ -39,6 +39,20 @@ and pass them to the provider for image-to-image generation (OpenAI `/images/edi
 and CLI clients already generate content through their own LLM, so generation tools are
 not added to those surfaces.
 
+## Durable content plans (`internal/application/contentplans`)
+
+Content plans are first-class editorial aggregates, independent from campaigns. Each
+plan owns brand/account cadence blocks, shared time-slot ideas, per-account variants,
+and a durable generation job. The application service validates the 90-day/500-variant
+limits and connected accounts before persistence. The worker claims jobs with a SQLite
+lease, generates shared ideas before platform variants, persists each result
+independently, and safely resumes incomplete work after restart.
+
+Review and scheduling remain separate. Plan variants can be edited or regenerated;
+materialization delegates to the existing posts application services so provider
+validation, calendar conflicts, duplicate-content checks, campaigns, and idempotency
+remain consistent. HTTP, MCP, CLI, and Web UI are adapters over this shared behavior.
+
 ## Layer rules
 
 1. Adapters (`api`, `worker`, `cli`) call `application`.

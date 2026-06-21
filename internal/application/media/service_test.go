@@ -11,6 +11,28 @@ import (
 	"github.com/escarface/sarepost/internal/domain"
 )
 
+type generatedMediaStore struct{ created domain.Media }
+
+func (s *generatedMediaStore) CreateMedia(_ context.Context, media domain.Media) (domain.Media, error) {
+	s.created = media
+	return media, nil
+}
+
+func TestPersistGeneratedMediaWritesFileAndMetadata(t *testing.T) {
+	store := &generatedMediaStore{}
+	service := Service{GeneratedStore: store, DataDir: t.TempDir()}
+	media, err := service.PersistGeneratedMedia(t.Context(), []byte("png-data"), "image/png", []string{"content-plan", "plan_1"})
+	if err != nil {
+		t.Fatalf("persist generated media: %v", err)
+	}
+	if media.ID == "" || media.Tags[0] != "content-plan" || store.created.StoragePath == "" {
+		t.Fatalf("unexpected media: %#v", media)
+	}
+	if _, err := os.Stat(media.StoragePath); err != nil {
+		t.Fatalf("expected generated file: %v", err)
+	}
+}
+
 type fakeStore struct {
 	lastListLimit int
 	lastFilter    domain.MediaListFilter

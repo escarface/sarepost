@@ -1506,6 +1506,217 @@ paths:
         '400':
           $ref: '#/components/responses/Error'
 
+  /content-plans/preview:
+    post:
+      summary: Preview a multi-brand content plan
+      description: Validates the date range, cadence, accounts, and brand profiles and returns the number of shared ideas, network variants, and generated images without persisting anything.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentPlanInput'
+      responses:
+        '200':
+          description: Plan volume estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlanPreview'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /content-plans:
+    get:
+      summary: List content plans
+      responses:
+        '200':
+          description: Content plans with their current progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentPlan'
+    post:
+      summary: Create an editable content plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentPlanInput'
+      responses:
+        '201':
+          description: Draft content plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlan'
+        '400':
+          $ref: '#/components/responses/Error'
+
+  /content-plans/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string}
+    get:
+      summary: Get a content plan and all generated variants
+      responses:
+        '200':
+          description: Content plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlan'
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      summary: Replace draft plan configuration
+      description: Recalculates blocks, items, and variants. Only valid before generation is queued.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentPlanInput'
+      responses:
+        '200':
+          description: Updated draft plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlan'
+        '409':
+          $ref: '#/components/responses/Error'
+
+  /content-plans/{id}/generate:
+    post:
+      summary: Queue durable background generation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '202':
+          description: Generation job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlanJob'
+
+  /content-plans/{id}/cancel:
+    post:
+      summary: Cancel a content plan and its active job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Canceled plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlan'
+
+  /content-plans/{id}/retry:
+    post:
+      summary: Regenerate selected variants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentPlanVariantSelection'
+      responses:
+        '202':
+          description: Regeneration job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlanJob'
+
+  /content-plans/{id}/regenerate:
+    post:
+      summary: Alias for retrying selected variants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentPlanRegenerateSelection'
+      responses:
+        '202':
+          description: Regeneration job queued
+
+  /content-plans/{id}/schedule:
+    post:
+      summary: Approve and schedule selected variants
+      description: Schedules valid variants and reports conflicts for the remaining selection.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentPlanVariantSelection'
+      responses:
+        '200':
+          description: Partial-safe scheduling result
+
+  /content-plans/{id}/variants/{variant_id}:
+    patch:
+      summary: Edit one reviewable variant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: variant_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, planned_at]
+              properties:
+                text: {type: string}
+                planned_at: {type: string, format: date-time}
+                media_id: {type: string}
+      responses:
+        '200':
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentPlan'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1551,6 +1762,134 @@ components:
                 type: string
 
   schemas:
+    ContentPlanInput:
+      type: object
+      required: [name, from, to, timezone, blocks]
+      properties:
+        name: {type: string}
+        objective: {type: string}
+        from: {type: string, format: date-time}
+        to: {type: string, format: date-time}
+        timezone: {type: string, description: IANA timezone}
+        blocks:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ContentPlanBlockInput'
+
+    ContentPlanBlockInput:
+      type: object
+      required: [brand_profile_id, account_ids, weekdays, slots]
+      properties:
+        brand_profile_id: {type: string}
+        campaign_id: {type: string}
+        account_ids:
+          type: array
+          minItems: 1
+          items: {type: string}
+        instructions: {type: string}
+        weekdays:
+          type: array
+          items:
+            type: string
+            enum: [sunday, monday, tuesday, wednesday, thursday, friday, saturday]
+        slots:
+          type: array
+          items: {type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$'}
+        generate_images: {type: boolean}
+        image_prompt: {type: string}
+        force_web_search: {type: boolean}
+
+    ContentPlanPreview:
+      type: object
+      properties:
+        item_count: {type: integer}
+        variant_count: {type: integer, maximum: 500}
+        image_count: {type: integer}
+
+    ContentPlan:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        objective: {type: string}
+        timezone: {type: string}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        status:
+          type: string
+          enum: [draft, queued, generating, review, partially_scheduled, scheduled, canceled, failed]
+        blocks:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ContentPlanBlockInput'
+              - type: object
+                properties:
+                  id: {type: string}
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentPlanItem'
+
+    ContentPlanItem:
+      type: object
+      properties:
+        id: {type: string}
+        block_id: {type: string}
+        planned_at: {type: string, format: date-time}
+        idea: {type: string}
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentPlanVariant'
+
+    ContentPlanVariant:
+      type: object
+      properties:
+        id: {type: string}
+        account_id: {type: string}
+        platform: {$ref: '#/components/schemas/Platform'}
+        text: {type: string}
+        media_id: {type: string}
+        planned_at: {type: string, format: date-time}
+        status:
+          type: string
+          enum: [pending, generating, ready, failed, approved, scheduled]
+        error: {type: string}
+        post_id: {type: string}
+
+    ContentPlanJob:
+      type: object
+      properties:
+        id: {type: string}
+        plan_id: {type: string}
+        status:
+          type: string
+          enum: [pending, running, completed, failed, canceled]
+        lease_until: {type: string, format: date-time}
+        error: {type: string}
+
+    ContentPlanVariantSelection:
+      type: object
+      required: [variant_ids]
+      properties:
+        variant_ids:
+          type: array
+          minItems: 1
+          items: {type: string}
+
+    ContentPlanRegenerateSelection:
+      type: object
+      description: At least one variant_ids or item_ids entry is required.
+      properties:
+        variant_ids:
+          type: array
+          items: {type: string}
+        item_ids:
+          type: array
+          items: {type: string}
+
     Platform:
       type: string
       enum: [x, linkedin, facebook, instagram]

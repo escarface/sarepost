@@ -41,6 +41,17 @@ const (
 	CapabilityCampaignsCalendarGenerate = "campaigns.calendar.generate"
 	CapabilityCampaignsBacklog          = "campaigns.backlog"
 	CapabilityPostsApprove              = "posts.approve"
+	CapabilityContentPlansPreview       = "content_plans.preview"
+	CapabilityContentPlansCreate        = "content_plans.create"
+	CapabilityContentPlansUpdate        = "content_plans.update"
+	CapabilityContentPlansList          = "content_plans.list"
+	CapabilityContentPlansGet           = "content_plans.get"
+	CapabilityContentPlansGenerate      = "content_plans.generate"
+	CapabilityContentPlansCancel        = "content_plans.cancel"
+	CapabilityContentPlansRetry         = "content_plans.retry"
+	CapabilityContentPlansRegenerate    = "content_plans.regenerate"
+	CapabilityContentPlansEdit          = "content_plans.edit"
+	CapabilityContentPlansSchedule      = "content_plans.schedule"
 )
 
 type Capability struct {
@@ -82,5 +93,16 @@ func RequiredParityCapabilities() []Capability {
 		{ID: CapabilityCampaignsCalendarGenerate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityCampaignsBacklog, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityPostsApprove, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansPreview, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansCreate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansUpdate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansList, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansGet, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansGenerate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansCancel, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansRetry, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansRegenerate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansEdit, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentPlansSchedule, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 	}
 }

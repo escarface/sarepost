@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	generationapp "github.com/escarface/sarepost/internal/application/generation"
-	"github.com/escarface/sarepost/internal/db"
+	mediaapp "github.com/escarface/sarepost/internal/application/media"
 	"github.com/escarface/sarepost/internal/domain"
 )
 
@@ -222,38 +220,7 @@ func parseProviderConfigUpdate(r *http.Request) (generationapp.ProviderConfigUpd
 }
 
 func (s Server) persistGeneratedImage(ctx context.Context, data []byte, mimeType string) (domain.Media, error) {
-	if len(data) == 0 {
-		return domain.Media{}, errors.New("generated image is empty")
-	}
-	mediaID, err := db.NewID("med")
-	if err != nil {
-		return domain.Media{}, err
-	}
-	storageDir := filepath.Join(s.DataDir, "media")
-	if err := os.MkdirAll(storageDir, 0o755); err != nil {
-		return domain.Media{}, err
-	}
-	ext := ".png"
-	if mimeType == "image/jpeg" {
-		ext = ".jpg"
-	}
-	storagePath := filepath.Join(storageDir, mediaID+"_generated"+ext)
-	if err := os.WriteFile(storagePath, data, 0o644); err != nil {
-		return domain.Media{}, err
-	}
-	media, err := s.Store.CreateMedia(ctx, domain.Media{
-		ID:           mediaID,
-		Kind:         "image",
-		OriginalName: "generated" + ext,
-		StoragePath:  storagePath,
-		MimeType:     mimeType,
-		SizeBytes:    int64(len(data)),
-	})
-	if err != nil {
-		_ = removeFileQuiet(storagePath)
-		return domain.Media{}, err
-	}
-	return media, nil
+	return (mediaapp.Service{GeneratedStore: s.Store, DataDir: s.DataDir}).PersistGeneratedMedia(ctx, data, mimeType, nil)
 }
 
 func (s Server) respondGenerationError(w http.ResponseWriter, r *http.Request, fromForm bool, returnTo string, code int, err error) {

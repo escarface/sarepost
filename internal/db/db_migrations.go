@@ -80,6 +80,11 @@ var dbMigrations = []migration{
 		Name:    "oauth_states_account_kind",
 		Up:      migrationAddOAuthStatesAccountKind,
 	},
+	{
+		Version: 13,
+		Name:    "content_plans",
+		Up:      migrationAddContentPlans,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -469,6 +474,87 @@ func migrationAddOAuthStatesAccountKind(ctx context.Context, tx *sql.Tx) error {
 			return nil
 		}
 		return err
+	}
+	return nil
+}
+
+func migrationAddContentPlans(ctx context.Context, tx *sql.Tx) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS content_plans (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			objective TEXT NOT NULL DEFAULT '',
+			timezone TEXT NOT NULL DEFAULT 'UTC',
+			starts_at TEXT NOT NULL,
+			ends_at TEXT NOT NULL,
+			status TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);`,
+		`CREATE TABLE IF NOT EXISTS content_plan_blocks (
+			id TEXT PRIMARY KEY,
+			plan_id TEXT NOT NULL,
+			brand_profile_id TEXT NOT NULL DEFAULT '',
+			campaign_id TEXT NOT NULL DEFAULT '',
+			instructions TEXT NOT NULL DEFAULT '',
+			account_ids TEXT NOT NULL DEFAULT '[]',
+			weekdays TEXT NOT NULL DEFAULT '[]',
+			slots TEXT NOT NULL DEFAULT '[]',
+			generate_images INTEGER NOT NULL DEFAULT 0,
+			image_prompt TEXT NOT NULL DEFAULT '',
+			force_web_search INTEGER NOT NULL DEFAULT 0,
+			position INTEGER NOT NULL,
+			FOREIGN KEY(plan_id) REFERENCES content_plans(id) ON DELETE CASCADE
+		);`,
+		`CREATE TABLE IF NOT EXISTS content_plan_items (
+			id TEXT PRIMARY KEY,
+			plan_id TEXT NOT NULL,
+			block_id TEXT NOT NULL,
+			planned_at TEXT NOT NULL,
+			idea TEXT NOT NULL DEFAULT '',
+			position INTEGER NOT NULL,
+			FOREIGN KEY(plan_id) REFERENCES content_plans(id) ON DELETE CASCADE,
+			FOREIGN KEY(block_id) REFERENCES content_plan_blocks(id) ON DELETE CASCADE
+		);`,
+		`CREATE TABLE IF NOT EXISTS content_plan_variants (
+			id TEXT PRIMARY KEY,
+			plan_id TEXT NOT NULL,
+			item_id TEXT NOT NULL,
+			account_id TEXT NOT NULL,
+			platform TEXT NOT NULL DEFAULT '',
+			text TEXT NOT NULL DEFAULT '',
+			media_id TEXT,
+			status TEXT NOT NULL,
+			error TEXT NOT NULL DEFAULT '',
+			post_id TEXT,
+			planned_at TEXT NOT NULL,
+			generation_runs INTEGER NOT NULL DEFAULT 0,
+			FOREIGN KEY(plan_id) REFERENCES content_plans(id) ON DELETE CASCADE,
+			FOREIGN KEY(item_id) REFERENCES content_plan_items(id) ON DELETE CASCADE,
+			FOREIGN KEY(account_id) REFERENCES accounts(id),
+			FOREIGN KEY(media_id) REFERENCES media(id),
+			FOREIGN KEY(post_id) REFERENCES posts(id)
+		);`,
+		`CREATE TABLE IF NOT EXISTS content_plan_jobs (
+			id TEXT PRIMARY KEY,
+			plan_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			lease_until TEXT,
+			error TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY(plan_id) REFERENCES content_plans(id) ON DELETE CASCADE
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_plans_status ON content_plans(status);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_plan_items_plan_time ON content_plan_items(plan_id, planned_at);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_plan_variants_plan_status ON content_plan_variants(plan_id, status);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_plan_jobs_status_lease ON content_plan_jobs(status, lease_until);`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_content_plan_jobs_active_plan ON content_plan_jobs(plan_id) WHERE status IN ('pending', 'running');`,
+	}
+	for _, query := range queries {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -446,6 +446,15 @@ func (s MutationsService) ensureScheduleGuardrails(ctx context.Context, post dom
 	return nil
 }
 
+// ValidateNewSchedule applies the same account conflict and duplicate-content
+// guardrails used when scheduling an existing draft, without mutating a post.
+func (s MutationsService) ValidateNewSchedule(ctx context.Context, accountID, text string, scheduledAt time.Time) error {
+	if s.Store == nil {
+		return ErrStoreNotConfigured
+	}
+	return s.ensureScheduleGuardrails(ctx, domain.Post{AccountID: strings.TrimSpace(accountID)}, strings.TrimSpace(text), scheduledAt)
+}
+
 func (s MutationsService) scheduleGuardrailWarnings(ctx context.Context, post domain.Post, candidateText string, scheduledAt time.Time) ([]string, error) {
 	if scheduledAt.IsZero() {
 		return nil, nil

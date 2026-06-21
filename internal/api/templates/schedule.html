@@ -1564,6 +1564,88 @@
     .generate-sources-list a:hover {
       text-decoration: underline;
     }
+    .content-plan-mode-switch {
+      display: inline-grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid #303030;
+      background: #171717;
+      max-width: 440px;
+    }
+    .content-plan-mode-switch button {
+      border: 0;
+      background: transparent;
+      color: #858585;
+      padding: 9px 14px;
+      font: inherit;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      cursor: pointer;
+    }
+    .content-plan-mode-switch button.active {
+      color: #f0d37a;
+      background: #292619;
+      box-shadow: inset 0 0 0 1px #51492d;
+    }
+    .content-plan-builder { display: grid; gap: 14px; }
+    .content-plan-blocks { display: grid; gap: 10px; }
+    .content-plan-block {
+      border: 1px solid #303030;
+      background: #191919;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .content-plan-block-head,
+    .content-plan-summary,
+    .content-plan-workspace-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .content-plan-account-grid,
+    .content-plan-weekdays {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .content-plan-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #333;
+      padding: 7px 9px;
+      color: #b8b8b8;
+      background: #202020;
+      font-size: 12px;
+    }
+    .content-plan-summary {
+      border-left: 3px solid #c5a84e;
+      padding: 12px 14px;
+      background: #211f18;
+      color: #d8d0b5;
+    }
+    .content-plan-variants { display: grid; gap: 9px; }
+    .content-plan-variant {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) minmax(180px, .35fr);
+      gap: 10px;
+      align-items: start;
+      border-top: 1px solid #2d2d2d;
+      padding-top: 10px;
+    }
+    .content-plan-variant textarea { min-height: 88px; }
+    .content-plan-variant-meta { display: grid; gap: 7px; }
+    .content-plan-variant-media {
+      width: 100%;
+      max-height: 150px;
+      object-fit: cover;
+      border: 1px solid #333;
+      background: #111;
+    }
+    .content-plan-status { color: #d0b95f; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
     .editor-head {
       padding: 10px 12px;
       border-bottom: 1px solid #2a2a2a;
@@ -3524,6 +3606,12 @@
       display: none;
     }
     @media (max-width: 980px) {
+      .content-plan-variant {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+      .content-plan-variant-meta {
+        grid-column: 2;
+      }
       .app { flex-direction: column; }
       .sidebar {
         display: block;
@@ -4044,6 +4132,16 @@
       }
     }
     @media (max-width: 520px) {
+      .content-plan-mode-switch {
+        width: 100%;
+        max-width: none;
+      }
+      .content-plan-summary,
+      .content-plan-block-head,
+      .content-plan-workspace-head {
+        align-items: stretch;
+        flex-direction: column;
+      }
       h1 { font-size: 30px; }
       .stats { grid-template-columns: 1fr; }
       .content .text { font-size: 12px; }
@@ -5752,6 +5850,11 @@
           {{if and (not .GenTextProvider.Configured) (not .GenImageProvider.Configured)}}
           <div class="alert error">{{t "generate.no_provider"}} <a href="/?view=settings">{{t "nav.settings"}}</a></div>
           {{end}}
+          <div class="content-plan-mode-switch" id="content-plan-mode" role="tablist" aria-label="Generation mode">
+            <button type="button" class="active" data-generation-mode="single" aria-selected="true">Single post</button>
+            <button type="button" data-generation-mode="plan" aria-selected="false">Content plan</button>
+          </div>
+          <div id="single-post-mode">
           <div class="field-grid two-columns">
             <div class="field">
               <label for="gen-brand">{{t "generate.brand"}}</label>
@@ -5799,6 +5902,67 @@
             <button type="button" class="btn-primary" id="gen-use-btn">{{t "generate.use_in_post"}}</button>
             <span class="meta-soft" id="gen-status"></span>
           </div>
+          </div>
+
+          <div id="content-plan-panel" class="content-plan-builder" hidden>
+            <form id="content-plan-form" class="content-plan-builder">
+              <div class="field-grid two-columns">
+                <div class="field"><label for="content-plan-name">Plan name</label><input id="content-plan-name" required placeholder="Q3 editorial plan" /></div>
+                <div class="field"><label for="content-plan-timezone">Timezone</label><input id="content-plan-timezone" required value="{{.UITimezone}}" /></div>
+              </div>
+              <div class="field"><label for="content-plan-objective">Objective and shared brief</label><textarea id="content-plan-objective" rows="3" required placeholder="What should this content achieve?"></textarea></div>
+              <div class="field-grid two-columns">
+                <div class="field"><label for="content-plan-from">From</label><input id="content-plan-from" type="date" required /></div>
+                <div class="field"><label for="content-plan-to">To · max 90 days</label><input id="content-plan-to" type="date" required /></div>
+              </div>
+              <div class="content-plan-block-head"><span class="composer-label">// brand · accounts · cadence blocks</span><button type="button" class="btn-secondary" id="content-plan-add-block">+ Add block</button></div>
+              <div id="content-plan-blocks" class="content-plan-blocks"></div>
+              <div id="content-plan-summary" class="content-plan-summary" hidden></div>
+              <div class="editor-actions timezone-actions">
+                <button type="button" class="btn-secondary" id="content-plan-preview">Preview volume</button>
+                <button type="submit" class="btn-primary" id="content-plan-create">Create and generate</button>
+              </div>
+              <span class="meta-soft" id="content-plan-status"></span>
+            </form>
+            <section id="content-plan-workspace" class="content-plan-builder">
+              <div class="content-plan-workspace-head"><span class="composer-label">// review workspace</span><button type="button" class="btn-secondary" id="content-plan-refresh">Refresh</button></div>
+              <select id="content-plan-select"><option value="">Select a saved plan</option></select>
+              <div id="content-plan-progress" class="content-plan-summary" hidden></div>
+              <div id="content-plan-variants" class="content-plan-variants"></div>
+              <div class="editor-actions timezone-actions">
+                <button type="button" class="btn-secondary" id="content-plan-retry">Regenerate selected</button>
+                <button type="button" class="btn-primary" id="content-plan-schedule">Approve and schedule selected</button>
+              </div>
+              <button type="button" class="btn-danger" id="content-plan-cancel">Cancel current plan</button>
+            </section>
+          </div>
+
+          <template id="content-plan-block-template">
+            <article class="content-plan-block" data-content-plan-block>
+              <div class="content-plan-block-head"><span class="content-plan-status">Brand block</span><button type="button" class="btn-danger" data-remove-block>Remove</button></div>
+              <div class="field-grid two-columns">
+                <div class="field"><label>Brand profile</label><select data-block-brand required><option value="">Select brand</option>{{range .BrandProfiles}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></div>
+                <div class="field"><label>Campaign · optional</label><select data-block-campaign><option value="">No campaign</option>{{range .Campaigns}}<option value="{{.ID}}">{{.Name}}</option>{{end}}</select></div>
+              </div>
+              <div class="field"><label>Accounts and networks</label><div class="content-plan-account-grid">{{range .Accounts}}<label class="content-plan-check"><input type="checkbox" data-block-account value="{{.ID}}" /><span>{{.DisplayName}} · {{.Platform}}</span></label>{{end}}</div></div>
+              <div class="field"><label>Block instructions</label><textarea data-block-instructions rows="2" placeholder="Themes, tone, restrictions or CTA for this brand"></textarea></div>
+              <div class="field"><label>Publishing days</label><div class="content-plan-weekdays">
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="monday" /><span>monday</span></label>
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="tuesday" /><span>tuesday</span></label>
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="wednesday" /><span>wednesday</span></label>
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="thursday" /><span>thursday</span></label>
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="friday" /><span>friday</span></label>
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="saturday" /><span>saturday</span></label>
+                <label class="content-plan-check"><input type="checkbox" data-block-weekday value="sunday" /><span>sunday</span></label>
+              </div></div>
+              <div class="field"><label>Time slots · comma separated</label><input data-block-slots value="09:00" placeholder="09:00, 17:00" /></div>
+              <div class="content-plan-account-grid">
+                <label class="content-plan-check"><input type="checkbox" data-block-images /> Generate an image per variant</label>
+                <label class="content-plan-check"><input type="checkbox" data-block-research /> Force web research</label>
+              </div>
+              <div class="field"><label>Image direction · optional</label><input data-block-image-prompt placeholder="Visual direction for this brand" /></div>
+            </article>
+          </template>
         </div>
       </section>
       {{end}}
@@ -8734,6 +8898,241 @@
     }
     input.value = browserTimezone;
     input.focus();
+  });
+})();
+</script>
+<script>
+(() => {
+  const root = document.getElementById('generate-view');
+  const panel = document.getElementById('content-plan-panel');
+  if (!root || !panel) return;
+  const single = document.getElementById('single-post-mode');
+  const modeButtons = Array.from(root.querySelectorAll('[data-generation-mode]'));
+  const form = document.getElementById('content-plan-form');
+  const blocksEl = document.getElementById('content-plan-blocks');
+  const blockTemplate = document.getElementById('content-plan-block-template');
+  const statusEl = document.getElementById('content-plan-status');
+  const summaryEl = document.getElementById('content-plan-summary');
+  const selectEl = document.getElementById('content-plan-select');
+  const progressEl = document.getElementById('content-plan-progress');
+  const variantsEl = document.getElementById('content-plan-variants');
+  let currentPlan = null;
+  let pollTimer = 0;
+
+  const requestJSON = async (url, options = {}) => {
+    const response = await fetch(url, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `request failed (${response.status})`);
+    return data;
+  };
+  const setStatus = (message, error = false) => {
+    statusEl.textContent = message || '';
+    statusEl.style.color = error ? 'var(--danger, #c0392b)' : '';
+  };
+  const setMode = (mode) => {
+    const planMode = mode === 'plan';
+    panel.hidden = !planMode;
+    single.hidden = planMode;
+    modeButtons.forEach((button) => {
+      const active = button.dataset.generationMode === mode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    if (planMode) loadPlans();
+  };
+  modeButtons.forEach((button) => button.addEventListener('click', () => setMode(button.dataset.generationMode)));
+
+  const addBlock = () => {
+    const fragment = blockTemplate.content.cloneNode(true);
+    const block = fragment.querySelector('[data-content-plan-block]');
+    block.querySelector('[data-remove-block]').addEventListener('click', () => {
+      if (blocksEl.children.length > 1) block.remove();
+    });
+    ['monday', 'wednesday', 'friday'].forEach((day) => {
+      const input = block.querySelector(`[data-block-weekday][value="${day}"]`);
+      if (input) input.checked = true;
+    });
+    blocksEl.appendChild(fragment);
+  };
+  document.getElementById('content-plan-add-block')?.addEventListener('click', addBlock);
+  addBlock();
+
+  const selectedValues = (block, selector) => Array.from(block.querySelectorAll(selector)).filter((input) => input.checked).map((input) => input.value);
+  const buildPayload = () => {
+    const from = document.getElementById('content-plan-from').value;
+    const to = document.getElementById('content-plan-to').value;
+    if (!from || !to) throw new Error('date range required');
+    const blocks = Array.from(blocksEl.querySelectorAll('[data-content-plan-block]')).map((block, index) => {
+      const accountIDs = selectedValues(block, '[data-block-account]');
+      const weekdays = selectedValues(block, '[data-block-weekday]');
+      const slots = block.querySelector('[data-block-slots]').value.split(',').map((value) => value.trim()).filter(Boolean);
+      if (!block.querySelector('[data-block-brand]').value || !accountIDs.length || !weekdays.length || !slots.length) {
+        throw new Error(`block ${index + 1} requires a brand, account, day and time`);
+      }
+      return {
+        brand_profile_id: block.querySelector('[data-block-brand]').value,
+        campaign_id: block.querySelector('[data-block-campaign]').value,
+        account_ids: accountIDs,
+        instructions: block.querySelector('[data-block-instructions]').value,
+        weekdays,
+        slots,
+        generate_images: block.querySelector('[data-block-images]').checked,
+        image_prompt: block.querySelector('[data-block-image-prompt]').value,
+        force_web_search: block.querySelector('[data-block-research]').checked,
+      };
+    });
+    return {
+      name: document.getElementById('content-plan-name').value.trim(),
+      objective: document.getElementById('content-plan-objective').value.trim(),
+      timezone: document.getElementById('content-plan-timezone').value.trim(),
+      from: `${from}T00:00:00Z`,
+      to: `${to}T23:59:00Z`,
+      blocks,
+    };
+  };
+
+  const preview = async () => {
+    const result = await requestJSON('/content-plans/preview', { method: 'POST', body: JSON.stringify(buildPayload()) });
+    summaryEl.hidden = false;
+    summaryEl.textContent = `${result.item_count} shared ideas · ${result.variant_count} network variants · ${result.image_count} generated images`;
+    return result;
+  };
+  document.getElementById('content-plan-preview')?.addEventListener('click', async () => {
+    try { setStatus('validating plan…'); await preview(); setStatus('plan ready to generate'); }
+    catch (error) { setStatus(error.message, true); }
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = document.getElementById('content-plan-create');
+    submit.disabled = true;
+    try {
+      setStatus('creating plan…');
+      await preview();
+      const plan = await requestJSON('/content-plans', { method: 'POST', body: JSON.stringify(buildPayload()) });
+      await requestJSON(`/content-plans/${encodeURIComponent(plan.id)}/generate`, { method: 'POST', body: '{}' });
+      setStatus('generation queued · you can leave this screen');
+      await loadPlans(plan.id);
+      await loadPlan(plan.id);
+    } catch (error) { setStatus(error.message, true); }
+    finally { submit.disabled = false; }
+  });
+
+  const loadPlans = async (preferredID = '') => {
+    try {
+      const data = await requestJSON('/content-plans');
+      const selected = preferredID || selectEl.value;
+      selectEl.innerHTML = '<option value="">Select a saved plan</option>';
+      (data.items || []).forEach((plan) => {
+        const option = document.createElement('option');
+        option.value = plan.id;
+        option.textContent = `${plan.name} · ${plan.status}`;
+        option.selected = plan.id === selected;
+        selectEl.appendChild(option);
+      });
+    } catch (error) { setStatus(error.message, true); }
+  };
+
+  const renderPlan = (plan) => {
+    currentPlan = plan;
+    const variants = (plan.items || []).flatMap((item) => (item.variants || []).map((variant) => ({ ...variant, idea: item.idea, item_id: item.id })));
+    const ready = variants.filter((variant) => variant.status === 'ready' || variant.status === 'approved').length;
+    const failed = variants.filter((variant) => variant.status === 'failed').length;
+    const scheduled = variants.filter((variant) => variant.status === 'scheduled').length;
+    progressEl.hidden = false;
+    progressEl.textContent = `${plan.status} · ${ready} ready · ${failed} failed · ${scheduled} scheduled · ${variants.length} total`;
+    variantsEl.innerHTML = '';
+    variants.forEach((variant) => {
+      const row = document.createElement('article');
+      row.className = 'content-plan-variant';
+      row.dataset.variantID = variant.id;
+      const check = document.createElement('input');
+      check.type = 'checkbox'; check.dataset.planVariantSelect = ''; check.value = variant.id;
+      check.setAttribute('aria-label', `Select ${variant.platform} variant`);
+      check.disabled = !['ready', 'approved', 'failed'].includes(variant.status);
+      const text = document.createElement('textarea');
+      text.value = variant.text || ''; text.dataset.planVariantText = ''; text.disabled = variant.status === 'scheduled';
+      text.setAttribute('aria-label', `${variant.platform} post copy`);
+      const meta = document.createElement('div'); meta.className = 'content-plan-variant-meta';
+      const label = document.createElement('span'); label.className = 'content-plan-status'; label.textContent = `${variant.platform} · ${variant.status}`;
+      const date = document.createElement('input'); date.type = 'datetime-local'; date.dataset.planVariantDate = '';
+      date.setAttribute('aria-label', `${variant.platform} planned time`);
+      if (variant.planned_at) date.value = variant.planned_at.slice(0, 16);
+      date.disabled = variant.status === 'scheduled';
+      const save = document.createElement('button'); save.type = 'button'; save.className = 'btn-secondary'; save.textContent = 'Save edit'; save.disabled = variant.status === 'scheduled';
+      save.addEventListener('click', async () => {
+        try {
+          save.disabled = true;
+          await requestJSON(`/content-plans/${encodeURIComponent(plan.id)}/variants/${encodeURIComponent(variant.id)}`, { method: 'PATCH', body: JSON.stringify({ text: text.value, planned_at: new Date(date.value).toISOString(), media_id: variant.media_id || '' }) });
+          await loadPlan(plan.id);
+        } catch (error) { setStatus(error.message, true); }
+        finally { save.disabled = false; }
+      });
+      meta.append(label, date, save);
+      const regenerateItem = document.createElement('button'); regenerateItem.type = 'button'; regenerateItem.className = 'btn-secondary'; regenerateItem.textContent = 'Regenerate idea group'; regenerateItem.disabled = variant.status === 'scheduled';
+      regenerateItem.addEventListener('click', async () => {
+        try {
+          regenerateItem.disabled = true;
+          await requestJSON(`/content-plans/${encodeURIComponent(plan.id)}/regenerate`, { method: 'POST', body: JSON.stringify({ item_ids: [variant.item_id] }) });
+          await loadPlan(plan.id);
+        } catch (error) { setStatus(error.message, true); }
+        finally { regenerateItem.disabled = false; }
+      });
+      meta.appendChild(regenerateItem);
+      if (variant.media_id) {
+        const image = document.createElement('img');
+        image.className = 'content-plan-variant-media';
+        image.src = `/media/${encodeURIComponent(variant.media_id)}/content`;
+        image.alt = `${variant.platform} generated creative`;
+        meta.insertBefore(image, save);
+      }
+      if (variant.error) { const failure = document.createElement('span'); failure.className = 'alert error'; failure.textContent = variant.error; meta.appendChild(failure); }
+      row.append(check, text, meta);
+      variantsEl.appendChild(row);
+    });
+  };
+
+  const loadPlan = async (id) => {
+    if (!id) { currentPlan = null; variantsEl.innerHTML = ''; progressEl.hidden = true; return; }
+    const plan = await requestJSON(`/content-plans/${encodeURIComponent(id)}`);
+    renderPlan(plan);
+    window.clearTimeout(pollTimer);
+    if (plan.status === 'queued' || plan.status === 'generating') pollTimer = window.setTimeout(() => loadPlan(id), 2000);
+  };
+  selectEl.addEventListener('change', () => loadPlan(selectEl.value).catch((error) => setStatus(error.message, true)));
+  document.getElementById('content-plan-refresh')?.addEventListener('click', async () => { await loadPlans(); await loadPlan(selectEl.value); });
+
+  const selectedVariantIDs = (allowed) => Array.from(variantsEl.querySelectorAll('[data-plan-variant-select]:checked')).map((input) => input.value).filter((id) => {
+    const variant = (currentPlan?.items || []).flatMap((item) => item.variants || []).find((item) => item.id === id);
+    return variant && allowed.includes(variant.status);
+  });
+  document.getElementById('content-plan-retry')?.addEventListener('click', async () => {
+    const ids = selectedVariantIDs(['ready', 'failed']);
+    if (!currentPlan || !ids.length) { setStatus('select variants to regenerate', true); return; }
+    try { await requestJSON(`/content-plans/${currentPlan.id}/regenerate`, { method: 'POST', body: JSON.stringify({ variant_ids: ids }) }); await loadPlan(currentPlan.id); }
+    catch (error) { setStatus(error.message, true); }
+  });
+  document.getElementById('content-plan-schedule')?.addEventListener('click', async () => {
+    const ids = selectedVariantIDs(['ready', 'approved']);
+    if (!currentPlan || !ids.length) { setStatus('select ready variants to schedule', true); return; }
+    try {
+      const result = await requestJSON(`/content-plans/${currentPlan.id}/schedule`, { method: 'POST', body: JSON.stringify({ variant_ids: ids }) });
+      const conflicts = result.conflicts || [];
+      setStatus(`${(result.scheduled || []).length} scheduled${conflicts.length ? ` · ${conflicts.length} conflicts remain` : ''}`, Boolean(conflicts.length));
+      await loadPlan(currentPlan.id);
+    } catch (error) { setStatus(error.message, true); }
+  });
+  document.getElementById('content-plan-cancel')?.addEventListener('click', async () => {
+    if (!currentPlan || !window.confirm('Cancel this content plan? Generated results will remain visible.')) return;
+    try {
+      await requestJSON(`/content-plans/${currentPlan.id}/cancel`, { method: 'POST', body: '{}' });
+      setStatus('plan canceled');
+      await loadPlans(currentPlan.id);
+      await loadPlan(currentPlan.id);
+    } catch (error) { setStatus(error.message, true); }
   });
 })();
 </script>

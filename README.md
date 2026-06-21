@@ -15,6 +15,7 @@ Built in Go with SQLite. LLM-first: every capability is consistently exposed thr
 - **Scheduling** — set posts to publish at a future date and time
 - **Draft workflow** — create posts as drafts, validate, then schedule
 - **Editorial campaigns** — group posts under campaign briefs with audience, tone, CTA, tags, and archive state
+- **Multi-brand content plans** — generate days, weeks, or up to 90 days of shared editorial ideas adapted to multiple brands, accounts, and networks
 - **Editorial approval** — mark posts as `needs_review`, require approval, and block scheduling until approved
 - **Editorial backlog** — search pending content by campaign, platform, editorial status, tag, and date range
 - **Dead-letter queue** — inspect and requeue failed publications
@@ -87,6 +88,22 @@ scheduled posts.
 
 The Web UI includes **Campaigns** and **Backlog** tabs. API, MCP, and CLI expose the
 same campaign, approval, and backlog capabilities for LLM-first workflows.
+
+## Multi-brand content plans
+
+The **Generate** view supports both one-off generation and durable content plans. A
+plan contains independent brand/account blocks, each with its own cadence, campaign,
+instructions, web-research preference, and optional image generation. Sarepost first
+creates a shared editorial idea for each time slot and then adapts it to every selected
+network.
+
+Plans support ranges of up to 90 calendar days and 500 network variants. Generation
+runs in the background, survives restarts, persists partial progress, and can be
+canceled or retried per variant. The review workspace supports copy/date edits,
+regeneration, and partial-safe scheduling: valid variants are scheduled while calendar
+conflicts remain in the plan with their error.
+
+The same workflow is available through HTTP, MCP, and the `content-plans` CLI command.
 
 ---
 
@@ -238,6 +255,17 @@ Discovery requests (`initialize`, `tools/list`, `ping`) are open. Tool calls req
 | `postflow_add_post_to_campaign` | Attach an existing post to a campaign |
 | `postflow_create_campaign_drafts` | Generate draft variants from a campaign brief |
 | `postflow_generate_campaign_calendar` | Generate multi-day campaign draft plans with `planned_at` slots |
+| `postflow_preview_content_plan` | Validate and estimate a multi-brand content plan |
+| `postflow_create_content_plan` | Create an editable content plan |
+| `postflow_update_content_plan` | Replace draft plan configuration |
+| `postflow_list_content_plans` | List content plans and progress |
+| `postflow_get_content_plan` | Inspect blocks, items, variants, and errors |
+| `postflow_generate_content_plan` | Queue durable background generation |
+| `postflow_cancel_content_plan` | Cancel a plan and active job |
+| `postflow_retry_content_plan` | Regenerate selected variants |
+| `postflow_regenerate_content_plan` | Regenerate variants or a complete shared idea group |
+| `postflow_update_content_plan_variant` | Edit generated copy, media, or planned time |
+| `postflow_schedule_content_plan` | Approve and schedule selected variants |
 | `postflow_list_editorial_backlog` | List content pending editorial action |
 | `postflow_upload_media` | Upload image or video |
 | `postflow_list_media` | List uploaded media |
@@ -312,6 +340,16 @@ postflow campaigns create-drafts --id cmp_xxx --account-id acc_xxx --brand-profi
 postflow campaigns generate-calendar --id cmp_xxx --account-id acc_xxx --from 2026-07-06T09:00:00+02:00 --days 7 --slots 09:00,17:00 --idea "One week of launch education posts"
 postflow campaigns generate-calendar --id cmp_xxx --account-id acc_xxx --from 2026-07-06T09:00:00+02:00 --days 7 --slots 09:00,17:00 --generate-images --image-prompt "Premium Sare Digital visual system, readable Spanish headline, process blueprint layout" --idea "One week of launch education posts with attached creatives"
 postflow campaigns backlog --campaign-id cmp_xxx --editorial-status needs_review
+
+# Multi-brand content plans
+postflow content-plans preview --name "Q3 plan" --from 2026-07-01T00:00:00Z --to 2026-09-28T23:59:00Z --timezone Europe/Madrid --blocks-json '[{"brand_profile_id":"brand_sare","account_ids":["acc_linkedin","acc_instagram"],"weekdays":["monday","wednesday"],"slots":["09:00","17:00"],"generate_images":true}]'
+postflow content-plans create --name "Q3 plan" --objective "Educate and convert" --from 2026-07-01T00:00:00Z --to 2026-09-28T23:59:00Z --timezone Europe/Madrid --blocks-json '[{"brand_profile_id":"brand_sare","account_ids":["acc_linkedin","acc_instagram"],"weekdays":["monday","wednesday"],"slots":["09:00","17:00"]}]'
+postflow content-plans generate --id plan_xxx
+postflow content-plans get --id plan_xxx
+postflow content-plans edit --id plan_xxx --variant-id plv_xxx --text "Revised copy" --planned-at 2026-07-06T09:00:00+02:00
+postflow content-plans retry --id plan_xxx --variant-id plv_xxx
+postflow content-plans regenerate --id plan_xxx --item-id pli_xxx
+postflow content-plans schedule --id plan_xxx --variant-id plv_xxx
 
 # Edit
 postflow posts edit --id pst_xxx --text "Updated copy" --intent schedule --scheduled-at 2026-03-01T10:30:00Z

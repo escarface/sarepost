@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/escarface/sarepost/internal/db"
@@ -26,11 +27,51 @@ type Store interface {
 	DeleteMediaUnusedByPendingPosts(ctx context.Context) ([]domain.Media, error)
 }
 
+type GeneratedStore interface {
+	CreateMedia(ctx context.Context, media domain.Media) (domain.Media, error)
+}
+
 type RemoveFileFunc func(path string) error
 
 type Service struct {
-	Store      Store
-	RemoveFile RemoveFileFunc
+	Store          Store
+	GeneratedStore GeneratedStore
+	DataDir        string
+	RemoveFile     RemoveFileFunc
+}
+
+func (s Service) PersistGeneratedMedia(ctx context.Context, data []byte, mimeType string, tags []string) (domain.Media, error) {
+	if len(data) == 0 {
+		return domain.Media{}, errors.New("generated image is empty")
+	}
+	if s.GeneratedStore == nil {
+		return domain.Media{}, errors.New("generated media store is not configured")
+	}
+	mediaID, err := db.NewID("med")
+	if err != nil {
+		return domain.Media{}, err
+	}
+	storageDir := filepath.Join(s.DataDir, "media")
+	if err := os.MkdirAll(storageDir, 0o755); err != nil {
+		return domain.Media{}, err
+	}
+	ext := ".png"
+	if strings.EqualFold(strings.TrimSpace(mimeType), "image/jpeg") {
+		ext = ".jpg"
+	}
+	storagePath := filepath.Join(storageDir, mediaID+"_generated"+ext)
+	if err := os.WriteFile(storagePath, data, 0o644); err != nil {
+		return domain.Media{}, err
+	}
+	media, err := s.GeneratedStore.CreateMedia(ctx, domain.Media{
+		ID: mediaID, Kind: "image", OriginalName: "generated" + ext,
+		StoragePath: storagePath, MimeType: mimeType, SizeBytes: int64(len(data)), Tags: append([]string(nil), tags...),
+	})
+	if err != nil {
+		_ = os.Remove(storagePath)
+		return domain.Media{}, err
+	}
+	return media, nil
 }
 
 func ClampListLimit(limit int) int {

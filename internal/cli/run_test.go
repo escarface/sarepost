@@ -62,6 +62,33 @@ func TestRunScheduleListJSON(t *testing.T) {
 	}
 }
 
+func TestRunContentPlanCreateSendsMultiBrandBlocks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/content-plans" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		blocks, ok := body["blocks"].([]any)
+		if !ok || len(blocks) != 2 {
+			t.Fatalf("expected two blocks, got %#v", body["blocks"])
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "plan_1", "name": "Quarter", "status": "draft"})
+	}))
+	defer server.Close()
+	blocks := `[{"brand_profile_id":"brand_a","account_ids":["acc_li"],"weekdays":["monday"],"slots":["09:00"]},{"brand_profile_id":"brand_b","account_ids":["acc_ig"],"weekdays":["wednesday"],"slots":["17:00"]}]`
+	var stdout, stderr bytes.Buffer
+	code := Run(context.Background(), []string{"--base-url", server.URL, "--json", "content-plans", "create", "--name", "Quarter", "--from", "2026-07-01T00:00:00Z", "--to", "2026-09-28T23:59:00Z", "--timezone", "UTC", "--blocks-json", blocks}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"id": "plan_1"`) {
+		t.Fatalf("unexpected output %s", stdout.String())
+	}
+}
+
 func TestRunScheduleListPostsViewJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.URL.Query().Get("view"); got != "posts" {

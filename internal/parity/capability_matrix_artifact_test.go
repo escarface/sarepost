@@ -975,6 +975,17 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 				return nil
 			},
 		},
+		capabilities.CapabilityContentPlansPreview:    contentPlanCapabilityChecks("preview"),
+		capabilities.CapabilityContentPlansCreate:     contentPlanCapabilityChecks("create"),
+		capabilities.CapabilityContentPlansUpdate:     contentPlanCapabilityChecks("update"),
+		capabilities.CapabilityContentPlansList:       contentPlanCapabilityChecks("list"),
+		capabilities.CapabilityContentPlansGet:        contentPlanCapabilityChecks("get"),
+		capabilities.CapabilityContentPlansGenerate:   contentPlanCapabilityChecks("generate"),
+		capabilities.CapabilityContentPlansCancel:     contentPlanCapabilityChecks("cancel"),
+		capabilities.CapabilityContentPlansRetry:      contentPlanCapabilityChecks("retry"),
+		capabilities.CapabilityContentPlansRegenerate: contentPlanCapabilityChecks("regenerate"),
+		capabilities.CapabilityContentPlansEdit:       contentPlanCapabilityChecks("edit"),
+		capabilities.CapabilityContentPlansSchedule:   contentPlanCapabilityChecks("schedule"),
 	}
 }
 

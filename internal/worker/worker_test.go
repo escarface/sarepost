@@ -2,13 +2,17 @@ package worker
 
 import (
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	generationapp "github.com/escarface/sarepost/internal/application/generation"
 	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/postflow"
 	"github.com/escarface/sarepost/internal/secure"
 )
@@ -99,6 +103,76 @@ func TestRunOncePublishesDuePost(t *testing.T) {
 	}
 	if post.ExternalID == nil || strings.TrimSpace(*post.ExternalID) == "" {
 		t.Fatalf("expected external_id to be set after publish")
+	}
+}
+
+func TestRunOnceGeneratesQueuedContentPlanDurably(t *testing.T) {
+	store := openWorkerTestStore(t)
+	cipher := newWorkerTestCipher(t)
+	account := createWorkerTestAccount(t, store)
+	generation := generationapp.Service{Store: store, Cipher: cipher, Driver: genai.DriverMock}
+	if _, err := generation.SaveTextProviderConfig(t.Context(), generationapp.ProviderConfigUpdate{Provider: genai.ProviderAnthropic, Model: "mock-text"}); err != nil {
+		t.Fatalf("save text provider: %v", err)
+	}
+	profile, err := generation.SaveBrandProfile(t.Context(), generationapp.BrandProfileUpdate{Name: "Worker Brand"})
+	if err != nil {
+		t.Fatalf("save profile: %v", err)
+	}
+	when := time.Now().UTC().Add(24 * time.Hour)
+	plan, err := store.CreateContentPlan(t.Context(), domain.ContentPlan{
+		Name: "Worker plan", Objective: "Educate", StartsAt: when, EndsAt: when, Status: domain.ContentPlanStatusDraft,
+		Blocks: []domain.ContentPlanBlock{{ID: "worker_block", BrandProfileID: profile.ID, AccountIDs: []string{account.ID}}},
+		Items:  []domain.ContentPlanItem{{ID: "worker_item", BlockID: "worker_block", PlannedAt: when, Variants: []domain.ContentPlanVariant{{ID: "worker_variant", AccountID: account.ID, Platform: account.Platform, Status: domain.ContentPlanVariantPending, PlannedAt: when}}}},
+	})
+	if err != nil {
+		t.Fatalf("create plan: %v", err)
+	}
+	if _, err := store.EnqueueContentPlanJob(t.Context(), plan.ID); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+
+	w := Worker{Store: store, Registry: postflow.NewProviderRegistry(postflow.NewMockProvider(domain.PlatformX)), Cipher: cipher, Interval: time.Second, RetryBackoff: time.Second, DataDir: t.TempDir(), GenerationDriver: string(genai.DriverMock)}
+	w.runOnce(t.Context())
+	loaded, err := store.GetContentPlan(t.Context(), plan.ID)
+	if err != nil {
+		t.Fatalf("get plan: %v", err)
+	}
+	if loaded.Status != domain.ContentPlanStatusReview || loaded.Items[0].Idea == "" || loaded.Items[0].Variants[0].Status != domain.ContentPlanVariantReady || loaded.Items[0].Variants[0].Text == "" {
+		t.Fatalf("unexpected generated plan: %#v", loaded)
+	}
+}
+
+func TestWorkerMediaReaderLoadsPersistedReferenceImage(t *testing.T) {
+	store := openWorkerTestStore(t)
+	path := filepath.Join(t.TempDir(), "reference.png")
+	if err := os.WriteFile(path, []byte("reference-image"), 0o644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	media, err := store.CreateMedia(t.Context(), domain.Media{Kind: "image", OriginalName: "reference.png", StoragePath: path, MimeType: "image/png", SizeBytes: 15})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+	data, mimeType, err := (workerMediaReader{store: store}).ReadMedia(t.Context(), media.ID)
+	if err != nil {
+		t.Fatalf("read media: %v", err)
+	}
+	if string(data) != "reference-image" || mimeType != "image/png" {
+		t.Fatalf("unexpected media data=%q mime=%q", data, mimeType)
+	}
+}
+
+func TestWorkerMediaReaderReportsMissingRowsAndFiles(t *testing.T) {
+	store := openWorkerTestStore(t)
+	reader := workerMediaReader{store: store}
+	if _, _, err := reader.ReadMedia(t.Context(), "med_missing"); err == nil {
+		t.Fatal("expected missing media error")
+	}
+	media, err := store.CreateMedia(t.Context(), domain.Media{Kind: "image", OriginalName: "missing.png", StoragePath: filepath.Join(t.TempDir(), "missing.png"), MimeType: "image/png", SizeBytes: 1})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+	if _, _, err := reader.ReadMedia(t.Context(), media.ID); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected missing file error, got %v", err)
 	}
 }
 

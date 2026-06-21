@@ -47,10 +47,11 @@ func (s *Store) ListMediaFiltered(ctx context.Context, filter domain.MediaListFi
 			m.size_bytes,
 			m.created_at,
 			m.tags,
-			SUM(CASE WHEN p.status NOT IN (?, ?) THEN 1 ELSE 0 END) AS usage_count
+			COUNT(DISTINCT CASE WHEN p.status NOT IN (?, ?) THEN p.id END) + COUNT(DISTINCT cpv.id) AS usage_count
 		FROM media m
 		LEFT JOIN post_media pm ON pm.media_id = m.id
 		LEFT JOIN posts p ON p.id = pm.post_id
+		LEFT JOIN content_plan_variants cpv ON cpv.media_id = m.id
 		`+where+`
 		GROUP BY
 			m.id,
@@ -115,10 +116,11 @@ func (s *Store) DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain
 			m.size_bytes,
 			m.created_at,
 			m.tags,
-			SUM(CASE WHEN p.status NOT IN (?, ?) THEN 1 ELSE 0 END) AS usage_count
+			COUNT(DISTINCT CASE WHEN p.status NOT IN (?, ?) THEN p.id END) + COUNT(DISTINCT cpv.id) AS usage_count
 		FROM media m
 		LEFT JOIN post_media pm ON pm.media_id = m.id
 		LEFT JOIN posts p ON p.id = pm.post_id
+		LEFT JOIN content_plan_variants cpv ON cpv.media_id = m.id
 		WHERE m.id = ?
 		GROUP BY
 			m.id,
@@ -147,7 +149,7 @@ func (s *Store) DeleteMediaIfUnused(ctx context.Context, mediaID string) (domain
 	media.Tags = parseStringList(tags)
 
 	if usageCount > 0 {
-		return domain.Media{}, fmt.Errorf("%w: used by %d non-published posts", ErrMediaInUse, usageCount)
+		return domain.Media{}, fmt.Errorf("%w: used by %d active posts or content plan variants", ErrMediaInUse, usageCount)
 	}
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM post_media WHERE media_id = ?`, mediaID); err != nil {
@@ -191,6 +193,9 @@ func (s *Store) DeleteMediaUnusedByPendingPosts(ctx context.Context) ([]domain.M
 			INNER JOIN posts p ON p.id = pm.post_id
 			WHERE pm.media_id = m.id
 			  AND p.status NOT IN (?, ?)
+		)
+		AND NOT EXISTS (
+			SELECT 1 FROM content_plan_variants cpv WHERE cpv.media_id = m.id
 		)
 		ORDER BY m.created_at ASC
 	`, domain.PostStatusPublished, domain.PostStatusCanceled)
