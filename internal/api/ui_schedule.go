@@ -574,6 +574,49 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if editID == "" {
+		if createSourcePostID != "" {
+			if sourcePost, sourceErr := s.Store.GetPost(r.Context(), createSourcePostID); sourceErr == nil {
+				rootID := postThreadRootID(sourcePost)
+				threadPosts, listErr := s.Store.ListThreadPosts(r.Context(), rootID)
+				if listErr == nil && len(threadPosts) > 0 {
+					sort.SliceStable(threadPosts, func(i, j int) bool {
+						leftPos := threadPosts[i].ThreadPosition
+						rightPos := threadPosts[j].ThreadPosition
+						if leftPos <= 0 {
+							leftPos = 1
+						}
+						if rightPos <= 0 {
+							rightPos = 1
+						}
+						if leftPos != rightPos {
+							return leftPos < rightPos
+						}
+						return threadPosts[i].CreatedAt.Before(threadPosts[j].CreatedAt)
+					})
+					createInitialSegments = createInitialSegments[:0]
+					createInitialMedia = createInitialMedia[:0]
+					for _, step := range threadPosts {
+						attachments := mediaAttachmentsFromPost(step)
+						createInitialSegments = append(createInitialSegments, createThreadSegment{
+							Text:  strings.TrimSpace(step.Text),
+							Media: attachments,
+						})
+					}
+					if len(createInitialSegments) > 0 {
+						createText = createInitialSegments[0].Text
+						createInitialMedia = append(createInitialMedia, createInitialSegments[0].Media...)
+					}
+				} else {
+					createText = strings.TrimSpace(sourcePost.Text)
+					createInitialMedia = mediaAttachmentsFromPost(sourcePost)
+					createInitialSegments = createInitialSegments[:0]
+					createInitialSegments = append(createInitialSegments, createThreadSegment{
+						Text:  createText,
+						Media: append([]createMediaAttachment(nil), createInitialMedia...),
+					})
+				}
+			}
+		}
 		if qText := strings.TrimSpace(r.URL.Query().Get("text")); qText != "" {
 			createText = qText
 		}

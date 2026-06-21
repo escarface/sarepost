@@ -5187,7 +5187,6 @@
 		            <div class="editor-head">{{if .EditingPost}}{{t "create.edit_publication"}}{{else}}{{t "create.new_post"}}{{end}}</div>
 	            <form class="editor-body" id="create-post-form" data-editing-post="{{if .EditingPost}}1{{else}}0{{end}}" method="post" action="{{if .EditingPost}}/posts/{{.EditingPost.ID}}/edit{{else}}/posts{{end}}">
 	              <input type="hidden" name="return_to" value="{{.ReturnTo}}" />
-	              <input type="hidden" name="source_post_id" value="{{.CreateSourcePostID}}" />
 	              {{range .EditPostIDs}}<input type="hidden" name="post_ids" value="{{.}}" />{{end}}
 	              <div id="create-media-hidden"></div>
                 <input type="hidden" id="create-segments-json" name="segments_json" value="" />

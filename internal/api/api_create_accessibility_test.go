@@ -459,7 +459,7 @@ func TestCreateViewPreviewRendersMarkdownFormatting(t *testing.T) {
 	}
 }
 
-func TestCreateViewKeepsSourcePostIDHiddenField(t *testing.T) {
+func TestCreateViewDoesNotSubmitSourcePostIDHiddenField(t *testing.T) {
 	tempDir := t.TempDir()
 	store, err := db.Open(filepath.Join(tempDir, "test.db"))
 	if err != nil {
@@ -479,7 +479,7 @@ func TestCreateViewKeepsSourcePostIDHiddenField(t *testing.T) {
 	}
 
 	body := w.Body.String()
-	if !strings.Contains(body, `<input type="hidden" name="source_post_id" value="pst_source_123" />`) {
-		t.Fatalf("expected source_post_id hidden input in create form")
+	if strings.Contains(body, `name="source_post_id"`) {
+		t.Fatalf("did not expect source_post_id hidden input in create form")
 	}
 }
