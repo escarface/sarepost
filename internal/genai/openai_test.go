@@ -111,7 +111,7 @@ func TestOpenAITextProvider_UsesResponsesWebSearchWhenRequired(t *testing.T) {
 	}
 }
 
-func TestOpenAITextProvider_UsesMaxCompletionTokensForChatCompletions(t *testing.T) {
+func TestOpenAITextProvider_UsesResponsesForPlainText(t *testing.T) {
 	var gotPath string
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,10 +119,11 @@ func TestOpenAITextProvider_UsesMaxCompletionTokensForChatCompletions(t *testing
 		raw, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(raw, &gotBody)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"choices": []map[string]any{
+			"output": []map[string]any{
 				{
-					"message": map[string]any{
-						"content": "generated copy",
+					"type": "message",
+					"content": []map[string]any{
+						{"type": "output_text", "text": "generated copy"},
 					},
 				},
 			},
@@ -141,28 +142,27 @@ func TestOpenAITextProvider_UsesMaxCompletionTokensForChatCompletions(t *testing
 	if res.Text != "generated copy" {
 		t.Fatalf("unexpected text %q", res.Text)
 	}
-	if gotPath != "/chat/completions" {
-		t.Fatalf("path = %q, want /chat/completions", gotPath)
+	if gotPath != "/responses" {
+		t.Fatalf("path = %q, want /responses", gotPath)
 	}
-	if _, ok := gotBody["max_tokens"]; ok {
-		t.Fatalf("request unexpectedly used max_tokens: %#v", gotBody)
+	if gotBody["max_output_tokens"] != float64(300) {
+		t.Fatalf("max_output_tokens = %#v, want 300", gotBody["max_output_tokens"])
 	}
-	if gotBody["max_completion_tokens"] != float64(300) {
-		t.Fatalf("max_completion_tokens = %#v, want 300", gotBody["max_completion_tokens"])
+	if gotBody["input"] != "Write a post about demand generation." {
+		t.Fatalf("input = %#v", gotBody["input"])
 	}
 }
 
-func TestOpenAITextProvider_ExtractsChatCompletionTextBlocks(t *testing.T) {
+func TestOpenAITextProvider_UsesInstructionsForSystemPrompt(t *testing.T) {
+	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"choices": []map[string]any{
+			"output": []map[string]any{
 				{
-					"message": map[string]any{
-						"content": []map[string]any{
-							{"type": "output_text", "text": "first paragraph"},
-							{"type": "output_text", "text": map[string]any{"value": "second paragraph"}},
-						},
-					},
+					"type":    "message",
+					"content": []map[string]any{{"type": "output_text", "text": "ok"}},
 				},
 			},
 		})
@@ -171,13 +171,17 @@ func TestOpenAITextProvider_ExtractsChatCompletionTextBlocks(t *testing.T) {
 
 	p := newOpenAITextProvider(ProviderConfig{APIKey: "sk-test", Model: "gpt-4.1-mini", BaseURL: srv.URL})
 	res, err := p.GenerateText(context.Background(), TextRequest{
+		System: "You are a social media copywriter.",
 		Prompt: "Write a post about demand generation.",
 	})
 	if err != nil {
 		t.Fatalf("generate text: %v", err)
 	}
-	if res.Text != "first paragraph\nsecond paragraph" {
+	if res.Text != "ok" {
 		t.Fatalf("unexpected text %q", res.Text)
+	}
+	if gotBody["instructions"] != "You are a social media copywriter." {
+		t.Fatalf("instructions = %#v", gotBody["instructions"])
 	}
 }
 

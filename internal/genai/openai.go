@@ -54,55 +54,19 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 	if strings.TrimSpace(req.Prompt) == "" {
 		return TextResult{}, fmt.Errorf("prompt is required")
 	}
-	if req.WebSearchRequired {
-		return p.generateTextWithWebSearch(ctx, req)
-	}
-	messages := make([]map[string]string, 0, 2)
-	if system := strings.TrimSpace(req.System); system != "" {
-		messages = append(messages, map[string]string{"role": "system", "content": system})
-	}
-	messages = append(messages, map[string]string{"role": "user", "content": req.Prompt})
-
-	body := map[string]any{"model": p.model, "messages": messages}
-	if req.MaxTokens > 0 {
-		body["max_completion_tokens"] = req.MaxTokens
-	}
-
-	raw, err := openAIPostJSONRaw(ctx, p.baseURL, p.apiKey, "/chat/completions", body)
-	if err != nil {
-		return TextResult{}, err
-	}
-	if openAIChatChoicesCount(raw) == 0 {
-		return TextResult{}, fmt.Errorf("openai returned no choices")
-	}
-	out := strings.TrimSpace(extractOpenAIChatText(raw))
-	if out == "" {
-		return TextResult{}, fmt.Errorf("openai returned empty response")
-	}
-	return TextResult{Text: out, Model: p.model}, nil
-}
-
-func (p openAITextProvider) generateTextWithWebSearch(ctx context.Context, req TextRequest) (TextResult, error) {
-	input := make([]map[string]any, 0, 2)
-	if system := strings.TrimSpace(req.System); system != "" {
-		input = append(input, map[string]any{
-			"role":    "system",
-			"content": []map[string]string{{"type": "input_text", "text": system}},
-		})
-	}
-	input = append(input, map[string]any{
-		"role":    "user",
-		"content": []map[string]string{{"type": "input_text", "text": req.Prompt}},
-	})
-
 	body := map[string]any{
-		"model":       p.model,
-		"input":       input,
-		"tools":       []map[string]any{{"type": "web_search"}},
-		"tool_choice": "required",
+		"model": p.model,
+		"input": req.Prompt,
+	}
+	if system := strings.TrimSpace(req.System); system != "" {
+		body["instructions"] = system
 	}
 	if req.MaxTokens > 0 {
 		body["max_output_tokens"] = req.MaxTokens
+	}
+	if req.WebSearchRequired {
+		body["tools"] = []map[string]any{{"type": "web_search"}}
+		body["tool_choice"] = "required"
 	}
 
 	raw, err := openAIPostJSONRaw(ctx, p.baseURL, p.apiKey, "/responses", body)
@@ -111,12 +75,12 @@ func (p openAITextProvider) generateTextWithWebSearch(ctx context.Context, req T
 	}
 	out := strings.TrimSpace(extractOpenAIResponsesText(raw))
 	if out == "" {
-		return TextResult{}, fmt.Errorf("openai returned empty response")
+		return TextResult{}, fmt.Errorf("openai returned empty response: %s", describeOpenAIResponse(raw))
 	}
 	return TextResult{
 		Text:          out,
 		Model:         p.model,
-		UsedWebSearch: true,
+		UsedWebSearch: req.WebSearchRequired,
 		Sources:       extractOpenAIResponsesSources(raw),
 	}, nil
 }
@@ -316,66 +280,32 @@ func extractOpenAIResponsesText(raw []byte) string {
 	return strings.TrimSpace(b.String())
 }
 
-func openAIChatChoicesCount(raw []byte) int {
+func describeOpenAIResponse(raw []byte) string {
 	var parsed struct {
-		Choices []json.RawMessage `json:"choices"`
+		Status            string `json:"status"`
+		Error             any    `json:"error"`
+		IncompleteDetails any    `json:"incomplete_details"`
+		Output            []struct {
+			Type    string `json:"type"`
+			Status  string `json:"status"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"output"`
 	}
 	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return 0
+		return "unparseable response"
 	}
-	return len(parsed.Choices)
-}
-
-func extractOpenAIChatText(raw []byte) string {
-	var parsed struct {
-		Choices []struct {
-			Message struct {
-				Content any `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return ""
-	}
-	if len(parsed.Choices) == 0 {
-		return ""
-	}
-	content := parsed.Choices[0].Message.Content
-	switch v := content.(type) {
-	case string:
-		return strings.TrimSpace(v)
-	case []any:
-		var b strings.Builder
-		for _, item := range v {
-			part, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			text := strings.TrimSpace(openAIChatContentText(part))
-			if text == "" {
-				continue
-			}
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(text)
+	itemTypes := make([]string, 0, len(parsed.Output))
+	for _, item := range parsed.Output {
+		label := strings.TrimSpace(item.Type)
+		if status := strings.TrimSpace(item.Status); status != "" {
+			label += ":" + status
 		}
-		return strings.TrimSpace(b.String())
-	default:
-		return ""
+		itemTypes = append(itemTypes, label)
 	}
-}
-
-func openAIChatContentText(part map[string]any) string {
-	if text, ok := part["text"].(string); ok {
-		return text
-	}
-	if nested, ok := part["text"].(map[string]any); ok {
-		if value, ok := nested["value"].(string); ok {
-			return value
-		}
-	}
-	return ""
+	return fmt.Sprintf("status=%q output=%q error=%v incomplete_details=%v", parsed.Status, itemTypes, parsed.Error, parsed.IncompleteDetails)
 }
 
 func extractOpenAIResponsesSources(raw []byte) []TextSource {
