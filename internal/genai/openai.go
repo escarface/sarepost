@@ -94,8 +94,10 @@ func (p openAITextProvider) generateResponse(ctx context.Context, req TextReques
 	if maxTokens > 0 {
 		body["max_output_tokens"] = maxTokens
 	}
-	if effort := openAIReasoningEffort(p.model); effort != "" {
-		body["reasoning"] = map[string]any{"effort": effort}
+	if !req.WebSearchRequired {
+		if effort := openAIReasoningEffort(p.model); effort != "" {
+			body["reasoning"] = map[string]any{"effort": effort}
+		}
 	}
 	if req.WebSearchRequired {
 		body["tools"] = []map[string]any{{"type": "web_search"}}

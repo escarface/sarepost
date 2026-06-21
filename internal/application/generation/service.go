@@ -119,7 +119,7 @@ func (s Service) GenerateText(ctx context.Context, in GenerateTextInput) (Genera
 		System:            buildTextSystemPrompt(profile, in.Platform),
 		Prompt:            prompt,
 		MaxTokens:         in.MaxTokens,
-		WebSearchRequired: in.ForceWebSearch || promptNeedsRealTimeResearch(prompt),
+		WebSearchRequired: in.ForceWebSearch,
 	})
 	if err != nil {
 		return GenerateTextOutput{}, err

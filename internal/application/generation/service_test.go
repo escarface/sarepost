@@ -161,32 +161,6 @@ func TestGenerateText_UnknownBrandProfile(t *testing.T) {
 	}
 }
 
-func TestGenerateText_EnablesWebSearchForRealTimeNewsPrompts(t *testing.T) {
-	store := newMemSettings()
-	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock}
-	if _, err := svc.SaveTextProviderConfig(context.Background(), ProviderConfigUpdate{
-		Provider: genai.ProviderOpenAI, Model: "gpt-4.1-mini", APIKey: "sk-test",
-	}); err != nil {
-		t.Fatalf("save provider: %v", err)
-	}
-
-	capt := &capturingText{}
-	svc.TextFactory = func(_ genai.Driver, _ genai.ProviderConfig) (genai.TextProvider, error) {
-		return capt, nil
-	}
-
-	_, err := svc.GenerateText(context.Background(), GenerateTextInput{
-		Prompt:   "Haz un post sobre las ultimas noticias de la semana pasada sobre IA",
-		Platform: domain.PlatformLinkedIn,
-	})
-	if err != nil {
-		t.Fatalf("generate: %v", err)
-	}
-	if !capt.gotWebSearch {
-		t.Fatalf("expected web search to be required for prompt %q", capt.gotPrompt)
-	}
-}
-
 func TestGenerateText_ForceWebSearch(t *testing.T) {
 	store := newMemSettings()
 	svc := Service{Store: store, Cipher: testCipher(t), Driver: genai.DriverMock}

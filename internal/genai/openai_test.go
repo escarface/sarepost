@@ -98,6 +98,9 @@ func TestOpenAITextProvider_UsesResponsesWebSearchWhenRequired(t *testing.T) {
 	if gotPath != "/responses" {
 		t.Fatalf("path = %q, want /responses", gotPath)
 	}
+	if gotBody["reasoning"] != nil {
+		t.Fatalf("reasoning = %#v, want nil when web search is enabled", gotBody["reasoning"])
+	}
 	if gotBody["tool_choice"] != "required" {
 		t.Fatalf("tool_choice = %#v, want required", gotBody["tool_choice"])
 	}
