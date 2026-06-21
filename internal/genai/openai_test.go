@@ -152,6 +152,35 @@ func TestOpenAITextProvider_UsesMaxCompletionTokensForChatCompletions(t *testing
 	}
 }
 
+func TestOpenAITextProvider_ExtractsChatCompletionTextBlocks(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{
+					"message": map[string]any{
+						"content": []map[string]any{
+							{"type": "output_text", "text": "first paragraph"},
+							{"type": "output_text", "text": map[string]any{"value": "second paragraph"}},
+						},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	p := newOpenAITextProvider(ProviderConfig{APIKey: "sk-test", Model: "gpt-4.1-mini", BaseURL: srv.URL})
+	res, err := p.GenerateText(context.Background(), TextRequest{
+		Prompt: "Write a post about demand generation.",
+	})
+	if err != nil {
+		t.Fatalf("generate text: %v", err)
+	}
+	if res.Text != "first paragraph\nsecond paragraph" {
+		t.Fatalf("unexpected text %q", res.Text)
+	}
+}
+
 func TestOpenAITextProvider_ExtractsResponsesTextFromOutputBlocks(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{

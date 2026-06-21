@@ -68,20 +68,14 @@ func (p openAITextProvider) GenerateText(ctx context.Context, req TextRequest) (
 		body["max_completion_tokens"] = req.MaxTokens
 	}
 
-	var parsed struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-	if err := p.postJSON(ctx, "/chat/completions", body, &parsed); err != nil {
+	raw, err := openAIPostJSONRaw(ctx, p.baseURL, p.apiKey, "/chat/completions", body)
+	if err != nil {
 		return TextResult{}, err
 	}
-	if len(parsed.Choices) == 0 {
+	if openAIChatChoicesCount(raw) == 0 {
 		return TextResult{}, fmt.Errorf("openai returned no choices")
 	}
-	out := strings.TrimSpace(parsed.Choices[0].Message.Content)
+	out := strings.TrimSpace(extractOpenAIChatText(raw))
 	if out == "" {
 		return TextResult{}, fmt.Errorf("openai returned empty response")
 	}
@@ -320,6 +314,68 @@ func extractOpenAIResponsesText(raw []byte) string {
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func openAIChatChoicesCount(raw []byte) int {
+	var parsed struct {
+		Choices []json.RawMessage `json:"choices"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return 0
+	}
+	return len(parsed.Choices)
+}
+
+func extractOpenAIChatText(raw []byte) string {
+	var parsed struct {
+		Choices []struct {
+			Message struct {
+				Content any `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return ""
+	}
+	if len(parsed.Choices) == 0 {
+		return ""
+	}
+	content := parsed.Choices[0].Message.Content
+	switch v := content.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case []any:
+		var b strings.Builder
+		for _, item := range v {
+			part, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			text := strings.TrimSpace(openAIChatContentText(part))
+			if text == "" {
+				continue
+			}
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(text)
+		}
+		return strings.TrimSpace(b.String())
+	default:
+		return ""
+	}
+}
+
+func openAIChatContentText(part map[string]any) string {
+	if text, ok := part["text"].(string); ok {
+		return text
+	}
+	if nested, ok := part["text"].(map[string]any); ok {
+		if value, ok := nested["value"].(string); ok {
+			return value
+		}
+	}
+	return ""
 }
 
 func extractOpenAIResponsesSources(raw []byte) []TextSource {
