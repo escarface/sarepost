@@ -81,6 +81,7 @@ func TestMetaValidateDraftRules(t *testing.T) {
 	})
 
 	t.Run("instagram requires exactly one image or video", func(t *testing.T) {
+		longCaption := strings.Repeat("a", 2201)
 		cases := []struct {
 			name       string
 			draft      Draft
@@ -105,6 +106,13 @@ func TestMetaValidateDraftRules(t *testing.T) {
 					{OriginalName: "doc.pdf", MimeType: "application/pdf"},
 				}},
 				wantErrSub: "requires image or video",
+			},
+			{
+				name: "caption too long",
+				draft: Draft{Text: longCaption, Media: []domain.Media{
+					{OriginalName: "a.png", MimeType: "image/png"},
+				}},
+				wantErrSub: "caption",
 			},
 			{
 				name: "png image accepted",

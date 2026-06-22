@@ -106,6 +106,38 @@ func TestPlatformRulesParityInstagramAllowsPNGMediaOnCreate(t *testing.T) {
 	}
 }
 
+func TestPlatformRulesParityInstagramRejectsTooLongCaptionOnCreate(t *testing.T) {
+	env := newParityEnv(t)
+	instagramAccountID := env.apiCreateStaticAccount("instagram", "parity_instagram_long_caption", map[string]any{
+		"access_token": "tok_ig_long_caption",
+	})
+	mediaID := createParityImageMedia(t, env, "ig_long_caption.png")
+	longCaption := strings.Repeat("a", 2201)
+
+	raw, status := env.apiJSON(http.MethodPost, "/posts", map[string]any{
+		"account_id": instagramAccountID,
+		"text":       longCaption,
+		"media_ids":  []string{mediaID},
+	}, "application/json")
+	if status != http.StatusBadRequest {
+		t.Fatalf("api expected 400, got %d body=%s", status, string(raw))
+	}
+	assertContainsAny(t, "api", apiErrorMessage(raw), "instagram", "caption")
+
+	code, _, stderr := env.runCLIResult("posts", "create", "--account-id", instagramAccountID, "--text", longCaption, "--media-id", mediaID)
+	if code == 0 {
+		t.Fatalf("cli expected non-zero exit when instagram caption is too long")
+	}
+	assertContainsAny(t, "cli", stderr, "instagram", "caption")
+
+	msg := env.mcpCallToolError("postflow_create_post", map[string]any{
+		"account_id": instagramAccountID,
+		"text":       longCaption,
+		"media_ids":  []string{mediaID},
+	})
+	assertContainsAny(t, "mcp", msg, "instagram", "caption")
+}
+
 func TestPlatformRulesParityLinkedInEditReplacesMediaAndKeepsSchedule(t *testing.T) {
 	env := newParityEnv(t)
 	linkedInAccountID := env.apiCreateStaticAccount("linkedin", "parity_linkedin_edit_media", map[string]any{

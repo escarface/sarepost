@@ -34,6 +34,8 @@ type InstagramProvider struct {
 	client *http.Client
 }
 
+const instagramCaptionMaxRunes = 2200
+
 func normalizeMetaConfig(cfg MetaProviderConfig) MetaProviderConfig {
 	if strings.TrimSpace(cfg.GraphURL) == "" {
 		cfg.GraphURL = "https://graph.facebook.com"
@@ -98,6 +100,9 @@ func (p *FacebookProvider) ValidateDraft(_ context.Context, _ domain.SocialAccou
 }
 
 func (p *InstagramProvider) ValidateDraft(_ context.Context, _ domain.SocialAccount, draft Draft) ([]string, error) {
+	if len([]rune(strings.TrimSpace(formatPostTextForPublish(draft.Text)))) > instagramCaptionMaxRunes {
+		return nil, fmt.Errorf("instagram caption exceeds %d characters", instagramCaptionMaxRunes)
+	}
 	if len(draft.Media) == 0 {
 		return nil, fmt.Errorf("instagram publish requires one media item")
 	}
