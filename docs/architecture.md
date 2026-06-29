@@ -64,7 +64,9 @@ extended), so they remain in human review and are never auto-scheduled.
 
 `Evaluate` is a pure application function that applies all enabled,
 platform-applicable rules and returns a verdict plus a stable
-`AutoApprovedReason` audit string. `ApproveEligible` is the sweep use case: it
+`AutoApprovedReason` audit string (semicolon-separated `<kind>:<rule_id>:<outcome>`
+tokens ordered by rule id, e.g. `banned_terms:sft_abc:pass;length_range:sft_def:pass`).
+Including the rule id disambiguates two same-kind rules. `ApproveEligible` is the
 lists eligible posts from the `campaign_posts` join (where editorial metadata
 lives), evaluates each, and persists per-post mutations independently so a
 mid-batch failure does not roll back already-committed posts. The worker runs an

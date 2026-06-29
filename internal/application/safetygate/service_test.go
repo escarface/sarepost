@@ -29,7 +29,7 @@ func TestEvaluateAllRulesPassApproved(t *testing.T) {
 	if len(verdict.FailedBlocks) != 0 {
 		t.Fatalf("expected no failed blocks, got %v", verdict.FailedBlocks)
 	}
-	if !strings.Contains(verdict.AuditedAs, "banned_terms:pass") || !strings.Contains(verdict.AuditedAs, "length_range:pass") {
+	if !strings.Contains(verdict.AuditedAs, "banned_terms:sft_ban:pass") || !strings.Contains(verdict.AuditedAs, "length_range:sft_len:pass") {
 		t.Fatalf("audited-as missing pass entries: %q", verdict.AuditedAs)
 	}
 }
@@ -93,7 +93,7 @@ func TestEvaluateReviewSeverityFailStillApproved(t *testing.T) {
 	if contains(verdict.FailedBlocks, "sft_cta") {
 		t.Fatalf("review failure must not appear in FailedBlocks: %v", verdict.FailedBlocks)
 	}
-	if !strings.Contains(verdict.AuditedAs, "required_contains:fail") {
+	if !strings.Contains(verdict.AuditedAs, "required_contains:sft_cta:fail") {
 		t.Fatalf("audited-as should record review failure: %q", verdict.AuditedAs)
 	}
 }
@@ -108,7 +108,7 @@ func TestEvaluateDisabledRuleSkipped(t *testing.T) {
 	if verdict.Status != domain.VerdictApproved {
 		t.Fatalf("disabled rule should be skipped -> approved, got %s", verdict.Status)
 	}
-	if !strings.Contains(verdict.AuditedAs, "banned_terms:skipped") {
+	if !strings.Contains(verdict.AuditedAs, "banned_terms:sft_ban:skipped") {
 		t.Fatalf("disabled rule should be audited as skipped: %q", verdict.AuditedAs)
 	}
 }

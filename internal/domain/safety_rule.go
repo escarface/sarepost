@@ -110,8 +110,10 @@ type SafetyVerdict struct {
 	AuditedAs     string   // machine-readable audit summary for AutoApprovedReason
 }
 
-// BuildAuditedAs constructs the semicolon-separated `<kind>:<outcome>` audit
-// string ordered by rule id (stable regardless of evaluation order).
+// BuildAuditedAs constructs the semicolon-separated `<kind>:<id>:<outcome>`
+// audit string ordered by rule id (stable regardless of evaluation order).
+// Including the rule id disambiguates two same-kind rules that would
+// otherwise produce indistinguishable audit tokens.
 func BuildAuditedAs(entries []AuditEntry) string {
 	if len(entries) == 0 {
 		return ""
@@ -121,7 +123,7 @@ func BuildAuditedAs(entries []AuditEntry) string {
 	sort.Sort(byRuleID(ordered))
 	parts := make([]string, 0, len(ordered))
 	for _, e := range ordered {
-		parts = append(parts, fmt.Sprintf("%s:%s", e.Kind, e.Outcome))
+		parts = append(parts, fmt.Sprintf("%s:%s:%s", e.Kind, e.RuleID, e.Outcome))
 	}
 	return strings.Join(parts, ";")
 }

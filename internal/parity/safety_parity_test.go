@@ -246,6 +246,9 @@ func TestSafetyGateSurfaceParity(t *testing.T) {
 			if post.AutoApprovedReason == "" {
 				t.Fatalf("%s expected auto_approved_reason set", c.label)
 			}
+			if !strings.Contains(post.AutoApprovedReason, "sft_") {
+				t.Fatalf("%s auto_approved_reason should include rule id: %q", c.label, post.AutoApprovedReason)
+			}
 		}
 	})
 

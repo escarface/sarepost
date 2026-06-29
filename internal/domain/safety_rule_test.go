@@ -90,7 +90,7 @@ func TestBuildAuditedAsOrderingStableByRuleID(t *testing.T) {
 		{RuleID: "sft_mmm", Kind: RuleHashtagMax, Outcome: AuditFail},
 	}
 	got := BuildAuditedAs(entries)
-	want := "length_range:pass;hashtag_max:fail;banned_terms:pass"
+	want := "length_range:sft_aaa:pass;hashtag_max:sft_mmm:fail;banned_terms:sft_zzz:pass"
 	if got != want {
 		t.Fatalf("BuildAuditedAs = %q, want %q", got, want)
 	}
@@ -110,8 +110,8 @@ func TestBuildAuditedAsSkippedOutcome(t *testing.T) {
 	entries := []AuditEntry{
 		{RuleID: "sft_aaa", Kind: RuleLinkMax, Outcome: AuditSkipped},
 	}
-	if got := BuildAuditedAs(entries); got != "link_max:skipped" {
-		t.Fatalf("BuildAuditedAs skipped = %q, want link_max:skipped", got)
+	if got := BuildAuditedAs(entries); got != "link_max:sft_aaa:skipped" {
+		t.Fatalf("BuildAuditedAs skipped = %q, want link_max:sft_aaa:skipped", got)
 	}
 }
 

@@ -107,6 +107,9 @@ func TestRunSafetySweepPromotesEligiblePost(t *testing.T) {
 	if post.AutoApprovedReason == "" {
 		t.Fatalf("expected auto_approved_reason set by sweep")
 	}
+	if !strings.Contains(post.AutoApprovedReason, "sft_") {
+		t.Fatalf("auto_approved_reason should include rule id: %q", post.AutoApprovedReason)
+	}
 }
 
 func TestRunSafetySweepLeasePreventsDoublePromote(t *testing.T) {
