@@ -221,13 +221,13 @@ func (s *Store) GetPost(ctx context.Context, id string) (domain.Post, error) {
 	if err := rows.Err(); err != nil {
 		return domain.Post{}, err
 	}
-	var campaignID, editorialStatus, approvedAt, tags sql.NullString
+	var campaignID, editorialStatus, approvedAt, tags, autoApprovedReason, blockedReason sql.NullString
 	var requiresApproval sql.NullInt64
 	err = s.db.QueryRowContext(ctx, `
-		SELECT campaign_id, editorial_status, requires_approval, approved_at, tags
+		SELECT campaign_id, editorial_status, requires_approval, approved_at, tags, auto_approved_reason, blocked_reason
 		FROM campaign_posts
 		WHERE post_id = ?
-	`, p.ID).Scan(&campaignID, &editorialStatus, &requiresApproval, &approvedAt, &tags)
+	`, p.ID).Scan(&campaignID, &editorialStatus, &requiresApproval, &approvedAt, &tags, &autoApprovedReason, &blockedReason)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return domain.Post{}, err
 	}
@@ -239,6 +239,8 @@ func (s *Store) GetPost(ctx context.Context, id string) (domain.Post, error) {
 			t, _ := time.Parse(time.RFC3339Nano, approvedAt.String)
 			p.ApprovedAt = &t
 		}
+		p.AutoApprovedReason = strings.TrimSpace(autoApprovedReason.String)
+		p.BlockedReason = strings.TrimSpace(blockedReason.String)
 		p.Tags = parseStringList(tags.String)
 	}
 	return p, nil
