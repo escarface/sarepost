@@ -172,7 +172,6 @@ func approveSummaryResponse(summary safetyapp.ApproveSummary) map[string]any {
 		"evaluated": summary.Evaluated,
 		"approved":  summary.Approved,
 		"blocked":   summary.Blocked,
-		"skipped":   summary.Skipped,
 		"errors":    errs,
 	}
 }

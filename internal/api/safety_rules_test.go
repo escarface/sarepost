@@ -191,6 +191,23 @@ func TestPostsAutoApproveAPIPromotesEligible(t *testing.T) {
 	}
 }
 
+func TestPostsAutoApproveAPIResponseHasNoSkippedField(t *testing.T) {
+	// R3-W-R1: the Skipped field is always 0 (VerdictSkipped is never produced)
+	// and must not be exposed in the response. Assert it is absent from the JSON.
+	_, server, token := newSafetyTestServer(t)
+	raw, status := safetyDo(t, server, token, http.MethodPost, "/posts/auto-approve", map[string]any{})
+	if status != http.StatusOK {
+		t.Fatalf("auto-approve status=%d body=%s", status, string(raw))
+	}
+	var generic map[string]any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if _, ok := generic["skipped"]; ok {
+		t.Fatalf("response must not contain 'skipped' field (always 0, dead): %s", string(raw))
+	}
+}
+
 func TestPostsAutoApproveAPIEmptyBodyOK(t *testing.T) {
 	// An auto-approve POST with an empty body (Content-Length 0) must NOT
 	// return 400. The handler skips decoding and runs the sweep with defaults.

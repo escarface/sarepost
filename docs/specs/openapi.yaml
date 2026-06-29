@@ -2128,8 +2128,6 @@ components:
           type: integer
         blocked:
           type: integer
-        skipped:
-          type: integer
         errors:
           type: array
           items:

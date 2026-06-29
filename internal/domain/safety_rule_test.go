@@ -37,7 +37,6 @@ func TestSafetyVerdictStatusEnumValues(t *testing.T) {
 	cases := map[SafetyVerdictStatus]string{
 		VerdictApproved:    "approved",
 		VerdictNeedsManual: "needs_manual_review",
-		VerdictSkipped:     "skipped",
 	}
 	for status, want := range cases {
 		if string(status) != want {

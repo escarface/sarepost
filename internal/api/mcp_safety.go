@@ -118,7 +118,6 @@ type mcpAutoApproveOutput struct {
 	Evaluated int      `json:"evaluated"`
 	Approved  int      `json:"approved"`
 	Blocked   int      `json:"blocked"`
-	Skipped   int      `json:"skipped"`
 	Errors    []string `json:"errors,omitempty"`
 }
 
@@ -150,7 +149,6 @@ func autoApproveOutput(summary safetyapp.ApproveSummary) mcpAutoApproveOutput {
 		Evaluated: summary.Evaluated,
 		Approved:  summary.Approved,
 		Blocked:   summary.Blocked,
-		Skipped:   summary.Skipped,
 		Errors:    errs,
 	}
 }

@@ -82,7 +82,6 @@ type SafetyVerdictStatus string
 const (
 	VerdictApproved    SafetyVerdictStatus = "approved"
 	VerdictNeedsManual SafetyVerdictStatus = "needs_manual_review"
-	VerdictSkipped     SafetyVerdictStatus = "skipped"
 )
 
 // AuditOutcome is the per-rule pass/fail/skipped result used to build the

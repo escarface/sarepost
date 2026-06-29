@@ -33,7 +33,6 @@ type ApproveSummary struct {
 	Approved  int     `json:"approved"`
 	Blocked   int     `json:"blocked"`
 	Errors    []error `json:"-"`
-	Skipped   int     `json:"skipped"`
 }
 
 func (s Service) clock() func() time.Time {
@@ -146,8 +145,6 @@ func (s Service) runSweepWithLimit(ctx context.Context, dryRun bool, limit int) 
 			summary.Approved++
 		case domain.VerdictNeedsManual:
 			summary.Blocked++
-		default:
-			summary.Skipped++
 		}
 	}
 	return summary, nil
@@ -164,7 +161,6 @@ func (s Service) evaluatePost(ctx context.Context, post domain.Post, rules []dom
 			slog.Default().Error("safety sweep per-post panic recovered, skipping post",
 				"post_id", post.ID, "panic", r, "stack", string(debug.Stack()))
 			err = fmt.Errorf("post %s: panic recovered: %v", post.ID, r)
-			status = domain.VerdictSkipped
 		}
 	}()
 	verdict := Evaluate(ctx, post, rules)

@@ -31,7 +31,6 @@ type autoApproveSummaryDTO struct {
 	Evaluated int      `json:"evaluated"`
 	Approved  int      `json:"approved"`
 	Blocked   int      `json:"blocked"`
-	Skipped   int      `json:"skipped"`
 	Errors    []string `json:"errors,omitempty"`
 }
 
