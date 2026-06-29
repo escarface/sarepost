@@ -90,8 +90,8 @@ func TestEvaluateReviewSeverityFailStillApproved(t *testing.T) {
 	if len(verdict.Notes) == 0 {
 		t.Fatalf("expected non-blocking note for review failure")
 	}
-	if !contains(verdict.FailedBlocks, "sft_cta") {
-		// review failures are notes, not blocks
+	if contains(verdict.FailedBlocks, "sft_cta") {
+		t.Fatalf("review failure must not appear in FailedBlocks: %v", verdict.FailedBlocks)
 	}
 	if !strings.Contains(verdict.AuditedAs, "required_contains:fail") {
 		t.Fatalf("audited-as should record review failure: %q", verdict.AuditedAs)
