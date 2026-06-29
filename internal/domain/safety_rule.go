@@ -104,10 +104,11 @@ type AuditEntry struct {
 
 // SafetyVerdict is the result of Evaluate.
 type SafetyVerdict struct {
-	Status       SafetyVerdictStatus
-	FailedBlocks []string // rule ids with severity=block that failed
-	Notes        []string // severity=review failures (non-blocking)
-	AuditedAs    string   // machine-readable audit summary for AutoApprovedReason
+	Status        SafetyVerdictStatus
+	FailedBlocks  []string // rule ids with severity=block that failed
+	Notes         []string // severity=review failures (non-blocking)
+	BlockedReason string   // human-readable reason string for BlockedReason column
+	AuditedAs     string   // machine-readable audit summary for AutoApprovedReason
 }
 
 // BuildAuditedAs constructs the semicolon-separated `<kind>:<outcome>` audit
