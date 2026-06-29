@@ -14,6 +14,7 @@ import (
 	mediaapp "github.com/escarface/sarepost/internal/application/media"
 	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 	publishcycle "github.com/escarface/sarepost/internal/application/publishcycle"
+	safetygate "github.com/escarface/sarepost/internal/application/safetygate"
 	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/postflow"
@@ -21,27 +22,90 @@ import (
 )
 
 type Worker struct {
-	Store            *db.Store
-	Registry         *postflow.ProviderRegistry
-	Cipher           *secure.Cipher
-	Interval         time.Duration
-	RetryBackoff     time.Duration
-	DataDir          string
-	GenerationDriver string
+	Store               *db.Store
+	Registry            *postflow.ProviderRegistry
+	Cipher              *secure.Cipher
+	Interval            time.Duration
+	RetryBackoff        time.Duration
+	DataDir             string
+	GenerationDriver    string
+	SafetySweepInterval time.Duration
+	SafetyBatchSize     int
+	SafetySweepLease    time.Duration
 }
 
 func (w Worker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.Interval)
 	defer ticker.Stop()
 
+	sweepInterval := w.safetySweepInterval()
+	sweepTicker := time.NewTicker(sweepInterval)
+	defer sweepTicker.Stop()
+
 	w.runOnce(ctx)
+	w.runSafetySweep(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			w.runOnce(ctx)
+		case <-sweepTicker.C:
+			w.runSafetySweep(ctx)
 		}
+	}
+}
+
+func (w Worker) safetySweepInterval() time.Duration {
+	if w.SafetySweepInterval > 0 {
+		return w.SafetySweepInterval
+	}
+	return 30 * time.Second
+}
+
+func (w Worker) safetySweepLease() time.Duration {
+	if w.SafetySweepLease > 0 {
+		return w.SafetySweepLease
+	}
+	return 2 * time.Minute
+}
+
+func (w Worker) safetyBatchSize() int {
+	if w.SafetyBatchSize > 0 {
+		return w.SafetyBatchSize
+	}
+	return 100
+}
+
+// runSafetySweep claims the DB-backed safety-sweep lease, then runs one
+// safetygate.ApproveEligible pass. If the lease cannot be acquired (another
+// sweep is in progress), it skips this tick. Mid-batch store errors are logged
+// and the sweep continues on the next tick (REQ-WORKER-HOOK).
+func (w Worker) runSafetySweep(ctx context.Context) {
+	if w.Store == nil {
+		return
+	}
+	held, err := w.Store.ClaimSafetySweep(ctx, w.safetySweepLease())
+	if err != nil {
+		slog.Default().Error("safety sweep lease claim failed", "error", err)
+		return
+	}
+	if !held {
+		return
+	}
+	svc := safetygate.Service{Store: w.Store, MaxBatchSize: w.safetyBatchSize()}
+	summary, err := svc.ApproveEligible(ctx)
+	if err != nil {
+		slog.Default().Error("safety sweep failed", "error", err)
+		return
+	}
+	if summary.Evaluated > 0 {
+		slog.Default().Info("safety sweep",
+			"evaluated", summary.Evaluated,
+			"approved", summary.Approved,
+			"blocked", summary.Blocked,
+			"errors", len(summary.Errors),
+		)
 	}
 }
 

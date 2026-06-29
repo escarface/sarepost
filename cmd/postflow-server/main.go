@@ -92,13 +92,14 @@ func main() {
 	defer stop()
 
 	w := worker.Worker{
-		Store:            store,
-		Registry:         registry,
-		Cipher:           cipher,
-		Interval:         cfg.WorkerInterval,
-		RetryBackoff:     cfg.RetryBackoff,
-		DataDir:          cfg.DataDir,
-		GenerationDriver: cfg.PostflowDriver,
+		Store:               store,
+		Registry:            registry,
+		Cipher:              cipher,
+		Interval:            cfg.WorkerInterval,
+		RetryBackoff:        cfg.RetryBackoff,
+		DataDir:             cfg.DataDir,
+		GenerationDriver:    cfg.PostflowDriver,
+		SafetySweepInterval: cfg.SafetySweepInterval,
 	}
 	go w.Start(ctx)
 
