@@ -237,6 +237,7 @@ Open:
 | `POSTFLOW_BASE_URL` | `http://localhost:8080` | Server URL (CLI only) |
 | `POSTFLOW_API_TOKEN` | — | Token for CLI auth (CLI only) |
 | `POSTFLOW_SAFETY_SWEEP_INTERVAL` | `30s` | Worker auto-approve safety sweep cadence (Go duration, e.g. `45s`) |
+| `POSTFLOW_SAFETY_SWEEP_LEASE` | `2m` | Max time a safety sweep may hold the DB-backed lease (Go duration, e.g. `90s`). The lease is released on completion, so this only matters when a sweep overruns the interval or multiple workers contend |
 
 ---
 

@@ -100,6 +100,7 @@ func main() {
 		DataDir:             cfg.DataDir,
 		GenerationDriver:    cfg.PostflowDriver,
 		SafetySweepInterval: cfg.SafetySweepInterval,
+		SafetySweepLease:    cfg.SafetySweepLease,
 	}
 	go w.Start(ctx)
 

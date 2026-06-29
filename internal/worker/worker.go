@@ -79,20 +79,33 @@ func (w Worker) safetyBatchSize() int {
 
 // runSafetySweep claims the DB-backed safety-sweep lease, then runs one
 // safetygate.ApproveEligible pass. If the lease cannot be acquired (another
-// sweep is in progress), it skips this tick. Mid-batch store errors are logged
-// and the sweep continues on the next tick (REQ-WORKER-HOOK).
+// sweep is in progress), it skips this tick. The lease is released on
+// completion via defer so the next tick can claim immediately — this holds for
+// the success, no-work, AND error paths, so the effective cadence honors the
+// configured interval rather than the lease duration (R2-C2). Mid-batch store
+// errors are logged and the sweep continues on the next tick (REQ-WORKER-HOOK).
 func (w Worker) runSafetySweep(ctx context.Context) {
 	if w.Store == nil {
 		return
 	}
-	held, err := w.Store.ClaimSafetySweep(ctx, w.safetySweepLease())
+	lease := w.safetySweepLease()
+	held, err := w.Store.ClaimSafetySweep(ctx, lease)
 	if err != nil {
 		slog.Default().Error("safety sweep lease claim failed", "error", err)
 		return
 	}
 	if !held {
+		slog.Default().Info("safety sweep lease denied, skipping tick", "lease", lease.String())
 		return
 	}
+	slog.Default().Info("safety sweep lease acquired", "lease", lease.String())
+	// Release on every return path so cadence honors the interval, not the
+	// lease duration.
+	defer func() {
+		if err := w.Store.ReleaseSafetySweep(ctx); err != nil {
+			slog.Default().Error("safety sweep lease release failed", "error", err)
+		}
+	}()
 	svc := safetygate.Service{Store: w.Store, MaxBatchSize: w.safetyBatchSize()}
 	summary, err := svc.ApproveEligible(ctx)
 	if err != nil {
