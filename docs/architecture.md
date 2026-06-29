@@ -53,6 +53,25 @@ materialization delegates to the existing posts application services so provider
 validation, calendar conflicts, duplicate-content checks, campaigns, and idempotency
 remain consistent. HTTP, MCP, CLI, and Web UI are adapters over this shared behavior.
 
+## Auto-approve safety gate (`internal/application/safetygate`)
+
+The safety gate is the unattended-operation layer over the editorial loop. It
+promotes `needs_review` posts that require approval to `approved` when they pass
+deterministic `SafetyRule`s (domain entity), so generated content can flow
+through to scheduling without a human gate. Posts that fail a `block` rule stay
+in `needs_review` with a `BlockedReason` (the editorial status enum is not
+extended), so they remain in human review and are never auto-scheduled.
+
+`Evaluate` is a pure application function that applies all enabled,
+platform-applicable rules and returns a verdict plus a stable
+`AutoApprovedReason` audit string. `ApproveEligible` is the sweep use case: it
+lists eligible posts from the `campaign_posts` join (where editorial metadata
+lives), evaluates each, and persists per-post mutations independently so a
+mid-batch failure does not roll back already-committed posts. The worker runs an
+async sweep on a configurable cadence with a DB-backed lease
+(`POSTFLOW_SAFETY_SWEEP_INTERVAL`, default 30s). Rules and the sweep are exposed
+with surface parity on HTTP, MCP, and CLI (`internal/parity` enforces it).
+
 ## Layer rules
 
 1. Adapters (`api`, `worker`, `cli`) call `application`.
