@@ -276,11 +276,12 @@ type updateRecord struct {
 }
 
 type fakeStore struct {
-	mu        sync.Mutex
-	rules     []domain.SafetyRule
-	eligible  []domain.Post
-	updates   []updateRecord
-	updateErr map[string]error
+	mu            sync.Mutex
+	rules         []domain.SafetyRule
+	eligible      []domain.Post
+	updates       []updateRecord
+	updateErr     map[string]error
+	panicOnUpdate map[string]bool
 }
 
 func (f *fakeStore) ListSafetyRules(ctx context.Context) ([]domain.SafetyRule, error) {
@@ -297,6 +298,9 @@ func (f *fakeStore) ListEligiblePostsForAutoApprove(ctx context.Context, limit i
 func (f *fakeStore) UpdatePostAutoApprove(ctx context.Context, postID string, approved bool, reason, blockedReason string, now time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.panicOnUpdate[postID] {
+		panic("simulated per-post panic for " + postID)
+	}
 	if err, ok := f.updateErr[postID]; ok {
 		return err
 	}

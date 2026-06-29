@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -35,6 +36,15 @@ type Worker struct {
 }
 
 func (w Worker) Start(ctx context.Context) {
+	// Goroutine-level safety net: if a panic escapes the per-tick safeRun
+	// wrapper (e.g. during ticker setup or an unrecoverable path), log it with
+	// stack so the worker never dies silently (R2-W1).
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("worker goroutine panic recovered", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	ticker := time.NewTicker(w.Interval)
 	defer ticker.Stop()
 
@@ -42,18 +52,31 @@ func (w Worker) Start(ctx context.Context) {
 	sweepTicker := time.NewTicker(sweepInterval)
 	defer sweepTicker.Stop()
 
-	w.runOnce(ctx)
-	w.runSafetySweep(ctx)
+	w.safeRun("publish cycle", func() { w.runOnce(ctx) })
+	w.safeRun("safety sweep", func() { w.runSafetySweep(ctx) })
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			w.runOnce(ctx)
+			w.safeRun("publish cycle", func() { w.runOnce(ctx) })
 		case <-sweepTicker.C:
-			w.runSafetySweep(ctx)
+			w.safeRun("safety sweep", func() { w.runSafetySweep(ctx) })
 		}
 	}
+}
+
+// safeRun runs one tick's work with a per-tick recover so a panic in any tick
+// (publish cycle, safety sweep, content plan) is logged with stack and does not
+// kill the worker goroutine; the next tick proceeds normally (R2-W1).
+func (w Worker) safeRun(name string, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("worker panic recovered, continuing next tick",
+				"component", name, "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	fn()
 }
 
 func (w Worker) safetySweepInterval() time.Duration {

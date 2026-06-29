@@ -3,6 +3,8 @@ package safetygate
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -133,33 +135,59 @@ func (s Service) runSweepWithLimit(ctx context.Context, dryRun bool, limit int) 
 	now := s.clock()()
 
 	for _, post := range posts {
-		verdict := Evaluate(ctx, post, rules)
 		summary.Evaluated++
-
-		switch verdict.Status {
+		status, err := s.evaluatePost(ctx, post, rules, dryRun, now)
+		if err != nil {
+			summary.Errors = append(summary.Errors, err)
+			continue
+		}
+		switch status {
 		case domain.VerdictApproved:
 			summary.Approved++
-			if dryRun {
-				continue
-			}
-			if err := s.Store.UpdatePostAutoApprove(ctx, post.ID, true, verdict.AuditedAs, "", now); err != nil {
-				summary.Approved--
-				summary.Errors = append(summary.Errors, fmt.Errorf("post %s: %w", post.ID, err))
-			}
 		case domain.VerdictNeedsManual:
 			summary.Blocked++
-			if dryRun {
-				continue
-			}
-			if err := s.Store.UpdatePostAutoApprove(ctx, post.ID, false, "", verdict.BlockedReason, now); err != nil {
-				summary.Blocked--
-				summary.Errors = append(summary.Errors, fmt.Errorf("post %s: %w", post.ID, err))
-			}
 		default:
 			summary.Skipped++
 		}
 	}
 	return summary, nil
+}
+
+// evaluatePost runs Evaluate plus the (conditional) per-post mutation for one
+// post. A deferred recover isolates panics to this post: a panicking rule or
+// store mutation is recovered, logged with stack, and returned as an error so
+// the sweep continues with the remaining posts instead of killing the worker
+// goroutine (R2-W1).
+func (s Service) evaluatePost(ctx context.Context, post domain.Post, rules []domain.SafetyRule, dryRun bool, now time.Time) (status domain.SafetyVerdictStatus, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("safety sweep per-post panic recovered, skipping post",
+				"post_id", post.ID, "panic", r, "stack", string(debug.Stack()))
+			err = fmt.Errorf("post %s: panic recovered: %v", post.ID, r)
+			status = domain.VerdictSkipped
+		}
+	}()
+	verdict := Evaluate(ctx, post, rules)
+	switch verdict.Status {
+	case domain.VerdictApproved:
+		if dryRun {
+			return verdict.Status, nil
+		}
+		if err := s.Store.UpdatePostAutoApprove(ctx, post.ID, true, verdict.AuditedAs, "", now); err != nil {
+			return verdict.Status, fmt.Errorf("post %s: %w", post.ID, err)
+		}
+		return verdict.Status, nil
+	case domain.VerdictNeedsManual:
+		if dryRun {
+			return verdict.Status, nil
+		}
+		if err := s.Store.UpdatePostAutoApprove(ctx, post.ID, false, "", verdict.BlockedReason, now); err != nil {
+			return verdict.Status, fmt.Errorf("post %s: %w", post.ID, err)
+		}
+		return verdict.Status, nil
+	default:
+		return verdict.Status, nil
+	}
 }
 
 func formatFailure(rule domain.SafetyRule, detail string) string {

@@ -79,6 +79,12 @@ JOINs `campaign_posts` and excludes any post with `requires_approval=1` and
 are claimed as before. This guarantees a blocked post is never published even
 when its `scheduled_at` has passed.
 
+The worker loop is panic-isolated at two layers: a per-post `recover()` in the
+safety sweep skips and logs (with stack) a single panicking post/rule without
+aborting the sweep, and a per-tick `recover()` wrapper around `Start`'s tick
+work (publish cycle, safety sweep, content plan) logs and continues to the next
+tick so the worker goroutine never silently dies.
+
 ## Layer rules
 
 1. Adapters (`api`, `worker`, `cli`) call `application`.
