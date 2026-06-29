@@ -312,6 +312,48 @@ func (s Server) newMCPHandler() http.Handler {
 		},
 	}, s.mcpSetSMTPNotificationsTool)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_list_safety_rules",
+		Description: "List configured auto-approve safety rules (deterministic editorial gate).",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+		},
+	}, s.mcpListSafetyRulesTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_get_safety_rule",
+		Description: "Get a single auto-approve safety rule by ID.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+		},
+	}, s.mcpGetSafetyRuleTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_upsert_safety_rule",
+		Description: "Create or update an auto-approve safety rule. Empty id creates a new rule; a provided id updates an existing rule (preserving created_at).",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpUpsertSafetyRuleTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_delete_safety_rule",
+		Description: "Delete an auto-approve safety rule by ID.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpDeleteSafetyRuleTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "postflow_auto_approve_posts",
+		Description: "Run an auto-approve safety sweep: evaluate needs_review posts against enabled rules and promote passing ones to approved. Set dry_run to preview without mutating.",
+		Annotations: &mcp.ToolAnnotations{
+			IdempotentHint: false,
+		},
+	}, s.mcpAutoApprovePostsTool)
+
 	base := mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
 		return server
 	}, &mcp.StreamableHTTPOptions{
