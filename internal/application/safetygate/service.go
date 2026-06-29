@@ -52,6 +52,15 @@ func (s Service) maxBatch() int {
 // Evaluate applies all enabled, platform-applicable rules to a post and returns
 // a deterministic verdict. The verdict is independent of rule iteration order.
 // Disabled or platform-mismatched rules are audited as "skipped".
+//
+// Fail-open semantics: an empty rule set (no rules at all, or all rules
+// disabled/mismatched) produces VerdictApproved with an empty audit string.
+// This is intentional — the safety gate is an additive restriction layer over
+// the editorial workflow, not a mandatory gate. An admin who deletes every rule
+// has explicitly removed all restrictions. Migration v14 seeds conservative
+// defaults so the rule set is never empty in practice. If fail-closed semantics
+// are desired for an empty rule set, that is a product decision that must be
+// made explicitly, not a silent behavior change.
 func Evaluate(ctx context.Context, post domain.Post, rules []domain.SafetyRule) domain.SafetyVerdict {
 	_ = ctx
 	entries := make([]domain.AuditEntry, 0, len(rules))

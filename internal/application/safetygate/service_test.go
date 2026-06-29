@@ -15,6 +15,48 @@ import (
 
 func xPlatform() *domain.Platform { p := domain.PlatformX; return &p }
 
+func TestEvaluateEmptyRuleSetApprovesWithEmptyAudit(t *testing.T) {
+	// R4-W1: pin the fail-open semantics of an empty rule set.
+	// No rules = no restrictions = auto-approve with an empty audit string.
+	// This is intentional: the safety gate is an additive restriction layer
+	// over the editorial workflow, not a mandatory gate. An admin who deletes
+	// all rules has explicitly removed all restrictions. The default seed
+	// (migration v14) ensures the rule set is never empty in practice.
+	post := domain.Post{ID: "pst_empty", Platform: domain.PlatformX, Text: "any content passes"}
+
+	verdict := Evaluate(context.Background(), post, []domain.SafetyRule{})
+	if verdict.Status != domain.VerdictApproved {
+		t.Fatalf("empty rule set must approve (fail-open), got %s", verdict.Status)
+	}
+	if verdict.AuditedAs != "" {
+		t.Fatalf("empty rule set must produce empty audit string, got %q", verdict.AuditedAs)
+	}
+	if len(verdict.FailedBlocks) != 0 {
+		t.Fatalf("empty rule set must have no failed blocks, got %v", verdict.FailedBlocks)
+	}
+}
+
+func TestApproveEligibleEmptyRuleSetApprovesAll(t *testing.T) {
+	// R4-W1: the sweep with an empty rule set promotes every eligible post.
+	posts := []domain.Post{
+		{ID: "pst_empty_a", Platform: domain.PlatformX, Text: "clean a"},
+		{ID: "pst_empty_b", Platform: domain.PlatformX, Text: "clean b"},
+	}
+	fake := &fakeStore{rules: []domain.SafetyRule{}, eligible: posts}
+	svc := Service{Store: fake, Clock: fixedClock(t), MaxBatchSize: 100}
+
+	summary, err := svc.ApproveEligible(context.Background())
+	if err != nil {
+		t.Fatalf("approve eligible: %v", err)
+	}
+	if summary.Approved != 2 {
+		t.Fatalf("empty rule set must approve all eligible, got %d approved", summary.Approved)
+	}
+	if !fake.approved("pst_empty_a") || !fake.approved("pst_empty_b") {
+		t.Fatalf("expected both posts approved, got %+v", fake.updates)
+	}
+}
+
 func TestEvaluateAllRulesPassApproved(t *testing.T) {
 	rules := []domain.SafetyRule{
 		{ID: "sft_ban", Kind: domain.RuleBannedTerms, Params: domain.SafetyRuleParams{BannedPatterns: []string{"spam\\b"}}, Severity: domain.SeverityBlock, Enabled: true, Platform: xPlatform()},
