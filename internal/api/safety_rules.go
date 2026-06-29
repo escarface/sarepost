@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -136,7 +137,7 @@ type autoApproveRequest struct {
 func (s Server) handleAutoApprovePosts(w http.ResponseWriter, r *http.Request) {
 	var req autoApproveRequest
 	if r.ContentLength != 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
 			writeError(w, http.StatusBadRequest, errors.New("invalid json body"))
 			return
 		}

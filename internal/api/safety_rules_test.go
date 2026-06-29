@@ -191,6 +191,26 @@ func TestPostsAutoApproveAPIPromotesEligible(t *testing.T) {
 	}
 }
 
+func TestPostsAutoApproveAPIEmptyBodyOK(t *testing.T) {
+	// An auto-approve POST with an empty body (Content-Length 0) must NOT
+	// return 400. The handler skips decoding and runs the sweep with defaults.
+	_, server, token := newSafetyTestServer(t)
+	req, err := http.NewRequest(http.MethodPost, server.URL+"/posts/auto-approve", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200 for empty body, got %d body=%s", resp.StatusCode, string(raw))
+	}
+}
+
 func TestPostsAutoApproveAPIDryRunNoMutation(t *testing.T) {
 	store, server, token := newSafetyTestServer(t)
 	accountID := testAccountID(t, store)
