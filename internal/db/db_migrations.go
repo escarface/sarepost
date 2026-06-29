@@ -85,6 +85,11 @@ var dbMigrations = []migration{
 		Name:    "content_plans",
 		Up:      migrationAddContentPlans,
 	},
+	{
+		Version: 14,
+		Name:    "safety_gate",
+		Up:      migrationAddSafetyGate,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
