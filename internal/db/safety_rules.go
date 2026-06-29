@@ -127,8 +127,12 @@ func (s *Store) DeleteSafetyRule(ctx context.Context, id string) error {
 }
 
 // ListEligiblePostsForAutoApprove returns posts that are safe-gate eligible:
-// campaign-linked, editorial_status=needs_review, requires_approval=true, and
-// no prior auto_approved_reason. Ordered by created_at for deterministic sweep.
+// campaign-linked, editorial_status=needs_review, requires_approval=true, no
+// prior auto_approved_reason, and NOT already blocked (blocked_reason empty).
+// Excluding blocked posts prevents re-sweep starvation: once a post is blocked
+// it stays out of the eligible set until a human clears it, so new clean posts
+// are never blocked behind a fixed LIMIT window of re-evaluated blocked posts.
+// Ordered by created_at for deterministic sweep.
 func (s *Store) ListEligiblePostsForAutoApprove(ctx context.Context, limit int) ([]domain.Post, error) {
 	if limit <= 0 {
 		limit = 100
@@ -140,6 +144,7 @@ func (s *Store) ListEligiblePostsForAutoApprove(ctx context.Context, limit int) 
 		WHERE cp.editorial_status = ?
 		  AND cp.requires_approval = 1
 		  AND TRIM(COALESCE(cp.auto_approved_reason, '')) = ''
+		  AND TRIM(COALESCE(cp.blocked_reason, '')) = ''
 		ORDER BY p.created_at ASC, p.id ASC
 		LIMIT ?
 	`, domain.EditorialStatusNeedsReview, limit)
