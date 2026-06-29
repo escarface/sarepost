@@ -156,9 +156,9 @@ func (s *Store) ApprovePost(ctx context.Context, postID string) error {
 	now := time.Now().UTC()
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE campaign_posts
-		SET editorial_status = ?, requires_approval = 0, approved_at = ?, updated_at = ?
+		SET editorial_status = ?, requires_approval = 0, approved_at = ?, auto_approved_reason = ?, blocked_reason = '', updated_at = ?
 		WHERE post_id = ?
-	`, domain.EditorialStatusApproved, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), strings.TrimSpace(postID))
+	`, domain.EditorialStatusApproved, now.Format(time.RFC3339Nano), "manual_override", now.Format(time.RFC3339Nano), strings.TrimSpace(postID))
 	if err != nil {
 		return err
 	}
