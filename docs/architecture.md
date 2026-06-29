@@ -72,6 +72,13 @@ async sweep on a configurable cadence with a DB-backed lease
 (`POSTFLOW_SAFETY_SWEEP_INTERVAL`, default 30s). Rules and the sweep are exposed
 with surface parity on HTTP, MCP, and CLI (`internal/parity` enforces it).
 
+The publish cycle enforces the gate at the claim boundary: `ClaimDuePosts` LEFT
+JOINs `campaign_posts` and excludes any post with `requires_approval=1` and
+`editorial_status=needs_review` (blocked or not-yet-evaluated). Posts promoted to
+`approved`, posts that do not require approval, and posts with no campaign link
+are claimed as before. This guarantees a blocked post is never published even
+when its `scheduled_at` has passed.
+
 ## Layer rules
 
 1. Adapters (`api`, `worker`, `cli`) call `application`.

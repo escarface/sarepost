@@ -764,13 +764,21 @@ func (s *Store) UpdateThreadEditable(ctx context.Context, rootPostID string, ste
 
 func (s *Store) ClaimDuePosts(ctx context.Context, limit int) ([]domain.Post, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	// Editorial guard (R4-C1): a post pending editorial sign-off — i.e. linked to
+	// a campaign with requires_approval=1 AND editorial_status='needs_review'
+	// (blocked OR not-yet-evaluated by the safety gate) — must NOT be claimed for
+	// publishing. Posts that are approved (auto or manual), do not require
+	// approval, or have no campaign_posts row (backwards compatibility) remain
+	// claimable. LEFT JOIN so non-campaign posts are preserved; the exclusion
+	// predicate is only evaluated when a campaign_posts row exists.
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id
+		SELECT posts.id
 		FROM posts
-		WHERE status = ?
-		  AND COALESCE(next_retry_at, scheduled_at) <= ?
+		LEFT JOIN campaign_posts cp ON cp.post_id = posts.id
+		WHERE posts.status = ?
+		  AND COALESCE(posts.next_retry_at, posts.scheduled_at) <= ?
 		  AND (
-			parent_post_id IS NULL
+			posts.parent_post_id IS NULL
 			OR EXISTS (
 				SELECT 1
 				FROM posts parent
@@ -779,9 +787,13 @@ func (s *Store) ClaimDuePosts(ctx context.Context, limit int) ([]domain.Post, er
 				  AND TRIM(COALESCE(parent.external_id, '')) != ''
 			)
 		  )
-		ORDER BY COALESCE(next_retry_at, scheduled_at) ASC, thread_group_id ASC, thread_position ASC
+		  AND (
+			cp.post_id IS NULL
+			OR NOT (cp.requires_approval = 1 AND cp.editorial_status = ?)
+		  )
+		ORDER BY COALESCE(posts.next_retry_at, posts.scheduled_at) ASC, posts.thread_group_id ASC, posts.thread_position ASC
 		LIMIT ?
-	`, domain.PostStatusScheduled, now, domain.PostStatusPublished, limit)
+	`, domain.PostStatusScheduled, now, domain.PostStatusPublished, domain.EditorialStatusNeedsReview, limit)
 	if err != nil {
 		return nil, err
 	}

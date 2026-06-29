@@ -111,7 +111,12 @@ Migration v14 seeds conservative defaults: per-platform `length_range`
 
 The worker runs an async safety sweep on a configurable cadence (default 30s,
 `POSTFLOW_SAFETY_SWEEP_INTERVAL`). A DB-backed lease prevents two overlapping
-sweeps from double-promoting the same post. You can also trigger a sweep on
+sweeps from double-promoting the same post. The publish cycle (`ClaimDuePosts`)
+enforces an editorial guard: a campaign post pending sign-off
+(`requires_approval=1` and `editorial_status=needs_review` — blocked or
+not-yet-evaluated) is never claimed for publishing, even when its
+`scheduled_at` is in the past; only `approved` (auto or manual) or
+non-requires-approval posts are published. You can also trigger a sweep on
 demand via any surface:
 
 ```bash
