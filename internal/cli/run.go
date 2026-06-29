@@ -142,6 +142,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runContentPlans(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "posts":
 		return runPosts(ctx, client, cfg, rest[1:], stdout, stderr)
+	case "safety-rules":
+		return runSafetyRules(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "accounts":
 		return runAccounts(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "settings":
@@ -253,7 +255,7 @@ func runSchedule(ctx context.Context, client *APIClient, cfg config, args []stri
 
 func runPosts(ctx context.Context, client *APIClient, cfg config, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "usage: postflow posts <create|validate|schedule|preview-schedule|edit|delete|cancel|approve> [flags]")
+		fmt.Fprintln(stderr, "usage: postflow posts <create|validate|schedule|preview-schedule|edit|delete|cancel|approve|auto-approve> [flags]")
 		return 2
 	}
 	switch args[0] {
@@ -273,6 +275,8 @@ func runPosts(ctx context.Context, client *APIClient, cfg config, args []string,
 		return runPostsCancel(ctx, client, cfg, args[1:], stdout, stderr)
 	case "approve":
 		return runPostsApprove(ctx, client, cfg, args[1:], stdout, stderr)
+	case "auto-approve":
+		return runPostsAutoApprove(ctx, client, cfg, args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown posts subcommand: %s\n", args[0])
 		return 2
@@ -677,6 +681,11 @@ Commands:
   posts edit             Edit an editable post via /posts/{id}/edit
   posts delete           Delete an editable post via /posts/{id}/delete
   posts cancel           Cancel scheduled post via /posts/{id}/cancel
+  posts auto-approve     Run safety-gate auto-approve sweep via /posts/auto-approve
+  safety-rules list      List auto-approve safety rules via /safety-rules
+  safety-rules get       Get one safety rule via /safety-rules/{id}
+  safety-rules upsert    Create or update a safety rule via POST /safety-rules
+  safety-rules delete    Delete a safety rule via DELETE /safety-rules/{id}
   accounts list          List accounts via /accounts
   accounts create-static Create/update static account via /accounts/static
   accounts connect       Mark account connected via /accounts/{id}/connect
