@@ -110,6 +110,83 @@ func mcpSafetyCall(t *testing.T, mcpURL, session, token, tool string, args map[s
 	return out.Result.StructuredContent
 }
 
+func mcpSafetyCallError(t *testing.T, mcpURL, session, token, tool string, args map[string]any) (bool, string) {
+	t.Helper()
+	payload := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      100,
+		"method":  "tools/call",
+		"params":  map[string]any{"name": tool, "arguments": args},
+	}
+	raw, _ := json.Marshal(payload)
+	resp, body := postMCPRequestWithAuth(t, mcpURL, session, string(raw), token, "")
+	if resp.StatusCode != http.StatusOK {
+		return true, strings.TrimSpace(string(body))
+	}
+	var out struct {
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+		Result struct {
+			IsError bool `json:"isError"`
+			Content []struct {
+				Text string `json:"text"`
+			} `json:"content"`
+			StructuredContent map[string]any `json:"structuredContent"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		t.Fatalf("decode mcp %s error resp: %v body=%s", tool, err, string(body))
+	}
+	if out.Error != nil {
+		return true, strings.TrimSpace(out.Error.Message)
+	}
+	if out.Result.IsError {
+		if len(out.Result.Content) > 0 && strings.TrimSpace(out.Result.Content[0].Text) != "" {
+			return true, strings.TrimSpace(out.Result.Content[0].Text)
+		}
+		if msg, _ := out.Result.StructuredContent["error"].(string); strings.TrimSpace(msg) != "" {
+			return true, strings.TrimSpace(msg)
+		}
+		return true, "tool returned isError=true"
+	}
+	return false, ""
+}
+
+func TestMCPSafetyRulesUpsertRejectsUnknownKindAndSeverity(t *testing.T) {
+	// R1-W1: parity with HTTP — MCP must surface isError for a typo'd
+	// Kind/Severity instead of silently persisting a never-blocking rule.
+	_, _, mcpURL, session := newSafetyMCPServer(t)
+	token := "tok_safety_mcp"
+	cases := []struct {
+		name    string
+		args    map[string]any
+		wantErr string
+	}{
+		{
+			name:    "unknown kind typo banned_term",
+			args:    map[string]any{"name": "bad kind", "kind": "banned_term", "severity": "block", "enabled": true},
+			wantErr: "kind",
+		},
+		{
+			name:    "unknown severity typo blok",
+			args:    map[string]any{"name": "bad sev", "kind": "banned_terms", "severity": "blok", "enabled": true},
+			wantErr: "severity",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isErr, msg := mcpSafetyCallError(t, mcpURL, session, token, "postflow_upsert_safety_rule", tc.args)
+			if !isErr {
+				t.Fatalf("expected isError for %s, got success", tc.name)
+			}
+			if !strings.Contains(msg, tc.wantErr) {
+				t.Fatalf("error %q must mention %q", msg, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestMCPSafetyRulesListAndCRUD(t *testing.T) {
 	_, _, mcpURL, session := newSafetyMCPServer(t)
 	token := "tok_safety_mcp"

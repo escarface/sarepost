@@ -252,6 +252,49 @@ func TestSafetyGateSurfaceParity(t *testing.T) {
 		}
 	})
 
+	t.Run("safety-rules.upsert rejects invalid kind/severity across surfaces", func(t *testing.T) {
+		// R1-W1 parity: a typo'd Kind/Severity must be rejected consistently
+		// across HTTP (400), MCP (isError), and CLI (non-zero exit + message).
+		badBody := map[string]any{
+			"name":     "parity bad",
+			"kind":     "banned_term", // typo
+			"severity": "blok",        // typo
+			"enabled":  true,
+		}
+
+		// HTTP: 400 mentioning kind or severity.
+		raw, status := env.apiJSON(http.MethodPost, "/safety-rules", badBody, "application/json")
+		if status != http.StatusBadRequest {
+			t.Fatalf("api expected 400 for invalid rule, got %d body=%s", status, string(raw))
+		}
+		if !strings.Contains(string(raw), "kind") && !strings.Contains(string(raw), "severity") {
+			t.Fatalf("api 400 body must mention kind/severity: %s", string(raw))
+		}
+
+		// MCP: isError with a message mentioning kind or severity.
+		mcpMsg := env.mcpCallToolError("postflow_upsert_safety_rule", badBody)
+		if mcpMsg == "" {
+			t.Fatalf("mcp expected isError for invalid rule, got success")
+		}
+		if !strings.Contains(mcpMsg, "kind") && !strings.Contains(mcpMsg, "severity") {
+			t.Fatalf("mcp error %q must mention kind/severity", mcpMsg)
+		}
+
+		// CLI: non-zero exit + stderr mentioning kind or severity.
+		code, _, stderr := env.runCLIResult("safety-rules", "upsert",
+			"--name", "parity bad",
+			"--kind", "banned_term",
+			"--severity", "blok",
+			"--enabled",
+		)
+		if code == 0 {
+			t.Fatalf("cli expected non-zero exit for invalid rule, got 0")
+		}
+		if !strings.Contains(stderr, "kind") && !strings.Contains(stderr, "severity") {
+			t.Fatalf("cli stderr %q must mention kind/severity", stderr)
+		}
+	})
+
 	t.Run("posts.auto-approve dry-run does not mutate across surfaces", func(t *testing.T) {
 		// Dry-run never mutates, so all three surfaces can run over the same
 		// eligible set without interfering. Text avoids "parity" (banned by

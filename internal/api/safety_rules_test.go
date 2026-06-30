@@ -191,6 +191,59 @@ func TestPostsAutoApproveAPIPromotesEligible(t *testing.T) {
 	}
 }
 
+func TestSafetyRulesAPIUpsertRejectsUnknownKindAndSeverity(t *testing.T) {
+	// R1-W1: an unknown Kind makes the evaluator default to PASS and an
+	// unknown Severity routes failures into non-blocking Notes, so a typo'd
+	// rule silently never blocks. The upsert boundary must reject both with
+	// 400 so HTTP, MCP, and CLI stay consistent (parity hard requirement).
+	cases := []struct {
+		name    string
+		body    map[string]any
+		wantErr string
+	}{
+		{
+			name:    "unknown kind typo banned_term",
+			body:    map[string]any{"name": "bad kind", "kind": "banned_term", "severity": "block", "enabled": true},
+			wantErr: "kind",
+		},
+		{
+			name:    "unknown severity typo blok",
+			body:    map[string]any{"name": "bad sev", "kind": "banned_terms", "severity": "blok", "enabled": true},
+			wantErr: "severity",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, server, token := newSafetyTestServer(t)
+			raw, status := safetyDo(t, server, token, http.MethodPost, "/safety-rules", tc.body)
+			if status != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d body=%s", status, string(raw))
+			}
+			if !strings.Contains(string(raw), tc.wantErr) {
+				t.Fatalf("response must mention %q: %s", tc.wantErr, string(raw))
+			}
+		})
+	}
+}
+
+func TestSafetyRulesAPIUpsertAcceptsEmptySeverityDefaultsBlock(t *testing.T) {
+	// Omitting severity should keep the documented "block (default)" behavior
+	// (not be rejected), so admins can upsert without an explicit severity.
+	_, server, token := newSafetyTestServer(t)
+	body := map[string]any{"name": "no sev", "kind": "link_max", "params": map[string]any{"link_max": 1}, "enabled": true}
+	raw, status := safetyDo(t, server, token, http.MethodPost, "/safety-rules", body)
+	if status != http.StatusOK && status != http.StatusCreated {
+		t.Fatalf("expected 200/201 for empty severity, got %d body=%s", status, string(raw))
+	}
+	var out struct {
+		Severity string `json:"severity"`
+	}
+	json.Unmarshal(raw, &out)
+	if out.Severity != string(domain.SeverityBlock) {
+		t.Fatalf("expected default severity block, got %q", out.Severity)
+	}
+}
+
 func TestPostsAutoApproveAPIResponseHasNoSkippedField(t *testing.T) {
 	// R3-W-R1: the Skipped field is always 0 (VerdictSkipped is never produced)
 	// and must not be exposed in the response. Assert it is absent from the JSON.

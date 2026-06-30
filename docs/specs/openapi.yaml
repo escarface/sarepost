@@ -1049,6 +1049,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SafetyRule'
+        '400':
+          description: >
+            Invalid rule. kind must be one of banned_terms, length_range,
+            hashtag_max, link_max, required_contains; severity must be one of
+            block, review (default). An unknown kind makes the evaluator
+            default to PASS and an unknown severity routes failures into
+            non-blocking notes, so a typo'd rule would silently never block.
+            MCP surfaces this as isError; the CLI exits non-zero with the
+            message.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /safety-rules/{id}:
     get:

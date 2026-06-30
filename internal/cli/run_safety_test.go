@@ -108,6 +108,41 @@ func TestCLISafetyRulesUpsertGetDelete(t *testing.T) {
 	}
 }
 
+func TestCLISafetyRulesUpsertRejectsUnknownKindAndSeverity(t *testing.T) {
+	// R1-W1: parity with HTTP/MCP — a typo'd Kind/Severity must surface a
+	// non-zero exit with a message, not silently persist a never-blocking rule.
+	// CLI goes through the HTTP server, so this also proves the server-side
+	// guard reaches the CLI surface.
+	_, server, token := newSafetyCLIEnv(t)
+	cases := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "unknown kind typo banned_term",
+			args:    []string{"safety-rules", "upsert", "--name", "bad", "--kind", "banned_term", "--severity", "block", "--enabled"},
+			wantErr: "kind",
+		},
+		{
+			name:    "unknown severity typo blok",
+			args:    []string{"safety-rules", "upsert", "--name", "bad", "--kind", "banned_terms", "--severity", "blok", "--enabled"},
+			wantErr: "severity",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			code, _, errOut := safetyCLIRun(t, server, token, tc.args...)
+			if code == 0 {
+				t.Fatalf("expected non-zero exit, got 0")
+			}
+			if !strings.Contains(errOut, tc.wantErr) {
+				t.Fatalf("stderr %q must mention %q", errOut, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestCLIPostsAutoApprove(t *testing.T) {
 	store, server, token := newSafetyCLIEnv(t)
 	accountID := createSafetyCLIAccount(t, store)

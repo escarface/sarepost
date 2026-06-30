@@ -198,6 +198,18 @@ func upsertRequestToRule(req safetyRuleUpsertRequest) (domain.SafetyRule, error)
 		platform := domain.Platform(p)
 		rule.Platform = &platform
 	}
+	// Preserve the documented "block (default)" behavior: an omitted severity
+	// must never persist as "" (which the evaluator would treat as non-blocking
+	// notes, silently never blocking — the R1-W1 bug). Default to block first.
+	if rule.Severity == "" {
+		rule.Severity = domain.SeverityBlock
+	}
+	// R1-W1: validate Kind/Severity at the application/use-case boundary so a
+	// typo'd rule cannot be persisted. HTTP, MCP, and CLI all funnel through
+	// this function, so rejection is consistent across surfaces.
+	if err := safetyapp.ValidateRule(rule); err != nil {
+		return domain.SafetyRule{}, err
+	}
 	return rule, nil
 }
 
