@@ -706,6 +706,18 @@ func (s Server) handleScheduleHTML(w http.ResponseWriter, r *http.Request) {
 		"join": func(values []string, sep string) string {
 			return strings.Join(values, sep)
 		},
+		"containsPlatform": func(values []domain.Platform, wanted string) bool {
+			wanted = strings.TrimSpace(strings.ToLower(wanted))
+			if wanted == "" {
+				return false
+			}
+			for _, value := range values {
+				if strings.TrimSpace(strings.ToLower(string(value))) == wanted {
+					return true
+				}
+			}
+			return false
+		},
 		"accountSelected": func(accountID string) bool {
 			_, ok := selectedCreateAccountIDs[strings.TrimSpace(accountID)]
 			return ok

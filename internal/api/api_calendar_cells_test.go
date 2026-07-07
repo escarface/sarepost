@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/escarface/sarepost/internal/db"
+	"github.com/escarface/sarepost/internal/domain"
 )
 
 func TestCalendarCellsRenderAllEventsForDynamicOverflow(t *testing.T) {
@@ -133,6 +134,64 @@ func TestCalendarDayEventShowsPlatformLogoOnRight(t *testing.T) {
 	}
 	if !strings.Contains(body, `id="post-preview-modal"`) || !strings.Contains(body, `id="post-preview-content"`) {
 		t.Fatalf("expected calendar view to include post preview modal shell")
+	}
+}
+
+func TestCalendarPreviewModalRendersLinkedInSocialPreview(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	account := createConnectedAccountForPlatform(t, store, domain.PlatformLinkedIn, "LinkedIn Test")
+	media, err := store.CreateMedia(t.Context(), domain.Media{
+		Kind:         "image",
+		OriginalName: "calendar-linkedin.png",
+		StoragePath:  filepath.Join(tempDir, "calendar-linkedin.png"),
+		MimeType:     "image/png",
+		SizeBytes:    2048,
+	})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+
+	selectedDay := time.Date(2026, time.February, 28, 0, 0, 0, 0, time.UTC)
+	createBody, _ := json.Marshal(map[string]any{
+		"account_id":   account.ID,
+		"text":         "linkedin calendar preview",
+		"scheduled_at": selectedDay.Add(10 * time.Hour).Format(time.RFC3339),
+		"media_ids":    []string{media.ID},
+	})
+	createReq := httptest.NewRequest(http.MethodPost, "/posts", bytes.NewReader(createBody))
+	createW := httptest.NewRecorder()
+	h.ServeHTTP(createW, createReq)
+	if createW.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for seed post, got %d", createW.Code)
+	}
+
+	monthParam := selectedDay.Format("2006-01")
+	dayParam := selectedDay.Format("2006-01-02")
+	calendarReq := httptest.NewRequest(http.MethodGet, "/?view=calendar&month="+monthParam+"&day="+dayParam, nil)
+	calendarW := httptest.NewRecorder()
+	h.ServeHTTP(calendarW, calendarReq)
+	if calendarW.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", calendarW.Code)
+	}
+
+	body := calendarW.Body.String()
+	if !strings.Contains(body, `class="social-preview-shell"`) {
+		t.Fatalf("expected calendar modal template to include social preview shell")
+	}
+	if !strings.Contains(body, `class="linkedin-preview-card"`) {
+		t.Fatalf("expected calendar modal template to include linkedin preview card")
+	}
+	if !strings.Contains(body, `linkedin calendar preview`) {
+		t.Fatalf("expected calendar modal template to include linkedin preview text")
 	}
 }
 

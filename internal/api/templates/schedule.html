@@ -3652,6 +3652,122 @@
     .preview-step-last .preview-step-text {
       opacity: 0.6;
     }
+    .social-preview-shell {
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .social-preview-shell[hidden] {
+      display: none;
+    }
+    .social-preview-label {
+      font-size: 10px;
+      color: #8d8d8d;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .linkedin-preview-card {
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #fff;
+      color: #111827;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.16);
+    }
+    .linkedin-preview-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px 16px 10px;
+    }
+    .linkedin-preview-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #0a66c2, #0e4f95);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+    .linkedin-preview-meta {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .linkedin-preview-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+      line-height: 1.25;
+    }
+    .linkedin-preview-subline,
+    .linkedin-preview-date {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.35;
+    }
+    .linkedin-preview-more {
+      color: #6b7280;
+      font-weight: 700;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .linkedin-preview-body {
+      padding: 0 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .linkedin-preview-copy {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #111827;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .linkedin-preview-copy > :first-child {
+      margin-top: 0;
+    }
+    .linkedin-preview-copy > :last-child {
+      margin-bottom: 0;
+    }
+    .linkedin-preview-media-wrap {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      background: #f3f4f6;
+    }
+    .linkedin-preview-media-wrap img,
+    .linkedin-preview-media-wrap video {
+      display: block;
+      width: 100%;
+      max-height: 420px;
+      object-fit: cover;
+      background: #d1d5db;
+    }
+    .linkedin-preview-footer {
+      border-top: 1px solid #e5e7eb;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+    .linkedin-preview-action {
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 600;
+      background: transparent;
+    }
+    .linkedin-preview-thread-note {
+      font-size: 11px;
+      color: #6b7280;
+      padding: 0 16px 14px;
+    }
     .composer-submit-actions {
       justify-content: flex-end;
       display: none;
@@ -4494,6 +4610,45 @@
                   </div>
                   {{end}}
                   {{if gt .MediaCount 0}}<span class="post-preview-media">{{t "common.media_count" .MediaCount}}</span>{{end}}
+                  {{if containsPlatform .Platforms "linkedin"}}
+                  <section class="social-preview-shell">
+                    <div class="social-preview-label">LinkedIn preview</div>
+                    <article class="linkedin-preview-card">
+                      <div class="linkedin-preview-head">
+                        <div class="linkedin-preview-avatar">in</div>
+                        <div class="linkedin-preview-meta">
+                          <div class="linkedin-preview-name">LinkedIn audience</div>
+                          <div class="linkedin-preview-subline">Social preview inside PostFlow</div>
+                          <div class="linkedin-preview-date">{{.TimeLabel}} · 🌐</div>
+                        </div>
+                        <div class="linkedin-preview-more">…</div>
+                      </div>
+                      <div class="linkedin-preview-body">
+                        <div class="linkedin-preview-copy">{{previewMarkdown .Text}}</div>
+                        {{if gt (len .Media) 0}}
+                        <div class="linkedin-preview-media-wrap">
+                          {{with index .Media 0}}
+                            {{if hasPrefix .MimeType "video/"}}
+                            <video src="{{.PreviewURL}}" controls preload="metadata" playsinline></video>
+                            {{else}}
+                            <img src="{{.PreviewURL}}" alt="{{.Name}}" loading="lazy" />
+                            {{end}}
+                          {{end}}
+                        </div>
+                        {{end}}
+                      </div>
+                      {{if gt (len .FollowUpSteps) 0}}
+                      <div class="linkedin-preview-thread-note">{{len .FollowUpSteps}} follow-up step{{if gt (len .FollowUpSteps) 1}}s{{end}} in this publication thread.</div>
+                      {{end}}
+                      <div class="linkedin-preview-footer" aria-hidden="true">
+                        <div class="linkedin-preview-action">Like</div>
+                        <div class="linkedin-preview-action">Comment</div>
+                        <div class="linkedin-preview-action">Repost</div>
+                        <div class="linkedin-preview-action">Send</div>
+                      </div>
+                    </article>
+                  </section>
+                  {{end}}
                   {{if gt (len .FollowUpSteps) 0}}
                   <div class="post-preview-steps">
                     {{range .FollowUpSteps}}
@@ -5539,6 +5694,31 @@
                   </article>
                   {{end}}
 	                </div>
+                  <section class="social-preview-shell" id="linkedin-social-preview" hidden>
+                    <div class="social-preview-label">LinkedIn preview</div>
+                    <article class="linkedin-preview-card">
+                      <div class="linkedin-preview-head">
+                        <div class="linkedin-preview-avatar" id="linkedin-preview-avatar">in</div>
+                        <div class="linkedin-preview-meta">
+                          <div class="linkedin-preview-name" id="linkedin-preview-name">LinkedIn Page</div>
+                          <div class="linkedin-preview-subline" id="linkedin-preview-subline">Preview inside PostFlow</div>
+                          <div class="linkedin-preview-date">Now · 🌐</div>
+                        </div>
+                        <div class="linkedin-preview-more">…</div>
+                      </div>
+                      <div class="linkedin-preview-body">
+                        <div class="linkedin-preview-copy" id="linkedin-preview-copy">{{t "create.preview_default"}}</div>
+                        <div class="linkedin-preview-media-wrap" id="linkedin-preview-media-wrap" hidden></div>
+                      </div>
+                      <div class="linkedin-preview-thread-note" id="linkedin-preview-thread-note" hidden></div>
+                      <div class="linkedin-preview-footer" aria-hidden="true">
+                        <div class="linkedin-preview-action">Like</div>
+                        <div class="linkedin-preview-action">Comment</div>
+                        <div class="linkedin-preview-action">Repost</div>
+                        <div class="linkedin-preview-action">Send</div>
+                      </div>
+                    </article>
+                  </section>
 		            </article>
 		          </div>
 		        </aside>
@@ -6997,6 +7177,12 @@
   const addThreadStepButton = document.getElementById("create-add-thread-step");
   const charCount = document.getElementById("create-char-count");
   const previewThread = document.getElementById("preview-thread");
+  const linkedinPreview = document.getElementById("linkedin-social-preview");
+  const linkedinPreviewName = document.getElementById("linkedin-preview-name");
+  const linkedinPreviewAvatar = document.getElementById("linkedin-preview-avatar");
+  const linkedinPreviewCopy = document.getElementById("linkedin-preview-copy");
+  const linkedinPreviewMediaWrap = document.getElementById("linkedin-preview-media-wrap");
+  const linkedinPreviewThreadNote = document.getElementById("linkedin-preview-thread-note");
   const scheduleInput = document.getElementById("create-scheduled-at");
   const mediaInput = document.getElementById("create-media-input");
   const mediaDropzone = document.getElementById("create-media-dropzone");
@@ -7028,6 +7214,12 @@
       !(mediaHidden instanceof HTMLElement) ||
       !(uploadNotice instanceof HTMLElement) ||
       !(previewThread instanceof HTMLElement) ||
+      !(linkedinPreview instanceof HTMLElement) ||
+      !(linkedinPreviewName instanceof HTMLElement) ||
+      !(linkedinPreviewAvatar instanceof HTMLElement) ||
+      !(linkedinPreviewCopy instanceof HTMLElement) ||
+      !(linkedinPreviewMediaWrap instanceof HTMLElement) ||
+      !(linkedinPreviewThreadNote instanceof HTMLElement) ||
       !(accountSelect instanceof HTMLSelectElement) ||
       !(primaryAccountInput instanceof HTMLInputElement) ||
       !(segmentsInput instanceof HTMLInputElement) ||
@@ -7274,6 +7466,22 @@
       label: labels.get(platform) || platform.toUpperCase(),
       max: limits.get(platform)
     })).filter((rule) => Number.isFinite(rule.max) && rule.max > 0);
+  };
+
+  const selectedPlatforms = () => normalizeAccountIDList(
+    selectedAccountOptions().map((option) => String(option.dataset.platform || "").trim().toLowerCase()).filter(Boolean)
+  );
+
+  const selectedLinkedInLabel = () => {
+    const linkedinOption = selectedAccountOptions().find((option) => String(option.dataset.platform || "").trim().toLowerCase() === "linkedin");
+    if (!linkedinOption) {
+      return "LinkedIn Page";
+    }
+    const raw = String(linkedinOption.textContent || "").trim();
+    if (raw === "") {
+      return "LinkedIn Page";
+    }
+    return raw.split("·")[0].trim() || raw;
   };
 
 	  const platformIconName = (platform) => {
@@ -7582,6 +7790,58 @@
     return actions;
   };
 
+  const renderLinkedInPreview = () => {
+    const platforms = selectedPlatforms();
+    if (!platforms.includes("linkedin")) {
+      linkedinPreview.hidden = true;
+      linkedinPreviewMediaWrap.hidden = true;
+      linkedinPreviewThreadNote.hidden = true;
+      linkedinPreviewMediaWrap.innerHTML = "";
+      linkedinPreviewCopy.textContent = i18n.previewDefault;
+      return;
+    }
+
+    const rootText = String(textInput.value || "").trim();
+    const displayName = selectedLinkedInLabel();
+    linkedinPreview.hidden = false;
+    linkedinPreviewName.textContent = displayName;
+    linkedinPreviewAvatar.textContent = displayName.slice(0, 1).toUpperCase() || "in";
+    if (rootText === "") {
+      linkedinPreviewCopy.textContent = i18n.previewDefault;
+    } else {
+      linkedinPreviewCopy.innerHTML = markdownToPreviewHTML(rootText);
+    }
+
+    linkedinPreviewMediaWrap.innerHTML = "";
+    const primaryMedia = attachments.find((item) => item && item.previewUrl) || attachments[0];
+    if (primaryMedia && primaryMedia.previewUrl) {
+      if (String(primaryMedia.mime || "").toLowerCase().startsWith("video/")) {
+        const video = document.createElement("video");
+        video.src = primaryMedia.previewUrl;
+        video.controls = true;
+        video.preload = "metadata";
+        video.playsInline = true;
+        linkedinPreviewMediaWrap.appendChild(video);
+      } else {
+        const img = document.createElement("img");
+        img.src = primaryMedia.previewUrl;
+        img.alt = displayName + " LinkedIn preview";
+        img.loading = "lazy";
+        linkedinPreviewMediaWrap.appendChild(img);
+      }
+      linkedinPreviewMediaWrap.hidden = false;
+    } else {
+      linkedinPreviewMediaWrap.hidden = true;
+    }
+
+    if (followupSteps.length > 0) {
+      linkedinPreviewThreadNote.textContent = String(followupSteps.length) + " follow-up step" + (followupSteps.length > 1 ? "s" : "") + " will publish as part of the thread.";
+      linkedinPreviewThreadNote.hidden = false;
+    } else {
+      linkedinPreviewThreadNote.hidden = true;
+    }
+  };
+
   const renderPreviewThread = () => {
     const segments = previewSegmentsData();
     previewThread.innerHTML = "";
@@ -7641,6 +7901,7 @@
     });
 
     syncPreviewCardTop();
+    renderLinkedInPreview();
   };
 
   const syncPreviewCardTop = () => {
@@ -8955,6 +9216,7 @@
     syncNetworkSelection();
     updateCharCount();
     persistNetworkSelection();
+    renderPreviewThread();
   });
 
   textInput.addEventListener("input", () => {
