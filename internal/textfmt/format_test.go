@@ -29,6 +29,20 @@ func TestMarkdownToPreviewHTMLSupportsUnderscoreMarkers(t *testing.T) {
 	}
 }
 
+func TestMarkdownConvertersCollapseEscapedBackslash(t *testing.T) {
+	input := `Ruta C:\\temp y literal \\`
+
+	if got, want := MarkdownToPreviewHTML(input), `Ruta C:\temp y literal \`; got != want {
+		t.Fatalf("preview html escaped backslash = %q, want %q", got, want)
+	}
+	if got, want := MarkdownToRTF(input), "{\\rtf1\\ansi\\deff0 Ruta C:\\\\temp y literal \\\\}"; got != want {
+		t.Fatalf("rtf escaped backslash = %q, want %q", got, want)
+	}
+	if got, want := MarkdownToUnicodeStyled(input), `Ruta C:\temp y literal \`; got != want {
+		t.Fatalf("unicode escaped backslash = %q, want %q", got, want)
+	}
+}
+
 func TestMarkdownToPreviewHTMLDoesNotTreatSnakeCaseAsItalic(t *testing.T) {
 	input := "usa variable snake_case aqui"
 	got := MarkdownToPreviewHTML(input)

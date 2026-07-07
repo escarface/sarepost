@@ -352,7 +352,7 @@ func isEscapedDelimiter(runes []rune, i int) bool {
 	if i+1 >= len(runes) || runes[i] != '\\' {
 		return false
 	}
-	return isMarkerRune(runes[i+1])
+	return runes[i+1] == '\\' || isMarkerRune(runes[i+1])
 }
 
 func isMarkerRune(r rune) bool {
