@@ -90,6 +90,7 @@ func groupPublicationThreads(
 					StepCount:        len(thread),
 					FollowUpSteps:    followUps,
 					MediaCount:       mediaCount,
+					Media:            publicationMediaPreviews(root.Media),
 				},
 				platformSet:        make(map[domain.Platform]struct{}, 4),
 				accountSet:         make(map[string]struct{}, 4),
@@ -317,7 +318,32 @@ func buildFollowUpStepPreviews(thread []domain.Post) []publicationStepPreview {
 			Position:   position,
 			Text:       text,
 			MediaCount: len(post.Media),
+			Media:      publicationMediaPreviews(post.Media),
 		})
+	}
+	return out
+}
+
+func publicationMediaPreviews(items []domain.Media) []publicationMediaPreview {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]publicationMediaPreview, 0, len(items))
+	for _, item := range items {
+		id := strings.TrimSpace(item.ID)
+		if id == "" {
+			continue
+		}
+		out = append(out, publicationMediaPreview{
+			ID:         id,
+			Kind:       strings.TrimSpace(item.Kind),
+			MimeType:   strings.TrimSpace(item.MimeType),
+			Name:       strings.TrimSpace(item.OriginalName),
+			PreviewURL: mediaContentURL(id),
+		})
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -407,6 +433,7 @@ func groupCalendarEventsFromPublicationGroups(groups []publicationGroupItem) []c
 			ThreadLabel:   group.ThreadLabel,
 			FollowUpSteps: append([]publicationStepPreview(nil), group.FollowUpSteps...),
 			MediaCount:    group.MediaCount,
+			Media:         append([]publicationMediaPreview(nil), group.Media...),
 			Platform:      group.PrimaryPlatform,
 			Platforms:     append([]domain.Platform(nil), group.Platforms...),
 			PostCount:     group.PostCount,

@@ -892,3 +892,82 @@ func TestQueueCardsHideRedundantStatusFlags(t *testing.T) {
 		t.Fatalf("failed queue cards should keep selection checkbox")
 	}
 }
+
+func TestDraftAndPublicationViewsRenderMediaPreview(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	media, err := store.CreateMedia(t.Context(), domain.Media{
+		Kind:         "image",
+		OriginalName: "preview.png",
+		StoragePath:  filepath.Join(tempDir, "preview.png"),
+		MimeType:     "image/png",
+		SizeBytes:    2048,
+	})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+
+	accountID := testAccountID(t, store)
+	createDraftBody, _ := json.Marshal(map[string]any{
+		"account_id": accountID,
+		"text":       "draft with preview image",
+		"media_ids":  []string{media.ID},
+	})
+	createDraftReq := httptest.NewRequest(http.MethodPost, "/posts", bytes.NewReader(createDraftBody))
+	createDraftW := httptest.NewRecorder()
+	h.ServeHTTP(createDraftW, createDraftReq)
+	if createDraftW.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for draft post, got %d: %s", createDraftW.Code, createDraftW.Body.String())
+	}
+
+	createScheduledBody, _ := json.Marshal(map[string]any{
+		"account_id":   accountID,
+		"text":         "scheduled with preview image",
+		"scheduled_at": time.Now().UTC().Add(2 * time.Hour).Format(time.RFC3339),
+		"media_ids":    []string{media.ID},
+	})
+	createScheduledReq := httptest.NewRequest(http.MethodPost, "/posts", bytes.NewReader(createScheduledBody))
+	createScheduledW := httptest.NewRecorder()
+	h.ServeHTTP(createScheduledW, createScheduledReq)
+	if createScheduledW.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for scheduled post, got %d: %s", createScheduledW.Code, createScheduledW.Body.String())
+	}
+
+	expectedPreviewURL := mediaContentURL(media.ID)
+
+	draftsReq := httptest.NewRequest(http.MethodGet, "/?view=drafts", nil)
+	draftsW := httptest.NewRecorder()
+	h.ServeHTTP(draftsW, draftsReq)
+	if draftsW.Code != http.StatusOK {
+		t.Fatalf("expected 200 for drafts view, got %d", draftsW.Code)
+	}
+	draftsBody := draftsW.Body.String()
+	if !strings.Contains(draftsBody, "publication-media-grid") {
+		t.Fatalf("expected drafts view to render media preview grid")
+	}
+	if !strings.Contains(draftsBody, "src=\""+expectedPreviewURL+"\"") {
+		t.Fatalf("expected drafts view to render image preview url %q", expectedPreviewURL)
+	}
+
+	publicationsReq := httptest.NewRequest(http.MethodGet, "/?view=publications", nil)
+	publicationsW := httptest.NewRecorder()
+	h.ServeHTTP(publicationsW, publicationsReq)
+	if publicationsW.Code != http.StatusOK {
+		t.Fatalf("expected 200 for publications view, got %d", publicationsW.Code)
+	}
+	publicationsBody := publicationsW.Body.String()
+	if !strings.Contains(publicationsBody, "publication-media-grid") {
+		t.Fatalf("expected publications view to render media preview grid")
+	}
+	if !strings.Contains(publicationsBody, "src=\""+expectedPreviewURL+"\"") {
+		t.Fatalf("expected publications view to render image preview url %q", expectedPreviewURL)
+	}
+}

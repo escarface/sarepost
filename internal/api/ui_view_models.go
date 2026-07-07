@@ -47,6 +47,7 @@ type calendarEvent struct {
 	ThreadLabel   string
 	FollowUpSteps []publicationStepPreview
 	MediaCount    int
+	Media         []publicationMediaPreview
 	Platform      domain.Platform
 	Platforms     []domain.Platform
 	PostCount     int
@@ -80,10 +81,19 @@ type failedQueueItem struct {
 	ScheduledAtLabel string
 }
 
+type publicationMediaPreview struct {
+	ID         string
+	Kind       string
+	MimeType   string
+	Name       string
+	PreviewURL string
+}
+
 type publicationStepPreview struct {
 	Position   int
 	Text       string
 	MediaCount int
+	Media      []publicationMediaPreview
 }
 
 type publicationNetworkTarget struct {
@@ -117,6 +127,7 @@ type publicationGroupItem struct {
 	ProgressLabel    string
 	FollowUpSteps    []publicationStepPreview
 	MediaCount       int
+	Media            []publicationMediaPreview
 	StatusKey        string
 	DeadLetterIDs    []string
 	DeadLetterIDsCSV string
