@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	mediaapp "github.com/escarface/sarepost/internal/application/media"
 	notificationsapp "github.com/escarface/sarepost/internal/application/notifications"
 	publishcycle "github.com/escarface/sarepost/internal/application/publishcycle"
+	safetygate "github.com/escarface/sarepost/internal/application/safetygate"
 	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/genai"
 	"github.com/escarface/sarepost/internal/postflow"
@@ -21,27 +23,125 @@ import (
 )
 
 type Worker struct {
-	Store            *db.Store
-	Registry         *postflow.ProviderRegistry
-	Cipher           *secure.Cipher
-	Interval         time.Duration
-	RetryBackoff     time.Duration
-	DataDir          string
-	GenerationDriver string
+	Store               *db.Store
+	Registry            *postflow.ProviderRegistry
+	Cipher              *secure.Cipher
+	Interval            time.Duration
+	RetryBackoff        time.Duration
+	DataDir             string
+	GenerationDriver    string
+	SafetySweepInterval time.Duration
+	SafetyBatchSize     int
+	SafetySweepLease    time.Duration
 }
 
 func (w Worker) Start(ctx context.Context) {
+	// Goroutine-level safety net: if a panic escapes the per-tick safeRun
+	// wrapper (e.g. during ticker setup or an unrecoverable path), log it with
+	// stack so the worker never dies silently (R2-W1).
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("worker goroutine panic recovered", "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	ticker := time.NewTicker(w.Interval)
 	defer ticker.Stop()
 
-	w.runOnce(ctx)
+	sweepInterval := w.safetySweepInterval()
+	sweepTicker := time.NewTicker(sweepInterval)
+	defer sweepTicker.Stop()
+
+	w.safeRun("publish cycle", func() { w.runOnce(ctx) })
+	w.safeRun("safety sweep", func() { w.runSafetySweep(ctx) })
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			w.runOnce(ctx)
+			w.safeRun("publish cycle", func() { w.runOnce(ctx) })
+		case <-sweepTicker.C:
+			w.safeRun("safety sweep", func() { w.runSafetySweep(ctx) })
 		}
+	}
+}
+
+// safeRun runs one tick's work with a per-tick recover so a panic in any tick
+// (publish cycle, safety sweep, content plan) is logged with stack and does not
+// kill the worker goroutine; the next tick proceeds normally (R2-W1).
+func (w Worker) safeRun(name string, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("worker panic recovered, continuing next tick",
+				"component", name, "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	fn()
+}
+
+func (w Worker) safetySweepInterval() time.Duration {
+	if w.SafetySweepInterval > 0 {
+		return w.SafetySweepInterval
+	}
+	return 30 * time.Second
+}
+
+func (w Worker) safetySweepLease() time.Duration {
+	if w.SafetySweepLease > 0 {
+		return w.SafetySweepLease
+	}
+	return 2 * time.Minute
+}
+
+func (w Worker) safetyBatchSize() int {
+	if w.SafetyBatchSize > 0 {
+		return w.SafetyBatchSize
+	}
+	return 100
+}
+
+// runSafetySweep claims the DB-backed safety-sweep lease, then runs one
+// safetygate.ApproveEligible pass. If the lease cannot be acquired (another
+// sweep is in progress), it skips this tick. The lease is released on
+// completion via defer so the next tick can claim immediately — this holds for
+// the success, no-work, AND error paths, so the effective cadence honors the
+// configured interval rather than the lease duration (R2-C2). Mid-batch store
+// errors are logged and the sweep continues on the next tick (REQ-WORKER-HOOK).
+func (w Worker) runSafetySweep(ctx context.Context) {
+	if w.Store == nil {
+		return
+	}
+	lease := w.safetySweepLease()
+	held, err := w.Store.ClaimSafetySweep(ctx, lease)
+	if err != nil {
+		slog.Default().Error("safety sweep lease claim failed", "error", err)
+		return
+	}
+	if !held {
+		slog.Default().Info("safety sweep lease denied, skipping tick", "lease", lease.String())
+		return
+	}
+	slog.Default().Info("safety sweep lease acquired", "lease", lease.String())
+	// Release on every return path so cadence honors the interval, not the
+	// lease duration.
+	defer func() {
+		if err := w.Store.ReleaseSafetySweep(ctx); err != nil {
+			slog.Default().Error("safety sweep lease release failed", "error", err)
+		}
+	}()
+	svc := safetygate.Service{Store: w.Store, MaxBatchSize: w.safetyBatchSize()}
+	summary, err := svc.ApproveEligible(ctx)
+	if err != nil {
+		slog.Default().Error("safety sweep failed", "error", err)
+		return
+	}
+	if summary.Evaluated > 0 {
+		slog.Default().Info("safety sweep",
+			"evaluated", summary.Evaluated,
+			"approved", summary.Approved,
+			"blocked", summary.Blocked,
+			"errors", len(summary.Errors),
+		)
 	}
 }
 

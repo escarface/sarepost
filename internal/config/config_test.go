@@ -111,3 +111,31 @@ func TestLoadRequiresMasterKey(t *testing.T) {
 		t.Fatalf("expected missing key error")
 	}
 }
+
+func TestLoadSafetySweepLeaseEnvOverride(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "missing.env"))
+	t.Setenv("POSTFLOW_MASTER_KEY", testMasterKey())
+	t.Setenv("POSTFLOW_SAFETY_SWEEP_LEASE", "90s")
+	unsetEnvForTest(t, "POSTFLOW_SAFETY_SWEEP_INTERVAL")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.SafetySweepLease != 90*time.Second {
+		t.Fatalf("SafetySweepLease = %v, want %v", cfg.SafetySweepLease, 90*time.Second)
+	}
+	if cfg.SafetySweepInterval != 30*time.Second {
+		t.Fatalf("SafetySweepInterval default = %v, want %v", cfg.SafetySweepInterval, 30*time.Second)
+	}
+}
+
+func TestLoadSafetySweepLeaseInvalidRejects(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "missing.env"))
+	t.Setenv("POSTFLOW_MASTER_KEY", testMasterKey())
+	t.Setenv("POSTFLOW_SAFETY_SWEEP_LEASE", "not-a-duration")
+
+	if _, err := Load(); err == nil {
+		t.Fatalf("expected invalid POSTFLOW_SAFETY_SWEEP_LEASE to be rejected")
+	}
+}

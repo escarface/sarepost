@@ -53,6 +53,40 @@ materialization delegates to the existing posts application services so provider
 validation, calendar conflicts, duplicate-content checks, campaigns, and idempotency
 remain consistent. HTTP, MCP, CLI, and Web UI are adapters over this shared behavior.
 
+## Auto-approve safety gate (`internal/application/safetygate`)
+
+The safety gate is the unattended-operation layer over the editorial loop. It
+promotes `needs_review` posts that require approval to `approved` when they pass
+deterministic `SafetyRule`s (domain entity), so generated content can flow
+through to scheduling without a human gate. Posts that fail a `block` rule stay
+in `needs_review` with a `BlockedReason` (the editorial status enum is not
+extended), so they remain in human review and are never auto-scheduled.
+
+`Evaluate` is a pure application function that applies all enabled,
+platform-applicable rules and returns a verdict plus a stable
+`AutoApprovedReason` audit string (semicolon-separated `<kind>:<rule_id>:<outcome>`
+tokens ordered by rule id, e.g. `banned_terms:sft_abc:pass;length_range:sft_def:pass`).
+Including the rule id disambiguates two same-kind rules. `ApproveEligible` is the
+lists eligible posts from the `campaign_posts` join (where editorial metadata
+lives), evaluates each, and persists per-post mutations independently so a
+mid-batch failure does not roll back already-committed posts. The worker runs an
+async sweep on a configurable cadence with a DB-backed lease
+(`POSTFLOW_SAFETY_SWEEP_INTERVAL`, default 30s). Rules and the sweep are exposed
+with surface parity on HTTP, MCP, and CLI (`internal/parity` enforces it).
+
+The publish cycle enforces the gate at the claim boundary: `ClaimDuePosts` LEFT
+JOINs `campaign_posts` and excludes any post with `requires_approval=1` and
+`editorial_status=needs_review` (blocked or not-yet-evaluated). Posts promoted to
+`approved`, posts that do not require approval, and posts with no campaign link
+are claimed as before. This guarantees a blocked post is never published even
+when its `scheduled_at` has passed.
+
+The worker loop is panic-isolated at two layers: a per-post `recover()` in the
+safety sweep skips and logs (with stack) a single panicking post/rule without
+aborting the sweep, and a per-tick `recover()` wrapper around `Start`'s tick
+work (publish cycle, safety sweep, content plan) logs and continues to the next
+tick so the worker goroutine never silently dies.
+
 ## Layer rules
 
 1. Adapters (`api`, `worker`, `cli`) call `application`.

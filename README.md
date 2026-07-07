@@ -17,6 +17,7 @@ Built in Go with SQLite. LLM-first: every capability is consistently exposed thr
 - **Editorial campaigns** — group posts under campaign briefs with audience, tone, CTA, tags, and archive state
 - **Multi-brand content plans** — generate days, weeks, or up to 90 days of shared editorial ideas adapted to multiple brands, accounts, and networks
 - **Editorial approval** — mark posts as `needs_review`, require approval, and block scheduling until approved
+- **Auto-approve safety gate** — deterministic rules auto-promote `needs_review` content to `approved` so the pipeline runs unattended, with a blocked fallback that stays in human review
 - **Editorial backlog** — search pending content by campaign, platform, editorial status, tag, and date range
 - **Dead-letter queue** — inspect and requeue failed publications
 - **OAuth account connection** — connect social accounts via standard OAuth flows
@@ -88,6 +89,55 @@ scheduled posts.
 
 The Web UI includes **Campaigns** and **Backlog** tabs. API, MCP, and CLI expose the
 same campaign, approval, and backlog capabilities for LLM-first workflows.
+
+## Auto-approve safety gate
+
+The safety gate removes the manual approval bottleneck for unattended operation
+while keeping a safe fallback. Deterministic `SafetyRule`s evaluate every
+`needs_review` post that requires approval, and posts that pass all enabled
+rules are auto-promoted to `approved` with an auditable `AutoApprovedReason`.
+Posts that fail a `block` rule stay in `needs_review` and record a
+`BlockedReason` so a human can review them — they are never auto-scheduled.
+
+Rule kinds: `banned_terms` (regex deny list), `length_range` (min/max per
+platform), `hashtag_max`, `link_max`, `required_contains`. Each rule has a
+severity of `block` (failure keeps the post in review) or `review`
+(non-blocking note). Rules are global and admin-managed (API token holder).
+
+Migration v14 seeds conservative defaults: per-platform `length_range`
+(X 1–280, LinkedIn 1–3000, Facebook 1–63206, Instagram 1–2200),
+`hashtag_max` (Instagram 30, LinkedIn 5, X 10, Facebook 10), a global
+`link_max` of 1, and a disabled `banned_terms` rule (admin populates it).
+
+The worker runs an async safety sweep on a configurable cadence (default 30s,
+`POSTFLOW_SAFETY_SWEEP_INTERVAL`). A DB-backed lease prevents two overlapping
+sweeps from double-promoting the same post. The publish cycle (`ClaimDuePosts`)
+enforces an editorial guard: a campaign post pending sign-off
+(`requires_approval=1` and `editorial_status=needs_review` — blocked or
+not-yet-evaluated) is never claimed for publishing, even when its
+`scheduled_at` is in the past; only `approved` (auto or manual) or
+non-requires-approval posts are published. You can also trigger a sweep on
+demand via any surface:
+
+```bash
+# CLI
+postflow --json posts auto-approve
+postflow --json posts auto-approve --dry-run   # preview without mutating
+
+# List/upsert/delete rules
+postflow --json safety-rules list
+postflow --json safety-rules upsert --name "banned" --kind banned_terms \
+  --params-json '{"banned_patterns":["spam\\b"]}' --severity block --enabled
+postflow --json safety-rules get --id sft_xxx
+postflow --json safety-rules delete --id sft_xxx
+```
+
+The same capabilities are exposed over HTTP (`GET/POST /safety-rules`,
+`GET/DELETE /safety-rules/{id}`, `POST /posts/auto-approve`) and MCP
+(`postflow_list_safety_rules`, `postflow_get_safety_rule`,
+`postflow_upsert_safety_rule`, `postflow_delete_safety_rule`,
+`postflow_auto_approve_posts`). Parity is enforced by
+`internal/parity/safety_parity_test.go`.
 
 ## Multi-brand content plans
 
@@ -186,6 +236,8 @@ Open:
 | `POSTFLOW_DRIVER` | `mock` | `mock` for local dev, `live` for real publishing |
 | `POSTFLOW_BASE_URL` | `http://localhost:8080` | Server URL (CLI only) |
 | `POSTFLOW_API_TOKEN` | — | Token for CLI auth (CLI only) |
+| `POSTFLOW_SAFETY_SWEEP_INTERVAL` | `30s` | Worker auto-approve safety sweep cadence (Go duration, e.g. `45s`) |
+| `POSTFLOW_SAFETY_SWEEP_LEASE` | `2m` | Max time a safety sweep may hold the DB-backed lease (Go duration, e.g. `90s`). The lease is released on completion, so this only matters when a sweep overruns the interval or multiple workers contend |
 
 ---
 
@@ -250,6 +302,11 @@ Full MCP contract for integrators and LLM clients:
 | `postflow_edit_post` | Edit post content or schedule |
 | `postflow_delete_post` | Delete a post |
 | `postflow_approve_post` | Approve editorial content before scheduling |
+| `postflow_auto_approve_posts` | Run a safety-gate sweep that auto-promotes eligible `needs_review` posts (supports `dry_run`) |
+| `postflow_list_safety_rules` | List auto-approve safety rules |
+| `postflow_get_safety_rule` | Get one safety rule by ID |
+| `postflow_upsert_safety_rule` | Create or update a safety rule |
+| `postflow_delete_safety_rule` | Delete a safety rule |
 | `postflow_validate_post` | Validate post before saving |
 | `postflow_create_campaign` | Create an editorial campaign |
 | `postflow_list_campaigns` | List editorial campaigns |

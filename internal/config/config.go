@@ -12,25 +12,27 @@ import (
 )
 
 type Config struct {
-	Port              string
-	DatabasePath      string
-	DataDir           string
-	WorkerInterval    time.Duration
-	RetryBackoff      time.Duration
-	DefaultMaxRetries int
-	RateLimitRPM      int
-	APIToken          string
-	UIBasicUser       string
-	UIBasicPass       string
-	OwnerEmail        string
-	OwnerPasswordHash string
-	LogLevel          string
-	PostflowDriver    string
-	PublicBaseURL     string
-	MasterKeyBase64   string
-	X                 XConfig
-	LinkedIn          LinkedInConfig
-	Meta              MetaConfig
+	Port                string
+	DatabasePath        string
+	DataDir             string
+	WorkerInterval      time.Duration
+	RetryBackoff        time.Duration
+	DefaultMaxRetries   int
+	RateLimitRPM        int
+	APIToken            string
+	UIBasicUser         string
+	UIBasicPass         string
+	OwnerEmail          string
+	OwnerPasswordHash   string
+	LogLevel            string
+	PostflowDriver      string
+	SafetySweepInterval time.Duration
+	SafetySweepLease    time.Duration
+	PublicBaseURL       string
+	MasterKeyBase64     string
+	X                   XConfig
+	LinkedIn            LinkedInConfig
+	Meta                MetaConfig
 }
 
 type XConfig struct {
@@ -92,23 +94,53 @@ func Load() (Config, error) {
 		rateLimitRPM = v
 	}
 
+	safetySweepInterval := 30 * time.Second
+	if raw := strings.TrimSpace(os.Getenv("POSTFLOW_SAFETY_SWEEP_INTERVAL")); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid POSTFLOW_SAFETY_SWEEP_INTERVAL: %q", raw)
+		}
+		if parsed <= 0 {
+			return Config{}, fmt.Errorf("POSTFLOW_SAFETY_SWEEP_INTERVAL must be positive: %q", raw)
+		}
+		safetySweepInterval = parsed
+	}
+
+	// SafetySweepLease bounds how long a sweep can hold the DB-backed lease. The
+	// worker releases the lease on completion, so the effective cadence honors
+	// the interval; the lease only matters when a sweep runs longer than the
+	// interval or when multiple workers contend. Default 2m.
+	safetySweepLease := 2 * time.Minute
+	if raw := strings.TrimSpace(os.Getenv("POSTFLOW_SAFETY_SWEEP_LEASE")); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid POSTFLOW_SAFETY_SWEEP_LEASE: %q", raw)
+		}
+		if parsed <= 0 {
+			return Config{}, fmt.Errorf("POSTFLOW_SAFETY_SWEEP_LEASE must be positive: %q", raw)
+		}
+		safetySweepLease = parsed
+	}
+
 	cfg := Config{
-		Port:              getenv("PORT", "8080"),
-		DatabasePath:      getenv("DATABASE_PATH", "postflow.db"),
-		DataDir:           getenv("DATA_DIR", "data"),
-		WorkerInterval:    interval,
-		RetryBackoff:      retryBackoff,
-		DefaultMaxRetries: defaultMaxRetries,
-		RateLimitRPM:      rateLimitRPM,
-		APIToken:          os.Getenv("API_TOKEN"),
-		UIBasicUser:       os.Getenv("UI_BASIC_USER"),
-		UIBasicPass:       os.Getenv("UI_BASIC_PASS"),
-		OwnerEmail:        strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
-		OwnerPasswordHash: strings.TrimSpace(os.Getenv("OWNER_PASSWORD_HASH")),
-		LogLevel:          getenv("LOG_LEVEL", "info"),
-		PostflowDriver:    getenv("POSTFLOW_DRIVER", "mock"),
-		PublicBaseURL:     strings.TrimRight(strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")), "/"),
-		MasterKeyBase64:   strings.TrimSpace(os.Getenv("POSTFLOW_MASTER_KEY")),
+		Port:                getenv("PORT", "8080"),
+		DatabasePath:        getenv("DATABASE_PATH", "postflow.db"),
+		DataDir:             getenv("DATA_DIR", "data"),
+		WorkerInterval:      interval,
+		RetryBackoff:        retryBackoff,
+		DefaultMaxRetries:   defaultMaxRetries,
+		RateLimitRPM:        rateLimitRPM,
+		APIToken:            os.Getenv("API_TOKEN"),
+		UIBasicUser:         os.Getenv("UI_BASIC_USER"),
+		UIBasicPass:         os.Getenv("UI_BASIC_PASS"),
+		OwnerEmail:          strings.TrimSpace(os.Getenv("OWNER_EMAIL")),
+		OwnerPasswordHash:   strings.TrimSpace(os.Getenv("OWNER_PASSWORD_HASH")),
+		LogLevel:            getenv("LOG_LEVEL", "info"),
+		PostflowDriver:      getenv("POSTFLOW_DRIVER", "mock"),
+		SafetySweepInterval: safetySweepInterval,
+		SafetySweepLease:    safetySweepLease,
+		PublicBaseURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")), "/"),
+		MasterKeyBase64:     strings.TrimSpace(os.Getenv("POSTFLOW_MASTER_KEY")),
 		X: XConfig{
 			APIBaseURL:    getenv("X_API_BASE_URL", "https://api.x.com"),
 			UploadBaseURL: getenv("X_UPLOAD_BASE_URL", "https://upload.twitter.com"),

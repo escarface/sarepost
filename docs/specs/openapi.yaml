@@ -985,6 +985,120 @@ paths:
         '409':
           $ref: '#/components/responses/Error'
 
+  /posts/auto-approve:
+    post:
+      summary: Run an auto-approve safety-gate sweep over eligible needs_review posts
+      description: |
+        Evaluates posts in `needs_review` with `requires_approval=true` and no
+        prior `auto_approved_reason` against the enabled safety rules. Posts
+        that pass are promoted to `approved` with an auditable
+        `auto_approved_reason`; posts that fail a `block` rule stay in
+        `needs_review` with a `blocked_reason`. Set `dry_run` to preview
+        without mutating. Mutations are per-post independent (partial success).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  description: Max posts to evaluate in this sweep.
+                dry_run:
+                  type: boolean
+                  description: Evaluate without mutating any post.
+      responses:
+        '200':
+          description: Sweep summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutoApproveSummary'
+
+  /safety-rules:
+    get:
+      summary: List auto-approve safety rules
+      responses:
+        '200':
+          description: Rules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SafetyRule'
+    post:
+      summary: Create or update a safety rule (upsert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SafetyRuleInput'
+      responses:
+        '200':
+          description: Saved rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafetyRule'
+        '400':
+          description: >
+            Invalid rule. kind must be one of banned_terms, length_range,
+            hashtag_max, link_max, required_contains; severity must be one of
+            block, review (default). An unknown kind makes the evaluator
+            default to PASS and an unknown severity routes failures into
+            non-blocking notes, so a typo'd rule would silently never block.
+            MCP surfaces this as isError; the CLI exits non-zero with the
+            message.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /safety-rules/{id}:
+    get:
+      summary: Get a safety rule by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafetyRule'
+        '404':
+          $ref: '#/components/responses/Error'
+    delete:
+      summary: Delete a safety rule by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/Error'
+
+
   /posts/{id}/preview-schedule:
     post:
       summary: Preview scheduling guardrails without mutating the post
@@ -1962,6 +2076,78 @@ components:
     EditorialStatus:
       type: string
       enum: [idea, drafting, needs_review, approved, scheduled]
+
+    SafetyRule:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [banned_terms, length_range, hashtag_max, link_max, required_contains]
+        params:
+          type: object
+          additionalProperties: true
+          description: Typed params per kind (banned_patterns, min_len, max_len, hashtag_max, link_max, needles).
+        scope:
+          type: string
+          enum: [global]
+        platform:
+          type: string
+          description: Optional platform filter (x, linkedin, facebook, instagram). Empty applies to all.
+        severity:
+          type: string
+          enum: [block, review]
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SafetyRuleInput:
+      type: object
+      required: [kind]
+      properties:
+        id:
+          type: string
+          description: Optional existing rule ID to update. Empty creates a new rule.
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [banned_terms, length_range, hashtag_max, link_max, required_contains]
+        params:
+          type: object
+          additionalProperties: true
+        scope:
+          type: string
+          enum: [global]
+        platform:
+          type: string
+        severity:
+          type: string
+          enum: [block, review]
+        enabled:
+          type: boolean
+
+    AutoApproveSummary:
+      type: object
+      properties:
+        evaluated:
+          type: integer
+        approved:
+          type: integer
+        blocked:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
 
     CampaignInput:
       type: object
