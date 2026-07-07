@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -134,5 +135,47 @@ func TestCreateViewRendersSourceThreadPreviewWhenReusingPost(t *testing.T) {
 	previewThreadRe := regexp.MustCompile(`(?s)id="preview-thread".*preview-step-root.*source thread root.*preview-step-followup.*source thread follow up`)
 	if !previewThreadRe.MatchString(body) {
 		t.Fatalf("expected live preview to render reused source thread steps")
+	}
+}
+
+func TestCreateViewRendersLinkedInSocialPreview(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3}
+	h := srv.Handler()
+
+	account := createConnectedAccountForPlatform(t, store, domain.PlatformLinkedIn, "Sare LinkedIn")
+	media, err := store.CreateMedia(t.Context(), domain.Media{
+		Kind:         "image",
+		OriginalName: "linkedin-preview.png",
+		StoragePath:  filepath.Join(tempDir, "linkedin-preview.png"),
+		MimeType:     "image/png",
+		SizeBytes:    1024,
+	})
+	if err != nil {
+		t.Fatalf("create media: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/?view=create&account_id="+account.ID+"&text=linkedin+preview&media_id="+media.ID, nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for create view, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="linkedin-social-preview"`) {
+		t.Fatalf("expected create view to render linkedin social preview shell")
+	}
+	if !strings.Contains(body, `LinkedIn preview`) {
+		t.Fatalf("expected create view to render linkedin preview label")
+	}
+	if !strings.Contains(body, `id="linkedin-preview-media-wrap"`) {
+		t.Fatalf("expected create view to render linkedin preview media container")
 	}
 }
