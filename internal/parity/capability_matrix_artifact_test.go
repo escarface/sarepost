@@ -986,7 +986,223 @@ func capabilityChecks() map[string]map[capabilities.Surface]parityCheck {
 		capabilities.CapabilityContentPlansRegenerate: contentPlanCapabilityChecks("regenerate"),
 		capabilities.CapabilityContentPlansEdit:       contentPlanCapabilityChecks("edit"),
 		capabilities.CapabilityContentPlansSchedule:   contentPlanCapabilityChecks("schedule"),
+		capabilities.CapabilityContentSourcesCreate:   contentSourceCapabilityChecks("create"),
+		capabilities.CapabilityContentSourcesList:     contentSourceCapabilityChecks("list"),
+		capabilities.CapabilityContentSourcesGet:      contentSourceCapabilityChecks("get"),
+		capabilities.CapabilityContentSourcesUpdate:   contentSourceCapabilityChecks("update"),
+		capabilities.CapabilityContentSourcesArchive:  contentSourceCapabilityChecks("archive"),
+		capabilities.CapabilityContentSourcesAngles:   contentSourceCapabilityChecks("generate_angles"),
 	}
+}
+
+func contentSourceCapabilityChecks(action string) map[capabilities.Surface]parityCheck {
+	switch action {
+	case "create":
+		return map[capabilities.Surface]parityCheck{
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				_, err := apiCreateContentSource(env, "matrix source create api")
+				return err
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				code, _, stderr := env.runCLIResult("content-sources", "create", "--title", "matrix source create cli", "--body", "raw source body")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				if msg := env.mcpCallToolError("postflow_create_content_source", map[string]any{"title": "matrix source create mcp", "body": "raw source body"}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		}
+	case "list":
+		return map[capabilities.Surface]parityCheck{
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				_, status := env.apiJSON(http.MethodGet, "/content-sources?limit=10", nil, "")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				code, _, stderr := env.runCLIResult("content-sources", "list")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				if msg := env.mcpCallToolError("postflow_list_content_sources", map[string]any{"limit": 10}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		}
+	case "get":
+		return map[capabilities.Surface]parityCheck{
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source get api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodGet, "/content-sources/"+id, nil, "")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source get cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("content-sources", "get", "--id", id)
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source get mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_get_content_source", map[string]any{"content_source_id": id}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		}
+	case "update":
+		return map[capabilities.Surface]parityCheck{
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source update api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPatch, "/content-sources/"+id, map[string]any{"title": "matrix source updated api", "body": "updated body", "status": "processed"}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source update cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("content-sources", "update", "--id", id, "--title", "matrix source updated cli", "--body", "updated body", "--status", "processed")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source update mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_update_content_source", map[string]any{"content_source_id": id, "title": "matrix source updated mcp", "body": "updated body", "status": "processed"}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		}
+	case "archive":
+		return map[capabilities.Surface]parityCheck{
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source archive api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPost, "/content-sources/"+id+"/archive", map[string]any{}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source archive cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("content-sources", "archive", "--id", id)
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				id, err := apiCreateContentSource(env, "matrix source archive mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_archive_content_source", map[string]any{"content_source_id": id}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		}
+	case "generate_angles":
+		return map[capabilities.Surface]parityCheck{
+			capabilities.SurfaceAPI: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				id, err := apiCreateContentSource(env, "matrix source angles api")
+				if err != nil {
+					return err
+				}
+				_, status := env.apiJSON(http.MethodPost, "/content-sources/"+id+"/generate-angles", map[string]any{"count": 2}, "application/json")
+				if status != http.StatusOK {
+					return fmt.Errorf("expected 200, got %d", status)
+				}
+				return nil
+			},
+			capabilities.SurfaceCLI: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				id, err := apiCreateContentSource(env, "matrix source angles cli")
+				if err != nil {
+					return err
+				}
+				code, _, stderr := env.runCLIResult("content-sources", "generate-angles", "--id", id, "--count", "2")
+				if code != 0 {
+					return fmt.Errorf("exit %d: %s", code, strings.TrimSpace(stderr))
+				}
+				return nil
+			},
+			capabilities.SurfaceMCP: func(env *parityEnv) error {
+				env.apiConfigureTextGeneration()
+				id, err := apiCreateContentSource(env, "matrix source angles mcp")
+				if err != nil {
+					return err
+				}
+				if msg := env.mcpCallToolError("postflow_generate_content_source_angles", map[string]any{"content_source_id": id, "count": 2}); msg != "" {
+					return errors.New(msg)
+				}
+				return nil
+			},
+		}
+	default:
+		return nil
+	}
+}
+
+func apiCreateContentSource(env *parityEnv, title string) (string, error) {
+	raw, status := env.apiJSON(http.MethodPost, "/content-sources", map[string]any{"title": title, "body": "raw source body"}, "application/json")
+	if status != http.StatusCreated {
+		return "", fmt.Errorf("create content source status %d: %s", status, strings.TrimSpace(string(raw)))
+	}
+	var payload struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(payload.ID) == "" {
+		return "", fmt.Errorf("content source response missing id")
+	}
+	return strings.TrimSpace(payload.ID), nil
 }
 
 func apiCreateCampaign(env *parityEnv, name string) (string, error) {

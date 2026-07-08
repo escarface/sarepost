@@ -7,6 +7,7 @@ Last updated: 2026-07-07
 ## Sources scanned
 
 - skills
+- .codex/skills
 - /Users/asierluengo/.agents/skills
 - /Users/asierluengo/.config/opencode/skills
 - /Users/asierluengo/.claude/skills
@@ -59,9 +60,11 @@ Last updated: 2026-07-07
 | `sare-memory` | Use when the user asks to recover prior context, save session state, update project memory, prepare a handoff, preserve decisions, or maintain continuity across Codex threads using the Sare Obsidian vault and repo-local memory files. | user | `/Users/asierluengo/.codex/skills/sare-memory/SKILL.md` |
 | `sare-new-app` | Trigger: new app, from scratch, MVP, scaffold, greenfield. Build the first real vertical slice. | project | `/Users/asierluengo/Development/postflow/skills/sare-new-app/SKILL.md` |
 | `sare-sdd-lite` | Trigger: feature, architecture, API, data model, workflow, SDD. Plan and implement with lightweight specs. | project | `/Users/asierluengo/Development/postflow/skills/sare-sdd-lite/SKILL.md` |
+| `sare-task-executor` | Trigger: execute tasks, continue tasks, mark tasks, multi-agent tasks. Implement and verify SDD task files. | project | `/Users/asierluengo/Development/postflow/.codex/skills/sare-task-executor/SKILL.md` |
 | `sare-tdd-lite` | Trigger: bugfix, regression, behavior change, business logic, integration. Use pragmatic red-green verification. | project | `/Users/asierluengo/Development/postflow/skills/sare-tdd-lite/SKILL.md` |
 | `sare-verification-gate` | Trigger: complete, done, commit, push, PR, verify, final answer. Require evidence before success claims. | project | `/Users/asierluengo/Development/postflow/skills/sare-verification-gate/SKILL.md` |
 | `sare-workflow-lite` | Trigger: any coding task, workflow decision, feature, bugfix, new app. Route work into the smallest reliable process. | project | `/Users/asierluengo/Development/postflow/skills/sare-workflow-lite/SKILL.md` |
+| `sare-worktree-manager` | Trigger: manager thread, parallel tasks, worktrees, delegate tasks. Coordinate SDD tasks across isolated worker threads. | project | `/Users/asierluengo/Development/postflow/.codex/skills/sare-worktree-manager/SKILL.md` |
 | `saren8n` | Create, update, activate, delete, inspect, and test n8n workflows directly through the n8n REST API. Use when Codex needs to work with an n8n instance, build workflows quickly from natural language, manage workflow JSON payloads, verify webhook workflows, or use n8n MCP context alongside REST API operations. | user | `/Users/asierluengo/.claude/skills/saren8n/SKILL.md` |
 | `sarepost-cli` | Use the postflow CLI to manage scheduled posts, validate/create posts, and operate DLQ entries against the Sarepost HTTP API. Use when the user asks to inspect schedule, create posts, or requeue failed publications quickly from terminal. | project | `/Users/asierluengo/Development/postflow/skills/sarepost-cli/SKILL.md` |
 | `sentry-cli` | Guide for using the Sentry CLI to interact with Sentry from the command line. Use when the user asks about viewing issues, events, projects, organizations, making API calls, or authenticating with Sentry via CLI. | user | `/Users/asierluengo/.agents/skills/sentry-cli/SKILL.md` |

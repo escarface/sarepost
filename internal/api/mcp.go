@@ -122,6 +122,13 @@ func (s Server) newMCPHandler() http.Handler {
 	mcp.AddTool(server, &mcp.Tool{Name: "postflow_update_content_plan_variant", Description: "Edit a content plan variant copy, planned time, or media."}, s.mcpUpdateContentPlanVariantTool)
 	mcp.AddTool(server, &mcp.Tool{Name: "postflow_schedule_content_plan", Description: "Approve and schedule selected ready variants; valid items proceed and conflicts are reported."}, s.mcpScheduleContentPlanTool)
 
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_create_content_source", Description: "Capture raw source material for later editorial angle generation."}, s.mcpCreateContentSourceTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_list_content_sources", Description: "List captured content sources with optional status, tag, and archived filters.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}}, s.mcpListContentSourcesTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_get_content_source", Description: "Get one captured content source by ID.", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}}, s.mcpGetContentSourceTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_update_content_source", Description: "Update captured content source metadata or body."}, s.mcpUpdateContentSourceTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_archive_content_source", Description: "Archive a content source without deleting it."}, s.mcpArchiveContentSourceTool)
+	mcp.AddTool(server, &mcp.Tool{Name: "postflow_generate_content_source_angles", Description: "Generate editorial angles from a stored content source."}, s.mcpGenerateContentSourceAnglesTool)
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "postflow_list_editorial_backlog",
 		Description: "List campaign-linked draft/scheduled/failed posts by campaign, platform, editorial status, or tag.",

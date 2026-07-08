@@ -52,6 +52,12 @@ const (
 	CapabilityContentPlansRegenerate    = "content_plans.regenerate"
 	CapabilityContentPlansEdit          = "content_plans.edit"
 	CapabilityContentPlansSchedule      = "content_plans.schedule"
+	CapabilityContentSourcesCreate      = "content_sources.create"
+	CapabilityContentSourcesList        = "content_sources.list"
+	CapabilityContentSourcesGet         = "content_sources.get"
+	CapabilityContentSourcesUpdate      = "content_sources.update"
+	CapabilityContentSourcesArchive     = "content_sources.archive"
+	CapabilityContentSourcesAngles      = "content_sources.generate_angles"
 )
 
 type Capability struct {
@@ -104,5 +110,11 @@ func RequiredParityCapabilities() []Capability {
 		{ID: CapabilityContentPlansRegenerate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityContentPlansEdit, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 		{ID: CapabilityContentPlansSchedule, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentSourcesCreate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentSourcesList, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentSourcesGet, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentSourcesUpdate, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentSourcesArchive, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
+		{ID: CapabilityContentSourcesAngles, RequiredSurfaces: []Surface{SurfaceAPI, SurfaceMCP, SurfaceCLI}},
 	}
 }

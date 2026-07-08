@@ -45,6 +45,8 @@ Always load:
 Load additional skills only when relevant:
 
 - `sare-sdd-lite` for feature planning, architecture changes, APIs, workflows, data models, or cross-file behavior.
+- `sare-task-executor` for executing tasks from `docs/sdd/<change>/tasks.md`, especially across multiple agents.
+- `sare-worktree-manager` when a manager thread delegates independent tasks to worker threads in separate worktrees.
 - `sare-tdd-lite` for bug fixes, behavior changes, business logic, integrations, and regressions.
 - `sare-new-app` for greenfield applications or prototypes intended to become real projects.
 - `sare-verification-gate` before claiming completion, committing, pushing, or opening a PR.
@@ -58,7 +60,8 @@ Use the smallest mode that preserves correctness.
 | Simple question or explanation | Answer directly after checking relevant context. |
 | Small mechanical edit | Inspect, edit surgically, verify with the narrowest useful command. |
 | Bug fix or behavior change | Use TDD-lite: reproduce, write failing test when feasible, implement, verify. |
-| New feature in existing app | Use SDD-lite: brief proposal, acceptance criteria, design notes, tasks, implementation, verification. |
+| New feature in existing app | Use SDD-lite: create `spec.md` and `tasks.md`, then execute tasks with verification. |
+| Multi-task feature with independent work | Use worktree manager: task graph, worker worktrees, integration, full verification. |
 | New app from scratch | Use new-app flow: product slice, architecture, scaffold, first vertical slice, verification. |
 | Risky or broad change | Split into reviewable work units before implementation. |
 
@@ -75,15 +78,21 @@ When skipping test-first, state why and choose another verification method.
 
 ## SDD Policy
 
-Use lightweight SDD by default. The minimum artifact set is:
+Use lightweight SDD by default. For meaningful features and non-trivial bugs, persist artifacts under `docs/sdd/<change>/`.
 
-1. Intent: what problem is being solved.
-2. Acceptance criteria: observable behavior.
-3. Design notes: architecture and tradeoffs.
-4. Task list: concrete steps.
-5. Verification: commands and evidence.
+The minimum artifact set is:
+
+1. `spec.md`: intent, scope, requirements, scenarios, acceptance criteria.
+2. `tasks.md`: generated from the spec, with task status, owner/agent, and verification evidence.
+3. Optional `design.md`: required when architecture, tradeoffs, or multiple subsystems are involved.
 
 Use full OpenSpec or heavier SDD only when the change affects architecture, product semantics, persistence, security, public APIs, or multiple subsystems.
+
+Tasks may be executed by one or more agents, but a task is not complete until its checkbox is marked and its verification evidence is recorded.
+
+## Manager / Worker Policy
+
+Use a manager thread for parallel work. The manager owns planning, task graph, worker creation, integration, and final verification. Workers run in separate worktrees, execute only assigned tasks, and return evidence. Parallel execution is allowed only for tasks with no dependency edge and no shared-file conflict.
 
 ## Tools And CLIs
 
@@ -157,4 +166,3 @@ Use memory when:
 - Significant discoveries should affect future work.
 
 Saved memories must be concise, searchable, and focused on future usefulness.
-

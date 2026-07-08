@@ -89,6 +89,31 @@ func TestRunContentPlanCreateSendsMultiBrandBlocks(t *testing.T) {
 	}
 }
 
+func TestRunContentSourceCreateSendsPayload(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/content-sources" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if body["title"] != "Call notes" || body["body"] != "Customer insight" || body["source_url"] != "https://example.com" {
+			t.Fatalf("unexpected payload %#v", body)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "src_1", "title": "Call notes", "status": "new"})
+	}))
+	defer server.Close()
+	var stdout, stderr bytes.Buffer
+	code := Run(context.Background(), []string{"--base-url", server.URL, "--json", "content-sources", "create", "--title", "Call notes", "--body", "Customer insight", "--source-url", "https://example.com", "--tag", "sales"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"id": "src_1"`) {
+		t.Fatalf("unexpected output %s", stdout.String())
+	}
+}
+
 func TestRunScheduleListPostsViewJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.URL.Query().Get("view"); got != "posts" {

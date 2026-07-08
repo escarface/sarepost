@@ -90,6 +90,11 @@ var dbMigrations = []migration{
 		Name:    "safety_gate",
 		Up:      migrationAddSafetyGate,
 	},
+	{
+		Version: 15,
+		Name:    "content_sources",
+		Up:      migrationAddContentSources,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -555,6 +560,31 @@ func migrationAddContentPlans(ctx context.Context, tx *sql.Tx) error {
 		`CREATE INDEX IF NOT EXISTS idx_content_plan_variants_plan_status ON content_plan_variants(plan_id, status);`,
 		`CREATE INDEX IF NOT EXISTS idx_content_plan_jobs_status_lease ON content_plan_jobs(status, lease_until);`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_content_plan_jobs_active_plan ON content_plan_jobs(plan_id) WHERE status IN ('pending', 'running');`,
+	}
+	for _, query := range queries {
+		if _, err := tx.ExecContext(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrationAddContentSources(ctx context.Context, tx *sql.Tx) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS content_sources (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			body TEXT NOT NULL,
+			source_url TEXT NOT NULL DEFAULT '',
+			campaign_id TEXT NOT NULL DEFAULT '',
+			brand_profile_id TEXT NOT NULL DEFAULT '',
+			tags TEXT NOT NULL DEFAULT '[]',
+			status TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_sources_status_updated ON content_sources(status, updated_at);`,
+		`CREATE INDEX IF NOT EXISTS idx_content_sources_campaign ON content_sources(campaign_id);`,
 	}
 	for _, query := range queries {
 		if _, err := tx.ExecContext(ctx, query); err != nil {

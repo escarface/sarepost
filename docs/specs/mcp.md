@@ -33,6 +33,7 @@ that need to:
 - manage threads
 - upload and attach media
 - manage editorial campaigns and content plans
+- capture raw content sources and generate editorial angles
 - inspect failed publications and recover them safely
 
 The MCP favors explicit operations over implicit inference. A client should not guess
@@ -184,6 +185,15 @@ PostFlow uses opaque IDs such as `acc_*`, `pst_*`, `med_*`, `cmp_*`, `plan_*`, a
 - `postflow_update_content_plan_variant`
 - `postflow_schedule_content_plan`
 
+### Content sources
+
+- `postflow_create_content_source`
+- `postflow_list_content_sources`
+- `postflow_get_content_source`
+- `postflow_update_content_source`
+- `postflow_archive_content_source`
+- `postflow_generate_content_source_angles`
+
 ### Dead-letter queue
 
 - `postflow_list_failed`
@@ -228,6 +238,19 @@ PostFlow uses opaque IDs such as `acc_*`, `pst_*`, `med_*`, `cmp_*`, `plan_*`, a
 - Requires inline base64 content in `content_base64`
 - `original_name` is strongly recommended for MIME detection
 - Returned `media_id` must be reused in later post or plan calls
+
+### `postflow_create_content_source`
+
+- Captures raw source material before it becomes final post copy
+- Requires `title` and `body`
+- Optional `source_url` is stored as a reference only; PostFlow does not fetch remote URLs
+- Optional `campaign_id`, `brand_profile_id`, and `tags` help downstream generation
+
+### `postflow_generate_content_source_angles`
+
+- Requires `content_source_id`
+- Returns generated editorial angles as text, not final posts
+- Use these angles as planning material before creating drafts or content plans
 
 ## Interoperability Guidance
 

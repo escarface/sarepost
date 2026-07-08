@@ -140,6 +140,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runCampaigns(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "content-plans":
 		return runContentPlans(ctx, client, cfg, rest[1:], stdout, stderr)
+	case "content-sources":
+		return runContentSources(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "posts":
 		return runPosts(ctx, client, cfg, rest[1:], stdout, stderr)
 	case "safety-rules":

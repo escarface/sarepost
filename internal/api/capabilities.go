@@ -47,6 +47,12 @@ func HTTPExposedCapabilities() map[string]struct{} {
 		capabilities.CapabilityContentPlansRegenerate:    {},
 		capabilities.CapabilityContentPlansEdit:          {},
 		capabilities.CapabilityContentPlansSchedule:      {},
+		capabilities.CapabilityContentSourcesCreate:      {},
+		capabilities.CapabilityContentSourcesList:        {},
+		capabilities.CapabilityContentSourcesGet:         {},
+		capabilities.CapabilityContentSourcesUpdate:      {},
+		capabilities.CapabilityContentSourcesArchive:     {},
+		capabilities.CapabilityContentSourcesAngles:      {},
 	}
 }
 
@@ -95,5 +101,11 @@ func MCPExposedCapabilities() map[string]struct{} {
 		capabilities.CapabilityContentPlansRegenerate:    {},
 		capabilities.CapabilityContentPlansEdit:          {},
 		capabilities.CapabilityContentPlansSchedule:      {},
+		capabilities.CapabilityContentSourcesCreate:      {},
+		capabilities.CapabilityContentSourcesList:        {},
+		capabilities.CapabilityContentSourcesGet:         {},
+		capabilities.CapabilityContentSourcesUpdate:      {},
+		capabilities.CapabilityContentSourcesArchive:     {},
+		capabilities.CapabilityContentSourcesAngles:      {},
 	}
 }
