@@ -15,6 +15,7 @@
 | T2 | T1 | P2 | `internal/api`, `docs/specs/openapi.yaml` | no |
 | T3 | T1, T2 | P3 | `internal/api/mcp_*`, `internal/cli`, `docs/specs/mcp.md`, `internal/parity` | no |
 | T4 | T1, T2, T3 | P4 | tests/docs touched by all tasks | no |
+| T5 | T1, T2 | P5 | `internal/api/templates`, `internal/api/ui_*`, UI tests | no |
 
 ## Tasks
 
@@ -74,6 +75,20 @@
   - Verification: `go test ./...`
   - Evidence: `env GOMODCACHE=/Users/asierluengo/Development/postflow/.cache/gomod GOCACHE=/Users/asierluengo/Development/postflow/.cache/gobuild go test ./...` passed. `.cache/` was removed after verification.
 
+- [x] T5: Add Web UI content sources section
+  - Spec: R5 / Scenario `Capture and act on sources in the UI`
+  - Depends on: T1, T2
+  - Parallel group: P5
+  - Agent: main
+  - Thread: unassigned
+  - Worktree: unassigned
+  - Branch: unassigned
+  - Files: `internal/api/ui_schedule.go`, `internal/api/ui_view_models.go`, `internal/api/templates/schedule.html`, `internal/api/content_sources_ui_test.go`
+  - Review: completed
+  - Work: Add the `sources` Web UI view, navigation badge, capture form, source list, angle generation action, archive action, and source-to-post composer link.
+  - Verification: `go test ./internal/api`; `go test ./...`
+  - Evidence: `env GOMODCACHE=/Users/asierluengo/Development/postflow/.cache/gomod GOCACHE=/Users/asierluengo/Development/postflow/.cache/gobuild go test ./internal/api` passed. `env GOMODCACHE=/Users/asierluengo/Development/postflow/.cache/gomod GOCACHE=/Users/asierluengo/Development/postflow/.cache/gobuild go test ./...` passed.
+
 ## Verification Summary
 
 | Task | Status | Evidence |
@@ -82,3 +97,4 @@
 | T2 | Complete | `go test ./internal/api` passed with repo-local Go caches. |
 | T3 | Complete | `go test ./internal/cli ./internal/parity ./internal/api` passed with repo-local Go caches. |
 | T4 | Complete | `go test ./...` passed with repo-local Go caches; generated `.cache/` removed afterward. |
+| T5 | Complete | `go test ./internal/api` and `go test ./...` passed with repo-local Go caches. |

@@ -12,13 +12,13 @@ PostFlow already generates posts and durable content plans, but users still need
 - List, retrieve, update, and archive content sources through the shared application layer.
 - Generate editorial angles from one content source using the existing text generation service.
 - Expose the MVP through HTTP API, MCP, and CLI to preserve automation parity.
+- Add a Web UI section for capturing sources, reviewing the inbox, generating angles, and archiving sources.
 - Document the feature in the OpenAPI and MCP specs.
 
 ### Out
 
 - Automatic URL fetching, crawling, or article extraction.
 - Creating posts directly from selected angles.
-- Web UI inbox management beyond API-backed primitives.
 - Multi-source clustering, deduplication, or semantic search.
 - Per-source generated angle persistence beyond returning the generation result.
 
@@ -70,19 +70,31 @@ Given the source inbox capability exists
 When capability parity tests inspect HTTP, MCP, and CLI surfaces
 Then each surface exposes equivalent content source operations.
 
+### R5: Manage Sources From The Web UI
+
+The Web UI MUST include a dedicated content sources section that lets users capture source material, review saved sources, generate editorial angles, and archive sources.
+
+#### Scenario: Capture and act on sources in the UI
+
+Given a user opens the content sources section
+When saved sources exist
+Then the UI lists them with source metadata and exposes actions to generate angles, archive the source, and reuse the source body in the post composer.
+
 ## Acceptance Criteria
 
-- [ ] R1 create validates title and body and persists valid sources.
-- [ ] R2 list/get/update/archive behavior is covered by application and DB tests.
-- [ ] R3 angle generation uses existing `generation.Service` and returns provider/model metadata.
-- [ ] R4 HTTP, MCP, CLI, and specs expose matching content source operations.
-- [ ] Existing post generation and content plan behavior remain unchanged.
+- [x] R1 create validates title and body and persists valid sources.
+- [x] R2 list/get/update/archive behavior is covered by application and DB tests.
+- [x] R3 angle generation uses existing `generation.Service` and returns provider/model metadata.
+- [x] R4 HTTP, MCP, CLI, and specs expose matching content source operations.
+- [x] R5 Web UI renders a dedicated content sources section with capture and source actions.
+- [x] Existing post generation and content plan behavior remain unchanged.
 
 ## Verification Strategy
 
 - Unit: application service validation and prompt construction tests.
 - Integration: SQLite store migration and CRUD tests.
 - Surface: HTTP handler tests, MCP tool tests, CLI tests, parity checks where practical.
+- UI: HTML rendering test for the content sources section and browser behavior covered through same-origin JSON actions.
 - Build/type-check: `go test ./...`.
 
 ## Risks And Tradeoffs

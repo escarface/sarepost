@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SareDigital · {{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{t "header.new_post"}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "campaigns"}}Campaigns{{else if eq .View "backlog"}}Editorial backlog{{else}}{{t "header.scheduled"}}{{end}}</title>
+  <title>SareDigital · {{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{t "header.new_post"}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "campaigns"}}Campaigns{{else if eq .View "backlog"}}Editorial backlog{{else if eq .View "sources"}}Content sources{{else}}{{t "header.scheduled"}}{{end}}</title>
   <meta name="theme-color" content="#1a1a1a" />
   <link rel="icon" type="image/x-icon" href="/assets/icons/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png" />
@@ -4459,6 +4459,13 @@
           </span>
           {{if gt .BacklogCount 0}}<span class="nav-badge">{{.BacklogCount}}</span>{{end}}
         </a>
+        <a class="nav-item {{if eq .ActiveNavView "sources"}}active{{end}}" href="/?view=sources">
+          <span class="nav-main">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8"/><path d="M8 11h6"/></svg>
+            <span>Sources</span>
+          </span>
+          {{if gt .ContentSourceCount 0}}<span class="nav-badge">{{.ContentSourceCount}}</span>{{end}}
+        </a>
         <a class="nav-item {{if eq .ActiveNavView "failed"}}active{{end}}" href="/?view=failed">
           <span class="nav-main">
             <svg class="nav-icon nav-icon-failed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -4485,7 +4492,7 @@
         <div class="title-row">
           {{if and (eq .View "create") .BackURL}}<a class="title-back" href="{{.BackURL}}" aria-label="{{t "common.back"}}">←</a>{{end}}
           <div class="title-copy">
-            <h1>{{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{if .EditingPost}}{{t "header.edit_post"}}{{else}}{{t "header.new_post"}}{{end}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "generate"}}{{t "header.generate"}}{{else if eq .View "campaigns"}}CAMPAIGNS{{else if eq .View "backlog"}}EDITORIAL BACKLOG{{else}}{{t "header.scheduled"}}{{end}}</h1>
+            <h1>{{if eq .View "calendar"}}{{t "header.calendar"}}{{else if eq .View "drafts"}}{{t "header.drafts"}}{{else if eq .View "failed"}}{{t "header.failed"}}{{else if eq .View "create"}}{{if .EditingPost}}{{t "header.edit_post"}}{{else}}{{t "header.new_post"}}{{end}}{{else if eq .View "settings"}}{{t "header.settings"}}{{else if eq .View "generate"}}{{t "header.generate"}}{{else if eq .View "campaigns"}}CAMPAIGNS{{else if eq .View "backlog"}}EDITORIAL BACKLOG{{else if eq .View "sources"}}CONTENT SOURCES{{else}}{{t "header.scheduled"}}{{end}}</h1>
           </div>
           {{if eq .View "calendar"}}
           <div class="calendar-controls">
@@ -5121,6 +5128,91 @@
         </article>
         {{else}}
         <div class="empty">No editorial backlog items match the current filters.</div>
+        {{end}}
+      </section>
+      {{end}}
+
+      {{if eq .View "sources"}}
+      <section class="editor editor-wide" id="content-sources-view">
+        <div class="editor-head">Content Sources</div>
+        <form class="settings-form" id="content-source-form">
+          <div class="field-grid two-columns">
+            <label class="field" for="content-source-title">
+              <span>Title</span>
+              <input id="content-source-title" name="title" type="text" autocomplete="off" required />
+            </label>
+            <label class="field" for="content-source-url">
+              <span>Reference URL</span>
+              <input id="content-source-url" name="source_url" type="url" inputmode="url" />
+            </label>
+          </div>
+          <label class="field" for="content-source-body">
+            <span>Source material</span>
+            <textarea id="content-source-body" name="body" rows="7" required></textarea>
+          </label>
+          <div class="field-grid two-columns">
+            <label class="field" for="content-source-campaign">
+              <span>Campaign</span>
+              <select id="content-source-campaign" name="campaign_id">
+                <option value="">No campaign</option>
+                {{range .Campaigns}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+              </select>
+            </label>
+            <label class="field" for="content-source-brand">
+              <span>Brand profile</span>
+              <select id="content-source-brand" name="brand_profile_id">
+                <option value="">No brand profile</option>
+                {{range .BrandProfiles}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+              </select>
+            </label>
+          </div>
+          <label class="field" for="content-source-tags">
+            <span>Tags</span>
+            <input id="content-source-tags" name="tags" type="text" autocomplete="off" placeholder="launch, newsletter, research" />
+          </label>
+          <div class="editor-actions">
+            <button type="submit" class="btn-primary" id="content-source-save">Save source</button>
+            <span class="meta" id="content-source-status" aria-live="polite"></span>
+          </div>
+        </form>
+      </section>
+
+      <section class="list publications-grid" id="content-source-list">
+        <div class="editor-actions">
+          {{if .ContentSourceIncludeArchived}}
+          <a class="btn-secondary" href="/?view=sources">Hide archived</a>
+          {{else}}
+          <a class="btn-secondary" href="/?view=sources&include_archived=true">Show archived</a>
+          {{end}}
+        </div>
+        {{range .ContentSources}}
+        <article class="card scheduled publication-card" data-content-source-card="{{.ID}}">
+          <div class="publication-card-head">
+            <div>
+              <div class="publication-time-date">{{.Title}}</div>
+              <div class="meta">
+                <span>{{.Status}}</span>
+                {{if not .UpdatedAt.IsZero}}<span>{{.UpdatedAt.Format "2006-01-02 15:04"}}</span>{{end}}
+                {{if .SourceURL}}<a href="{{.SourceURL}}" target="_blank" rel="noreferrer noopener">source URL</a>{{end}}
+                {{if gt (len .Tags) 0}}<span>{{join .Tags ", "}}</span>{{end}}
+              </div>
+            </div>
+            {{if ne .Status "archived"}}
+            <button type="button" class="publication-delete-btn" title="Archive" aria-label="Archive" data-content-source-archive="{{.ID}}">×</button>
+            {{end}}
+          </div>
+          <div class="publication-text">{{previewMarkdown .Body}}</div>
+          <div class="editor-actions">
+            <button type="button" class="btn-primary" data-content-source-generate="{{.ID}}">Generate angles</button>
+            <a class="btn-secondary" href="/?view=create&text={{.Body | urlquery}}&return_to=%2F%3Fview%3Dsources">Use as post</a>
+          </div>
+          <label class="field" hidden data-content-source-result-wrap>
+            <span>Generated angles</span>
+            <textarea rows="6" readonly data-content-source-result></textarea>
+          </label>
+        </article>
+        {{else}}
+        <div class="empty">No content sources yet.</div>
         {{end}}
       </section>
       {{end}}
@@ -9330,6 +9422,91 @@
     }
     input.value = browserTimezone;
     input.focus();
+  });
+})();
+</script>
+<script>
+(() => {
+  const view = document.getElementById('content-sources-view');
+  if (!view) return;
+  const form = document.getElementById('content-source-form');
+  const statusEl = document.getElementById('content-source-status');
+  const saveBtn = document.getElementById('content-source-save');
+
+  const setStatus = (message, error = false) => {
+    statusEl.textContent = message || '';
+    statusEl.style.color = error ? 'var(--danger, #c0392b)' : '';
+  };
+  const requestJSON = async (url, options = {}) => {
+    const response = await fetch(url, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `request failed (${response.status})`);
+    return data;
+  };
+  const csv = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    saveBtn.disabled = true;
+    try {
+      const payload = {
+        title: document.getElementById('content-source-title').value.trim(),
+        body: document.getElementById('content-source-body').value.trim(),
+        source_url: document.getElementById('content-source-url').value.trim(),
+        campaign_id: document.getElementById('content-source-campaign').value.trim(),
+        brand_profile_id: document.getElementById('content-source-brand').value.trim(),
+        tags: csv(document.getElementById('content-source-tags').value),
+      };
+      await requestJSON('/content-sources', { method: 'POST', body: JSON.stringify(payload) });
+      setStatus('source saved');
+      window.location.href = '/?view=sources';
+    } catch (error) {
+      setStatus(error.message, true);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  document.querySelectorAll('[data-content-source-generate]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = button.getAttribute('data-content-source-generate');
+      const card = button.closest('[data-content-source-card]');
+      const wrap = card?.querySelector('[data-content-source-result-wrap]');
+      const resultEl = card?.querySelector('[data-content-source-result]');
+      button.disabled = true;
+      try {
+        const data = await requestJSON(`/content-sources/${encodeURIComponent(id)}/generate-angles`, {
+          method: 'POST',
+          body: JSON.stringify({ count: 5 }),
+        });
+        if (resultEl && wrap) {
+          resultEl.value = data.angles || '';
+          wrap.hidden = false;
+        }
+      } catch (error) {
+        setStatus(error.message, true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-content-source-archive]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      if (!window.confirm('Archive this content source?')) return;
+      const id = button.getAttribute('data-content-source-archive');
+      button.disabled = true;
+      try {
+        await requestJSON(`/content-sources/${encodeURIComponent(id)}/archive`, { method: 'POST', body: '{}' });
+        window.location.reload();
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    });
   });
 })();
 </script>
