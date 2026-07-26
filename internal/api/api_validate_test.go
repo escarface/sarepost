@@ -13,6 +13,7 @@ import (
 
 	"github.com/escarface/sarepost/internal/db"
 	"github.com/escarface/sarepost/internal/domain"
+	"github.com/escarface/sarepost/internal/postflow"
 )
 
 func TestValidatePostEndpoint(t *testing.T) {
@@ -87,6 +88,62 @@ func TestValidatePostEndpointDraftMode(t *testing.T) {
 	normalized, _ := resp["normalized"].(map[string]any)
 	if scheduledAt, _ := normalized["scheduled_at"].(string); scheduledAt != "" {
 		t.Fatalf("expected empty scheduled_at in draft mode, got %q", scheduledAt)
+	}
+}
+
+func TestValidatePostEndpointAcceptsInstagramImageCarousel(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	account := createConnectedAccountForPlatform(t, store, domain.PlatformInstagram, "ig-carousel")
+	mediaIDs := make([]string, 0, 2)
+	for _, name := range []string{"second.png", "first.png"} {
+		media, err := store.CreateMedia(t.Context(), domain.Media{
+			Kind:         "image",
+			OriginalName: name,
+			StoragePath:  filepath.Join(tempDir, name),
+			MimeType:     "image/png",
+			SizeBytes:    1,
+		})
+		if err != nil {
+			t.Fatalf("create media %s: %v", name, err)
+		}
+		mediaIDs = append(mediaIDs, media.ID)
+	}
+
+	srv := Server{
+		Store:             store,
+		DataDir:           tempDir,
+		DefaultMaxRetries: 3,
+		Registry: postflow.NewProviderRegistry(
+			postflow.NewInstagramProvider(postflow.MetaProviderConfig{}),
+		),
+	}
+	payload, _ := json.Marshal(map[string]any{
+		"account_id": account.ID,
+		"text":       "carousel",
+		"media_ids":  mediaIDs,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/posts/validate", bytes.NewReader(payload))
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var response struct {
+		Normalized struct {
+			MediaIDs []string `json:"media_ids"`
+		} `json:"normalized"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got := strings.Join(response.Normalized.MediaIDs, ","); got != strings.Join(mediaIDs, ",") {
+		t.Fatalf("expected normalized media order %v, got %v", mediaIDs, response.Normalized.MediaIDs)
 	}
 }
 

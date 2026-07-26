@@ -75,6 +75,9 @@ PostFlow uses opaque IDs such as `acc_*`, `pst_*`, `med_*`, `cmp_*`, `plan_*`, a
 - Clients should not send local filesystem paths to the MCP
 - Upload media first, then reference returned `media_id` values from post or content
   plan tools
+- For Instagram, pass 2--10 JPEG or PNG `media_ids` in the desired order to create an
+  image carousel. A single video continues to use the Reel flow; mixed media carousels
+  are not supported in the current release.
 
 ### Mutations and idempotency
 

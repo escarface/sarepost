@@ -428,7 +428,7 @@ type mcpCreatePostInput struct {
 	SourcePostID     string                  `json:"source_post_id,omitempty" jsonschema:"Optional existing post ID to reuse as the source copy/media/thread when creating for another account."`
 	Text             string                  `json:"text,omitempty" jsonschema:"Post text content for single-post creates. If segments is provided, the first segment becomes the root post text."`
 	ScheduledAt      string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 with explicit timezone offset is preferred. Datetime-local is also accepted in the configured UI timezone. Empty means draft."`
-	MediaIDs         []string                `json:"media_ids,omitempty" jsonschema:"Existing uploaded media IDs to attach to a single post. Upload media first via postflow_upload_media."`
+	MediaIDs         []string                `json:"media_ids,omitempty" jsonschema:"Existing uploaded media IDs to attach in order. For Instagram, 2-10 JPEG or PNG IDs create an image carousel. Upload media first via postflow_upload_media."`
 	Segments         []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] in order. Segment 1 is the root post and later segments are follow-ups."`
 	MaxAttempts      int                     `json:"max_attempts,omitempty" jsonschema:"Max publish retries. Default from server config."`
 	IdempotencyKey   string                  `json:"idempotency_key,omitempty" jsonschema:"Optional idempotency key (max 128 chars). Recommended when the client may retry create requests."`
@@ -442,7 +442,7 @@ type mcpValidatePostInput struct {
 	AccountID   string                  `json:"account_id" jsonschema:"Target connected account ID. Resolve it from list_accounts first."`
 	Text        string                  `json:"text" jsonschema:"Post text content for single-post validation. If segments is provided, the first segment becomes the root post text."`
 	ScheduledAt string                  `json:"scheduled_at,omitempty" jsonschema:"RFC3339 with explicit timezone offset is preferred. Empty means validate as a draft."`
-	MediaIDs    []string                `json:"media_ids,omitempty" jsonschema:"Existing uploaded media IDs to validate for a single post."`
+	MediaIDs    []string                `json:"media_ids,omitempty" jsonschema:"Existing uploaded media IDs to validate in order. For Instagram, 2-10 JPEG or PNG IDs validate as an image carousel."`
 	Segments    []mcpThreadSegmentInput `json:"segments,omitempty" jsonschema:"Optional thread segments [{text, media_ids}] in order. Segment 1 is the root post."`
 	MaxAttempts int                     `json:"max_attempts,omitempty" jsonschema:"Max publish retries. Default from server config."`
 }

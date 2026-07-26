@@ -87,8 +87,8 @@ func (s *Store) CreatePost(ctx context.Context, params CreatePostParams) (Create
 		return CreatePostResult{}, err
 	}
 
-	for _, mediaID := range mediaIDs {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id) VALUES (?, ?)`, p.ID, strings.TrimSpace(mediaID)); err != nil {
+	for position, mediaID := range mediaIDs {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id, position) VALUES (?, ?, ?)`, p.ID, strings.TrimSpace(mediaID), position); err != nil {
 			return CreatePostResult{}, err
 		}
 	}
@@ -202,7 +202,7 @@ func (s *Store) GetPost(ctx context.Context, id string) (domain.Post, error) {
 		FROM media m
 		JOIN post_media pm ON pm.media_id = m.id
 		WHERE pm.post_id = ?
-		ORDER BY m.created_at ASC
+		ORDER BY pm.position ASC
 	`, p.ID)
 	if err != nil {
 		return domain.Post{}, err
@@ -521,12 +521,12 @@ func (s *Store) UpdatePostEditable(ctx context.Context, id, text string, schedul
 		if _, err := tx.ExecContext(ctx, `DELETE FROM post_media WHERE post_id = ?`, id); err != nil {
 			return err
 		}
-		for _, mediaID := range mediaIDs {
+		for position, mediaID := range mediaIDs {
 			trimmed := strings.TrimSpace(mediaID)
 			if trimmed == "" {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id) VALUES (?, ?)`, id, trimmed); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id, position) VALUES (?, ?, ?)`, id, trimmed, position); err != nil {
 				return err
 			}
 		}
@@ -680,12 +680,12 @@ func (s *Store) UpdateThreadEditable(ctx context.Context, rootPostID string, ste
 		`, postID, accountID, strings.TrimSpace(step.Text), status, formatScheduledAt(step.ScheduledAt), threadGroupID, pos, sqlNullString(parentID), rootID, maxAttempts, nowFmt, nowFmt); err != nil {
 			return err
 		}
-		for _, mediaID := range step.MediaIDs {
+		for position, mediaID := range step.MediaIDs {
 			trimmed := strings.TrimSpace(mediaID)
 			if trimmed == "" {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id) VALUES (?, ?)`, postID, trimmed); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id, position) VALUES (?, ?, ?)`, postID, trimmed, position); err != nil {
 				return err
 			}
 		}
@@ -715,12 +715,12 @@ func (s *Store) UpdateThreadEditable(ctx context.Context, rootPostID string, ste
 			if _, err := tx.ExecContext(ctx, `DELETE FROM post_media WHERE post_id = ?`, postID); err != nil {
 				return err
 			}
-			for _, mediaID := range step.MediaIDs {
+			for position, mediaID := range step.MediaIDs {
 				trimmed := strings.TrimSpace(mediaID)
 				if trimmed == "" {
 					continue
 				}
-				if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id) VALUES (?, ?)`, postID, trimmed); err != nil {
+				if _, err := tx.ExecContext(ctx, `INSERT INTO post_media (post_id, media_id, position) VALUES (?, ?, ?)`, postID, trimmed, position); err != nil {
 					return err
 				}
 			}

@@ -208,7 +208,7 @@ func TestUpdateThreadEditableRebuildsChainAndCanShrinkThread(t *testing.T) {
 		{
 			Text:        "edited root",
 			ScheduledAt: time.Time{},
-			MediaIDs:    []string{media1.ID},
+			MediaIDs:    []string{media3.ID, media1.ID},
 		},
 		{
 			Text:        "edited child",
@@ -264,10 +264,15 @@ func TestUpdateThreadEditableRebuildsChainAndCanShrinkThread(t *testing.T) {
 		if post.NextRetryAt != nil {
 			t.Fatalf("expected next_retry_at cleared for post %s", post.ID)
 		}
-		if len(post.Media) != 1 {
-			t.Fatalf("expected one media on post %s, got %d", post.ID, len(post.Media))
+		wantMediaCount := 1
+		if post.ID == firstID {
+			wantMediaCount = 2
+		}
+		if len(post.Media) != wantMediaCount {
+			t.Fatalf("expected %d media items on post %s, got %d", wantMediaCount, post.ID, len(post.Media))
 		}
 	}
+	assertPostMediaIDs(t, updated[0], []string{media3.ID, media1.ID})
 
 	if err := store.UpdateThreadEditable(ctx, rootID, steps[:1]); err != nil {
 		t.Fatalf("shrink thread editable: %v", err)

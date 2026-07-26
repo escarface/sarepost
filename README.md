@@ -12,6 +12,7 @@ Built in Go with SQLite. LLM-first: every capability is consistently exposed thr
 - **Multi-platform publishing** — X, LinkedIn (profiles + company pages), Facebook, and Instagram
 - **Thread/thread support** — create root posts with follow-up replies or comments
 - **Media management** — upload images and video, attach to posts
+- **Instagram image carousels** — publish 2--10 JPEG or PNG images in the selected order; single Instagram videos continue to publish as Reels
 - **Scheduling** — set posts to publish at a future date and time
 - **Draft workflow** — create posts as drafts, validate, then schedule
 - **Editorial campaigns** — group posts under campaign briefs with audience, tone, CTA, tags, and archive state

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -66,6 +67,41 @@ func TestMCPEditPostEditsTextAndMedia(t *testing.T) {
 	}
 	if len(updated.Media) != 1 || updated.Media[0].ID != replacementMedia.ID {
 		t.Fatalf("expected one replacement media %q, got %#v", replacementMedia.ID, updated.Media)
+	}
+}
+
+func TestMCPCreatePostAcceptsInstagramImageCarousel(t *testing.T) {
+	store, mcpURL, sessionID := setupMCPMediaEditTest(t)
+	account := createConnectedAccountForPlatform(t, store, domain.PlatformInstagram, "ig-create-carousel")
+	mediaIDs := make([]string, 0, 6)
+	for i := 1; i <= 6; i++ {
+		media := createMCPTestMedia(t, store, fmt.Sprintf("carousel-%d.png", i))
+		mediaIDs = append(mediaIDs, media.ID)
+	}
+
+	call := mcpCallTool(t, mcpURL, sessionID, "postflow_create_post", map[string]any{
+		"account_id": account.ID,
+		"text":       "six-image carousel",
+		"media_ids":  mediaIDs,
+	})
+	if call.Error != nil || call.Result.IsError {
+		t.Fatalf("expected carousel create to succeed, error=%s raw_error=%s", mcpToolErrorMessage(call), callRawError(call))
+	}
+
+	drafts, err := store.ListDrafts(t.Context())
+	if err != nil {
+		t.Fatalf("list drafts: %v", err)
+	}
+	if len(drafts) != 1 {
+		t.Fatalf("expected one carousel draft, got %d", len(drafts))
+	}
+	if len(drafts[0].Media) != len(mediaIDs) {
+		t.Fatalf("expected %d carousel media items, got %d", len(mediaIDs), len(drafts[0].Media))
+	}
+	for i, mediaID := range mediaIDs {
+		if drafts[0].Media[i].ID != mediaID {
+			t.Fatalf("expected media %d to be %q, got %q", i, mediaID, drafts[0].Media[i].ID)
+		}
 	}
 }
 

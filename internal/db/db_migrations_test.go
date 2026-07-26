@@ -82,6 +82,65 @@ func TestOpenMigratesLegacySchemaWithoutDataLoss(t *testing.T) {
 	}
 }
 
+func TestOpenMigratesPostMediaPositions(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-media.db")
+	legacyDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
+	}
+	defer legacyDB.Close()
+	if err := seedLegacySchemaV1(t.Context(), legacyDB, "acc_legacy_media", "pst_legacy_media"); err != nil {
+		t.Fatalf("seed legacy schema: %v", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, id := range []string{"med_legacy_a", "med_legacy_b"} {
+		if _, err := legacyDB.ExecContext(t.Context(), `INSERT INTO media (id, kind, original_name, storage_path, mime_type, size_bytes, created_at) VALUES (?, 'image', ?, ?, 'image/png', 1, ?)`, id, id+".png", "/tmp/"+id+".png", now); err != nil {
+			t.Fatalf("insert legacy media: %v", err)
+		}
+		if _, err := legacyDB.ExecContext(t.Context(), `INSERT INTO post_media (post_id, media_id) VALUES ('pst_legacy_media', ?)`, id); err != nil {
+			t.Fatalf("link legacy media: %v", err)
+		}
+	}
+	if _, err := legacyDB.ExecContext(t.Context(), `CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create migrations table: %v", err)
+	}
+	for version := 1; version <= 15; version++ {
+		if _, err := legacyDB.ExecContext(t.Context(), `INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, 'legacy', ?)`, version, now); err != nil {
+			t.Fatalf("record legacy migration %d: %v", version, err)
+		}
+	}
+	if err := legacyDB.Close(); err != nil {
+		t.Fatalf("close legacy db: %v", err)
+	}
+
+	store, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated db: %v", err)
+	}
+	defer store.Close()
+
+	rows, err := store.db.QueryContext(t.Context(), `SELECT media_id, position FROM post_media WHERE post_id = ? ORDER BY position ASC`, "pst_legacy_media")
+	if err != nil {
+		t.Fatalf("query migrated positions: %v", err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var mediaID string
+		var position int
+		if err := rows.Scan(&mediaID, &position); err != nil {
+			t.Fatalf("scan migrated position: %v", err)
+		}
+		got = append(got, mediaID)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate migrated positions: %v", err)
+	}
+	if len(got) != 2 || got[0] != "med_legacy_a" || got[1] != "med_legacy_b" {
+		t.Fatalf("expected preserved legacy order, got %v", got)
+	}
+}
+
 func seedLegacySchemaV1(ctx context.Context, db *sql.DB, accountID, postID string) error {
 	queries := []string{
 		`PRAGMA foreign_keys = ON;`,

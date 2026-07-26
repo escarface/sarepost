@@ -80,7 +80,7 @@ func TestMetaValidateDraftRules(t *testing.T) {
 		}
 	})
 
-	t.Run("instagram requires exactly one image or video", func(t *testing.T) {
+	t.Run("instagram accepts a single image or video and image carousels", func(t *testing.T) {
 		longCaption := strings.Repeat("a", 2201)
 		cases := []struct {
 			name       string
@@ -93,12 +93,24 @@ func TestMetaValidateDraftRules(t *testing.T) {
 				wantErrSub: "requires one media",
 			},
 			{
-				name: "more than one media",
+				name: "two images accepted as carousel",
 				draft: Draft{Text: "ig", Media: []domain.Media{
 					{OriginalName: "a.png", MimeType: "image/png"},
 					{OriginalName: "b.png", MimeType: "image/png"},
 				}},
-				wantErrSub: "single image or video",
+			},
+			{
+				name: "mixed image and video carousel rejected",
+				draft: Draft{Text: "ig", Media: []domain.Media{
+					{OriginalName: "a.png", MimeType: "image/png"},
+					{OriginalName: "b.mp4", MimeType: "video/mp4"},
+				}},
+				wantErrSub: "image-only carousel",
+			},
+			{
+				name:       "more than ten images rejected",
+				draft:      Draft{Text: "ig", Media: make([]domain.Media, 11)},
+				wantErrSub: "up to 10 images",
 			},
 			{
 				name: "unsupported media",
@@ -129,6 +141,11 @@ func TestMetaValidateDraftRules(t *testing.T) {
 		}
 		for _, tc := range cases {
 			tc := tc
+			if tc.name == "more than ten images rejected" {
+				for i := range tc.draft.Media {
+					tc.draft.Media[i] = domain.Media{OriginalName: "a.png", MimeType: "image/png"}
+				}
+			}
 			t.Run(tc.name, func(t *testing.T) {
 				_, err := instagram.ValidateDraft(context.Background(), domain.SocialAccount{}, tc.draft)
 				if strings.TrimSpace(tc.wantErrSub) == "" {

@@ -95,6 +95,11 @@ var dbMigrations = []migration{
 		Name:    "content_sources",
 		Up:      migrationAddContentSources,
 	},
+	{
+		Version: 16,
+		Name:    "post_media_position",
+		Up:      migrationAddPostMediaPosition,
+	},
 }
 
 func (s *Store) hasPendingMigrations(ctx context.Context) (bool, error) {
@@ -602,6 +607,27 @@ func migrationAddPostsPublishedURL(ctx context.Context, tx *sql.Tx) error {
 	if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
 		return nil
 	}
+	return err
+}
+
+func migrationAddPostMediaPosition(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `ALTER TABLE post_media ADD COLUMN position INTEGER NOT NULL DEFAULT 0;`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE post_media
+		SET position = (
+			SELECT COUNT(*) - 1
+			FROM post_media AS earlier
+			WHERE earlier.post_id = post_media.post_id
+			  AND earlier.rowid <= post_media.rowid
+		)
+	`); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_post_media_post_position ON post_media(post_id, position);`)
 	return err
 }
 

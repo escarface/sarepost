@@ -243,6 +243,77 @@ func TestInstagramPublishUsesMediaURLBuilder(t *testing.T) {
 	}
 }
 
+func TestInstagramPublishImageCarouselPreservesMediaOrder(t *testing.T) {
+	var childURLs []string
+	var parentChildren string
+	var parentCaption string
+	var publishedCreationID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1.0/ig_1/media":
+			body, _ := io.ReadAll(r.Body)
+			values, _ := url.ParseQuery(string(body))
+			if strings.TrimSpace(values.Get("is_carousel_item")) == "true" {
+				childURLs = append(childURLs, strings.TrimSpace(values.Get("image_url")))
+				_, _ = w.Write([]byte(`{"id":"ig_child_` + fmt.Sprint(len(childURLs)) + `"}`))
+				return
+			}
+			if strings.TrimSpace(values.Get("media_type")) != "CAROUSEL" {
+				t.Fatalf("expected carousel parent, got media_type=%q", values.Get("media_type"))
+			}
+			parentChildren = strings.TrimSpace(values.Get("children"))
+			parentCaption = strings.TrimSpace(values.Get("caption"))
+			_, _ = w.Write([]byte(`{"id":"ig_carousel_1"}`))
+		case "/v1.0/ig_1/media_publish":
+			body, _ := io.ReadAll(r.Body)
+			values, _ := url.ParseQuery(string(body))
+			publishedCreationID = strings.TrimSpace(values.Get("creation_id"))
+			_, _ = w.Write([]byte(`{"id":"ig_post_1"}`))
+		case "/v1.0/ig_post_1":
+			_, _ = w.Write([]byte(`{"permalink":"https://instagram.example/p/ig_post_1/"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	provider := NewInstagramProvider(MetaProviderConfig{
+		GraphURL:   server.URL,
+		APIVersion: "v1.0",
+		MediaURLBuilder: func(media domain.Media) (string, error) {
+			return fmt.Sprintf("https://cdn.example.com/%s.png", strings.TrimSpace(media.ID)), nil
+		},
+	})
+	result, err := provider.Publish(context.Background(), domain.SocialAccount{
+		Platform:          domain.PlatformInstagram,
+		ExternalAccountID: "ig_1",
+	}, Credentials{AccessToken: "token-1"}, domain.Post{
+		Text: "carousel caption",
+		Media: []domain.Media{
+			{ID: "second", OriginalName: "second.png", MimeType: "image/png"},
+			{ID: "first", OriginalName: "first.png", MimeType: "image/png"},
+		},
+	}, PublishOptions{})
+	if err != nil {
+		t.Fatalf("publish carousel: %v", err)
+	}
+	if result.ExternalID != "ig_post_1" {
+		t.Fatalf("unexpected external id %q", result.ExternalID)
+	}
+	if got, want := strings.Join(childURLs, ","), "https://cdn.example.com/second.png,https://cdn.example.com/first.png"; got != want {
+		t.Fatalf("expected child URLs %q, got %q", want, got)
+	}
+	if parentChildren != "ig_child_1,ig_child_2" {
+		t.Fatalf("expected ordered child ids, got %q", parentChildren)
+	}
+	if parentCaption != "carousel caption" {
+		t.Fatalf("unexpected carousel caption %q", parentCaption)
+	}
+	if publishedCreationID != "ig_carousel_1" {
+		t.Fatalf("expected carousel parent to be published, got %q", publishedCreationID)
+	}
+}
+
 func TestInstagramPublishVideoUsesMediaURLBuilder(t *testing.T) {
 	var createdWithURL string
 	var createdMediaType string

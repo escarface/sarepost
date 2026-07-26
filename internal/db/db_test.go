@@ -620,6 +620,50 @@ func TestUpdatePostEditableReplacesMedia(t *testing.T) {
 	}
 }
 
+func TestPostMediaOrderSurvivesCreateAndEdit(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	ctx := context.Background()
+	account := createTestAccount(t, store, domain.PlatformInstagram)
+	mediaA := createDBMedia(t, store, "a.png")
+	mediaB := createDBMedia(t, store, "b.png")
+	mediaC := createDBMedia(t, store, "c.png")
+
+	created, err := store.CreatePost(ctx, CreatePostParams{
+		Post:     domain.Post{AccountID: account.ID, Text: "ordered media", Status: domain.PostStatusDraft, MaxAttempts: 3},
+		MediaIDs: []string{mediaC.ID, mediaA.ID, mediaB.ID},
+	})
+	if err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+	assertPostMediaIDs(t, created.Post, []string{mediaC.ID, mediaA.ID, mediaB.ID})
+
+	if err := store.UpdatePostEditable(ctx, created.Post.ID, "reordered media", time.Time{}, []string{mediaB.ID, mediaC.ID, mediaA.ID}, true); err != nil {
+		t.Fatalf("update post: %v", err)
+	}
+	updated, err := store.GetPost(ctx, created.Post.ID)
+	if err != nil {
+		t.Fatalf("get updated post: %v", err)
+	}
+	assertPostMediaIDs(t, updated, []string{mediaB.ID, mediaC.ID, mediaA.ID})
+}
+
+func assertPostMediaIDs(t *testing.T, post domain.Post, want []string) {
+	t.Helper()
+	if len(post.Media) != len(want) {
+		t.Fatalf("expected %d media items, got %d", len(want), len(post.Media))
+	}
+	for i, mediaID := range want {
+		if post.Media[i].ID != mediaID {
+			t.Fatalf("expected media at position %d to be %q, got %q", i, mediaID, post.Media[i].ID)
+		}
+	}
+}
+
 func TestUpdatePostEditableClearsMedia(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

@@ -35,6 +35,10 @@ type InstagramProvider struct {
 }
 
 const instagramCaptionMaxRunes = 2200
+const (
+	instagramCarouselMinItems = 2
+	instagramCarouselMaxItems = 10
+)
 
 func normalizeMetaConfig(cfg MetaProviderConfig) MetaProviderConfig {
 	if strings.TrimSpace(cfg.GraphURL) == "" {
@@ -103,16 +107,28 @@ func (p *InstagramProvider) ValidateDraft(_ context.Context, _ domain.SocialAcco
 	if len([]rune(strings.TrimSpace(formatPostTextForPublish(draft.Text)))) > instagramCaptionMaxRunes {
 		return nil, fmt.Errorf("instagram caption exceeds %d characters", instagramCaptionMaxRunes)
 	}
-	if len(draft.Media) == 0 {
-		return nil, fmt.Errorf("instagram publish requires one media item")
-	}
-	if len(draft.Media) > 1 {
-		return nil, fmt.Errorf("instagram supports a single image or video per post in this release")
-	}
-	if err := validateInstagramMediaConstraints(draft.Media[0]); err != nil {
+	if err := validateInstagramDraftMedia(draft.Media); err != nil {
 		return nil, err
 	}
 	return nil, nil
+}
+
+func validateInstagramDraftMedia(media []domain.Media) error {
+	if len(media) == 0 {
+		return fmt.Errorf("instagram publish requires one media item")
+	}
+	if len(media) == 1 {
+		return validateInstagramMediaConstraints(media[0])
+	}
+	if len(media) > instagramCarouselMaxItems {
+		return fmt.Errorf("instagram image carousel supports up to %d images", instagramCarouselMaxItems)
+	}
+	for _, item := range media {
+		if !isImageMedia(item) || !isInstagramSupportedImage(item) {
+			return fmt.Errorf("instagram image-only carousel requires JPEG or PNG image media")
+		}
+	}
+	return nil
 }
 
 func (p *FacebookProvider) Publish(ctx context.Context, account domain.SocialAccount, credentials Credentials, post domain.Post, opts PublishOptions) (PublishResult, error) {
@@ -299,14 +315,11 @@ func (p *InstagramProvider) Publish(ctx context.Context, account domain.SocialAc
 		}
 		return PublishResult{ExternalID: strings.TrimSpace(out.ID)}, nil
 	}
-	if len(post.Media) == 0 {
-		return PublishResult{}, fmt.Errorf("instagram requires at least one media item")
-	}
-	if len(post.Media) > 1 {
-		return PublishResult{}, fmt.Errorf("instagram supports a single image or video per post in this release")
-	}
-	if err := validateInstagramMediaConstraints(post.Media[0]); err != nil {
+	if err := validateInstagramDraftMedia(post.Media); err != nil {
 		return PublishResult{}, err
+	}
+	if len(post.Media) >= instagramCarouselMinItems {
+		return p.publishInstagramImageCarousel(ctx, igUserID, credentials, post)
 	}
 	isVideo := isVideoMedia(post.Media[0])
 	mediaURLKey := "image_url"
@@ -392,6 +405,110 @@ func (p *InstagramProvider) Publish(ctx context.Context, account domain.SocialAc
 		return PublishResult{}, fmt.Errorf("instagram publish response missing id")
 	}
 	externalID := strings.TrimSpace(publishOut.ID)
+	return PublishResult{
+		ExternalID:   externalID,
+		PublishedURL: p.bestEffortInstagramPermalink(ctx, externalID, strings.TrimSpace(credentials.AccessToken)),
+	}, nil
+}
+
+func (p *InstagramProvider) publishInstagramImageCarousel(ctx context.Context, igUserID string, credentials Credentials, post domain.Post) (PublishResult, error) {
+	createURL := fmt.Sprintf("%s/%s/%s/media", strings.TrimRight(p.cfg.GraphURL, "/"), p.cfg.APIVersion, igUserID)
+	childIDs := make([]string, 0, len(post.Media))
+	for _, media := range post.Media {
+		mediaURL, err := resolveInstagramMediaURL(media, credentials, "image_url", p.cfg.MediaURLBuilder)
+		if err != nil {
+			return PublishResult{}, fmt.Errorf("instagram carousel requires a public image URL: %w", err)
+		}
+		if mediaURL == "" {
+			return PublishResult{}, fmt.Errorf("instagram carousel requires a public image URL for media %s", media.ID)
+		}
+		values := url.Values{}
+		values.Set("image_url", mediaURL)
+		values.Set("is_carousel_item", "true")
+		values.Set("access_token", strings.TrimSpace(credentials.AccessToken))
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, createURL, strings.NewReader(values.Encode()))
+		if err != nil {
+			return PublishResult{}, err
+		}
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response, err := p.client.Do(request)
+		if err != nil {
+			return PublishResult{}, err
+		}
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+		response.Body.Close()
+		if response.StatusCode >= 300 {
+			return PublishResult{}, fmt.Errorf("instagram create carousel item failed: status=%d media_url=%s body=%s", response.StatusCode, instagramMediaURLForError(mediaURL), strings.TrimSpace(string(body)))
+		}
+		var child struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(body, &child); err != nil {
+			return PublishResult{}, err
+		}
+		if strings.TrimSpace(child.ID) == "" {
+			return PublishResult{}, fmt.Errorf("instagram create carousel item missing container id")
+		}
+		childIDs = append(childIDs, strings.TrimSpace(child.ID))
+	}
+
+	parentValues := url.Values{}
+	parentValues.Set("media_type", "CAROUSEL")
+	parentValues.Set("children", strings.Join(childIDs, ","))
+	parentValues.Set("caption", formatPostTextForPublish(post.Text))
+	parentValues.Set("access_token", strings.TrimSpace(credentials.AccessToken))
+	parentRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, createURL, strings.NewReader(parentValues.Encode()))
+	if err != nil {
+		return PublishResult{}, err
+	}
+	parentRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	parentResponse, err := p.client.Do(parentRequest)
+	if err != nil {
+		return PublishResult{}, err
+	}
+	parentBody, _ := io.ReadAll(io.LimitReader(parentResponse.Body, 2<<20))
+	parentResponse.Body.Close()
+	if parentResponse.StatusCode >= 300 {
+		return PublishResult{}, fmt.Errorf("instagram create carousel failed: status=%d body=%s", parentResponse.StatusCode, strings.TrimSpace(string(parentBody)))
+	}
+	var parent struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(parentBody, &parent); err != nil {
+		return PublishResult{}, err
+	}
+	if strings.TrimSpace(parent.ID) == "" {
+		return PublishResult{}, fmt.Errorf("instagram create carousel missing container id")
+	}
+
+	publishValues := url.Values{}
+	publishValues.Set("creation_id", strings.TrimSpace(parent.ID))
+	publishValues.Set("access_token", strings.TrimSpace(credentials.AccessToken))
+	publishURL := fmt.Sprintf("%s/%s/%s/media_publish", strings.TrimRight(p.cfg.GraphURL, "/"), p.cfg.APIVersion, igUserID)
+	publishRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, publishURL, strings.NewReader(publishValues.Encode()))
+	if err != nil {
+		return PublishResult{}, err
+	}
+	publishRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	publishResponse, err := p.client.Do(publishRequest)
+	if err != nil {
+		return PublishResult{}, err
+	}
+	defer publishResponse.Body.Close()
+	publishBody, _ := io.ReadAll(io.LimitReader(publishResponse.Body, 2<<20))
+	if publishResponse.StatusCode >= 300 {
+		return PublishResult{}, fmt.Errorf("instagram publish carousel failed: status=%d body=%s", publishResponse.StatusCode, strings.TrimSpace(string(publishBody)))
+	}
+	var published struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(publishBody, &published); err != nil {
+		return PublishResult{}, err
+	}
+	if strings.TrimSpace(published.ID) == "" {
+		return PublishResult{}, fmt.Errorf("instagram publish carousel response missing id")
+	}
+	externalID := strings.TrimSpace(published.ID)
 	return PublishResult{
 		ExternalID:   externalID,
 		PublishedURL: p.bestEffortInstagramPermalink(ctx, externalID, strings.TrimSpace(credentials.AccessToken)),
