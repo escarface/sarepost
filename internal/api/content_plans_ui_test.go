@@ -31,7 +31,12 @@ func TestGenerateViewIncludesContentPlanBuilderAndReviewWorkspace(t *testing.T) 
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	for _, expected := range []string{"content-plan-mode", "content-plan-form", "content-plan-block-template", "content-plan-workspace", profile.ID, account.ID} {
+	for _, expected := range []string{
+		"content-plan-mode", "content-plan-form", "content-plan-block-template", "content-plan-workspace",
+		"content-plan-select-all", "Select all", "content-plan-clear-selection", "Clear selection",
+		"const publishableVariantStatuses = ['ready', 'approved'];", "publishableVariantStatuses.includes(variant.status)",
+		profile.ID, account.ID,
+	} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("expected %q in generate view", expected)
 		}

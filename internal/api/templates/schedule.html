@@ -6372,6 +6372,8 @@
               <div id="content-plan-progress" class="content-plan-summary" hidden></div>
               <div id="content-plan-variants" class="content-plan-variants"></div>
               <div class="editor-actions timezone-actions">
+                <button type="button" class="btn-secondary" id="content-plan-select-all">Select all</button>
+                <button type="button" class="btn-secondary" id="content-plan-clear-selection">Clear selection</button>
                 <button type="button" class="btn-secondary" id="content-plan-retry">Regenerate selected</button>
                 <button type="button" class="btn-primary" id="content-plan-schedule">Approve and schedule selected</button>
               </div>
@@ -9525,6 +9527,7 @@
   const selectEl = document.getElementById('content-plan-select');
   const progressEl = document.getElementById('content-plan-progress');
   const variantsEl = document.getElementById('content-plan-variants');
+  const publishableVariantStatuses = ['ready', 'approved'];
   let currentPlan = null;
   let pollTimer = 0;
 
@@ -9713,6 +9716,16 @@
   };
   selectEl.addEventListener('change', () => loadPlan(selectEl.value).catch((error) => setStatus(error.message, true)));
   document.getElementById('content-plan-refresh')?.addEventListener('click', async () => { await loadPlans(); await loadPlan(selectEl.value); });
+
+  const setBulkSelection = (selected) => {
+    const variantsByID = new Map((currentPlan?.items || []).flatMap((item) => (item.variants || []).map((variant) => [variant.id, variant])));
+    variantsEl.querySelectorAll('[data-plan-variant-select]').forEach((input) => {
+      const variant = variantsByID.get(input.value);
+      input.checked = selected && Boolean(variant && publishableVariantStatuses.includes(variant.status));
+    });
+  };
+  document.getElementById('content-plan-select-all')?.addEventListener('click', () => setBulkSelection(true));
+  document.getElementById('content-plan-clear-selection')?.addEventListener('click', () => setBulkSelection(false));
 
   const selectedVariantIDs = (allowed) => Array.from(variantsEl.querySelectorAll('[data-plan-variant-select]:checked')).map((input) => input.value).filter((id) => {
     const variant = (currentPlan?.items || []).flatMap((item) => item.variants || []).find((item) => item.id === id);
