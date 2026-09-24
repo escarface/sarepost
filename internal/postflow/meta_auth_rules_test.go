@@ -213,6 +213,13 @@ func TestMetaOAuthStartAndCallbackFlows(t *testing.T) {
 		if !strings.Contains(igURL.Query().Get("scope"), "instagram_content_publish") {
 			t.Fatalf("expected instagram scope to include instagram_content_publish, got %q", igURL.Query().Get("scope"))
 		}
+		// Pages owned by a business portfolio are missing from /me/accounts
+		// unless the user also grants business_management.
+		for name, u := range map[string]*url.URL{"facebook": fbURL, "instagram": igURL} {
+			if !strings.Contains(u.Query().Get("scope"), "business_management") {
+				t.Fatalf("expected %s scope to include business_management, got %q", name, u.Query().Get("scope"))
+			}
+		}
 	})
 
 	t.Run("facebook callback returns publishable pages", func(t *testing.T) {

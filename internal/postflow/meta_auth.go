@@ -49,11 +49,11 @@ func (p *InstagramProvider) RefreshIfNeeded(ctx context.Context, account domain.
 }
 
 func (p *FacebookProvider) StartOAuth(_ context.Context, in OAuthStartInput) (OAuthStartOutput, error) {
-	return p.startOAuth(in, "pages_manage_posts,pages_read_engagement,pages_show_list")
+	return p.startOAuth(in, "pages_manage_posts,pages_read_engagement,pages_show_list,business_management")
 }
 
 func (p *InstagramProvider) StartOAuth(_ context.Context, in OAuthStartInput) (OAuthStartOutput, error) {
-	return p.startOAuth(in, "pages_show_list,pages_read_engagement,instagram_content_publish,instagram_basic")
+	return p.startOAuth(in, "pages_show_list,pages_read_engagement,instagram_content_publish,instagram_basic,business_management")
 }
 
 func (p *FacebookProvider) startOAuth(in OAuthStartInput, scope string) (OAuthStartOutput, error) {
