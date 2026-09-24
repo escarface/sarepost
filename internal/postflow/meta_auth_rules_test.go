@@ -253,6 +253,51 @@ func TestMetaOAuthStartAndCallbackFlows(t *testing.T) {
 		}
 	})
 
+	t.Run("facebook callback without publishable pages explains what meta returned", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/v1.0/oauth/access_token":
+				_, _ = w.Write([]byte(`{"access_token":"user-token","token_type":"Bearer","expires_in":3600}`))
+			case "/v1.0/me/accounts":
+				_, _ = w.Write([]byte(`{"data":[{"id":"page_2","name":"No Token"}]}`))
+			case "/v1.0/me/permissions":
+				_, _ = w.Write([]byte(`{"data":[{"permission":"pages_show_list","status":"granted"},{"permission":"pages_manage_posts","status":"declined"}]}`))
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
+
+		provider := NewFacebookProvider(MetaProviderConfig{
+			AppID:      "app-id",
+			AppSecret:  "app-secret",
+			GraphURL:   server.URL,
+			APIVersion: "v1.0",
+		})
+		_, err := provider.HandleOAuthCallback(context.Background(), OAuthCallbackInput{
+			Code:        "oauth-code",
+			RedirectURL: "https://app.example.com/callback",
+		})
+		if err == nil {
+			t.Fatalf("expected error when no page is publishable")
+		}
+		msg := err.Error()
+		for _, want := range []string{
+			"no publishable facebook pages",
+			"pages_returned=1",
+			"pages_without_token=1",
+			"granted=pages_show_list",
+			"declined=pages_manage_posts",
+		} {
+			if !strings.Contains(msg, want) {
+				t.Fatalf("expected error to contain %q, got %q", want, msg)
+			}
+		}
+		if strings.Contains(msg, "user-token") {
+			t.Fatalf("error leaked the user access token: %q", msg)
+		}
+	})
+
 	t.Run("instagram callback returns business accounts and refresh wrapper works", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {

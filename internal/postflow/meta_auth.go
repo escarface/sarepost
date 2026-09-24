@@ -108,7 +108,7 @@ func (p *FacebookProvider) HandleOAuthCallback(ctx context.Context, in OAuthCall
 		})
 	}
 	if len(accounts) == 0 {
-		return nil, fmt.Errorf("meta oauth returned no publishable facebook pages")
+		return nil, fmt.Errorf("meta oauth returned no publishable facebook pages (%s)", p.describeOAuthGrant(ctx, token, pages))
 	}
 	return accounts, nil
 }
@@ -156,7 +156,8 @@ func (p *InstagramProvider) HandleOAuthCallback(ctx context.Context, in OAuthCal
 		})
 	}
 	if len(accounts) == 0 {
-		return nil, fmt.Errorf("meta oauth returned no instagram business accounts")
+		fb := FacebookProvider{cfg: p.cfg, client: p.client}
+		return nil, fmt.Errorf("meta oauth returned no instagram business accounts (%s)", fb.describeOAuthGrant(ctx, token, pages))
 	}
 	return accounts, nil
 }
@@ -237,6 +238,60 @@ func (p *FacebookProvider) fetchPages(ctx context.Context, token metaTokenRespon
 		return nil, err
 	}
 	return out.Data, nil
+}
+
+// describeOAuthGrant summarizes what Meta returned for a failed connection so
+// the UI error tells an empty page list apart from pages without a token or a
+// declined permission. It never includes access tokens.
+func (p *FacebookProvider) describeOAuthGrant(ctx context.Context, token metaTokenResponse, pages []metaPage) string {
+	withoutToken := 0
+	for _, page := range pages {
+		if strings.TrimSpace(page.AccessToken) == "" {
+			withoutToken++
+		}
+	}
+	summary := fmt.Sprintf("pages_returned=%d pages_without_token=%d", len(pages), withoutToken)
+
+	granted, declined, err := p.fetchPermissions(ctx, token)
+	if err != nil {
+		return summary + " permissions=unavailable"
+	}
+	return fmt.Sprintf("%s granted=%s declined=%s", summary, strings.Join(granted, ","), strings.Join(declined, ","))
+}
+
+func (p *FacebookProvider) fetchPermissions(ctx context.Context, token metaTokenResponse) (granted, declined []string, err error) {
+	values := url.Values{}
+	values.Set("access_token", strings.TrimSpace(token.AccessToken))
+	reqURL := fmt.Sprintf("%s/%s/me/permissions?%s", strings.TrimRight(p.cfg.GraphURL, "/"), p.cfg.APIVersion, values.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return nil, nil, fmt.Errorf("meta permissions fetch failed: status=%d", resp.StatusCode)
+	}
+	var out struct {
+		Data []struct {
+			Permission string `json:"permission"`
+			Status     string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
+		return nil, nil, err
+	}
+	for _, item := range out.Data {
+		if item.Status == "granted" {
+			granted = append(granted, item.Permission)
+		} else {
+			declined = append(declined, item.Permission)
+		}
+	}
+	return granted, declined, nil
 }
 
 func (p *InstagramProvider) fetchPages(ctx context.Context, token metaTokenResponse) ([]metaPage, error) {
