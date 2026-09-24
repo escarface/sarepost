@@ -230,7 +230,7 @@ func (s Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	}
 	limiter := newInMemoryRateLimiter(s.RateLimitRPM, time.Minute)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/healthz" {
+		if r.URL.Path == "/healthz" || isMediaContentRead(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -347,6 +347,17 @@ func parseMediaContentPath(path string) (mediaID string, ok bool) {
 		return "", false
 	}
 	return mediaID, true
+}
+
+// isMediaContentRead reports media downloads, which the media library issues
+// once per thumbnail and must not exhaust the per-client API budget. Access is
+// still enforced by authMiddleware (session or signed URL).
+func isMediaContentRead(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	_, ok := parseMediaContentPath(r.URL.Path)
+	return ok
 }
 
 func signedMediaPathCredentials(path string) (expRaw, sig string) {

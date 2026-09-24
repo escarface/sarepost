@@ -103,6 +103,46 @@ func TestRateLimitMiddlewareLimitsRequests(t *testing.T) {
 	}
 }
 
+func TestRateLimitMiddlewareSkipsMediaContentReads(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := db.Open(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer store.Close()
+
+	srv := Server{Store: store, DataDir: tempDir, DefaultMaxRetries: 3, RateLimitRPM: 1}
+	h := srv.Handler()
+
+	// The media library renders one thumbnail request per file, so media
+	// reads must not consume the per-client budget.
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/media/med_%d/content", i), nil)
+		req.RemoteAddr = "127.0.0.1:5555"
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		if w.Code == http.StatusTooManyRequests {
+			t.Fatalf("media read %d was rate limited", i)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/schedule", nil)
+	req.RemoteAddr = "127.0.0.1:5555"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected API request after media reads to keep its budget, got %d", w.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/schedule", nil)
+	req.RemoteAddr = "127.0.0.1:5555"
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected second API request 429, got %d", w.Code)
+	}
+}
+
 func TestRequestClientLabelDoesNotExposeCredentials(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/schedule", nil)
 	req.Header.Set("Authorization", "Bearer secret-token")
